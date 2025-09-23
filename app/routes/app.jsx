@@ -24,8 +24,8 @@ export default function App() {
         </Link>
         <Link to="/app/orders">订单管理</Link>
         <Link to="/app/orders/demo">订单管理(演示)</Link>
+        <Link to="/app/orders/public">公开访问订单</Link>
         <Link to="/app/additional">Additional page</Link>
-        <Link to="/orders/public">orders public</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>
