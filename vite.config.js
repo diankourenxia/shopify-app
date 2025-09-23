@@ -66,6 +66,18 @@ export default defineConfig({
   ],
   build: {
     assetsInlineLimit: 0,
+    rollupOptions: {
+      output: {
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name.split('.');
+          let extType = info[info.length - 1];
+          if (/\.(css)$/.test(assetInfo.name)) {
+            extType = 'css';
+          }
+          return `assets/[name]-${Date.now()}.${extType}`;
+        },
+      },
+    },
   },
   optimizeDeps: {
     include: ["@shopify/app-bridge-react", "@shopify/polaris"],
