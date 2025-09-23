@@ -20,9 +20,11 @@ import {
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { getOrdersFromCache, saveOrdersToCache, isCacheValid } from "../services/cache.server";
 
 export const loader = async ({ request }) => {
+  // 动态导入服务器端模块
+  const { getOrdersFromCache, saveOrdersToCache } = await import("../services/cache.server");
+  
   // 首先尝试从缓存获取数据
   const cacheData = await getOrdersFromCache();
   if (cacheData) {
@@ -186,7 +188,7 @@ export const action = async ({ request }) => {
 };
 
 export default function Orders() {
-  const { orders: initialOrders, pageInfo: initialPageInfo } = useLoaderData();
+  const { orders: initialOrders, pageInfo: initialPageInfo, fromCache: initialFromCache } = useLoaderData();
   const fetcher = useFetcher();
   
   const [orders, setOrders] = useState(initialOrders);
@@ -195,7 +197,7 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdatingCache, setIsUpdatingCache] = useState(false);
-  const [fromCache, setFromCache] = useState(initialOrders.fromCache || false);
+  const [fromCache, setFromCache] = useState(initialFromCache || false);
 
   // 处理搜索结果
   useEffect(() => {

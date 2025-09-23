@@ -1,10 +1,12 @@
 import { authenticate } from "../shopify.server";
-import { saveOrdersToCache, clearOrdersCache } from "../services/cache.server";
 
 export const action = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
   
   try {
+    // 动态导入服务器端模块
+    const { saveOrdersToCache, clearOrdersCache } = await import("../services/cache.server");
+    
     // 清除旧缓存
     await clearOrdersCache();
     

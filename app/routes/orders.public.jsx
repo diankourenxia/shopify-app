@@ -18,9 +18,11 @@ import {
   Box,
   ButtonGroup,
 } from "@shopify/polaris";
-import { getOrdersFromCache } from "../services/cache.server";
 
 export const loader = async ({ request }) => {
+  // 动态导入服务器端模块
+  const { getOrdersFromCache } = await import("../services/cache.server");
+  
   // 直接从缓存获取数据，不需要认证
   const cacheData = await getOrdersFromCache();
   
@@ -48,6 +50,9 @@ export const action = async ({ request }) => {
   const action = formData.get("action");
 
   if (action === "refresh") {
+    // 动态导入服务器端模块
+    const { getOrdersFromCache } = await import("../services/cache.server");
+    
     // 尝试从缓存获取最新数据
     const cacheData = await getOrdersFromCache();
     if (cacheData) {

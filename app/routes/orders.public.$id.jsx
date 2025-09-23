@@ -13,10 +13,12 @@ import {
   Box,
   Divider,
 } from "@shopify/polaris";
-import { getOrdersFromCache } from "../services/cache.server";
 
 export const loader = async ({ request, params }) => {
   const orderId = params.id;
+  
+  // 动态导入服务器端模块
+  const { getOrdersFromCache } = await import("../services/cache.server");
   
   // 从缓存获取数据
   const cacheData = await getOrdersFromCache();

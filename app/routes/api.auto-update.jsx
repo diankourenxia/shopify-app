@@ -1,8 +1,10 @@
 import { authenticate } from "../shopify.server";
-import { saveOrdersToCache, isCacheValid } from "../services/cache.server";
 
 export const loader = async ({ request }) => {
   try {
+    // 动态导入服务器端模块
+    const { saveOrdersToCache, isCacheValid } = await import("../services/cache.server");
+    
     // 检查缓存是否有效
     const cacheValid = await isCacheValid();
     
