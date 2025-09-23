@@ -21,7 +21,7 @@ export async function saveOrdersToCache(orders, pageInfo) {
       orders,
       pageInfo,
       timestamp: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5分钟过期
+      expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString() // 12小时过期
     };
     await fs.writeFile(ORDERS_CACHE_FILE, JSON.stringify(cacheData, null, 2));
     console.log('订单数据已缓存');

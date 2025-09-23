@@ -41,8 +41,8 @@ curl -X GET http://your-domain/app/api/auto-update
 
 ### 方式3: 定时任务
 ```bash
-# 设置cron job每5分钟检查一次
-*/5 * * * * cd /path/to/project && node scripts/auto-update-cache.js
+# 设置cron job每12小时检查一次
+0 */12 * * * cd /path/to/project && node scripts/auto-update-cache.js
 ```
 
 ## 部署说明
