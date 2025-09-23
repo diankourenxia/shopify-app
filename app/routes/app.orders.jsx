@@ -41,6 +41,30 @@ export const loader = async ({ request }) => {
                   currencyCode
                 }
               }
+              subtotalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              totalTaxSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              totalShippingPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              totalDiscountsSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
               displayFulfillmentStatus
               displayFinancialStatus
               customer {
@@ -53,10 +77,93 @@ export const loader = async ({ request }) => {
                     id
                     title
                     quantity
+                    originalUnitPriceSet {
+                      shopMoney {
+                        amount
+                        currencyCode
+                      }
+                    }
+                    discountedUnitPriceSet {
+                      shopMoney {
+                        amount
+                        currencyCode
+                      }
+                    }
+                  
                     variant {
                       id
                       title
+                      sku
                       price
+                      image {
+                        url
+                        altText
+                      }
+                      product {
+                        id
+                        title
+                        handle
+                      }
+                    }
+                    product {
+                      id
+                      title
+                      handle
+                      vendor
+                    }
+                    customAttributes {
+                      key
+                      value
+                    }
+                  }
+                }
+              }
+              shippingLines {
+                edges {
+                  node {
+                    title                
+                    code
+                  }
+                }
+              }
+              discountApplications(first: 10) {
+                edges {
+                  node {
+                    ... on DiscountCodeApplication {
+                      code
+                      value {
+                        ... on MoneyV2 {
+                          amount
+                          currencyCode
+                        }
+                        ... on PricingPercentageValue {
+                          percentage
+                        }
+                      }
+                    }
+                    ... on ScriptDiscountApplication {
+                      title
+                      value {
+                        ... on MoneyV2 {
+                          amount
+                          currencyCode
+                        }
+                        ... on PricingPercentageValue {
+                          percentage
+                        }
+                      }
+                    }
+                    ... on AutomaticDiscountApplication {
+                      title
+                      value {
+                        ... on MoneyV2 {
+                          amount
+                          currencyCode
+                        }
+                        ... on PricingPercentageValue {
+                          percentage
+                        }
+                      }
                     }
                   }
                 }
@@ -112,6 +219,30 @@ export const action = async ({ request }) => {
                     currencyCode
                   }
                 }
+                subtotalPriceSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
+                }
+                totalTaxSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
+                }
+                totalShippingPriceSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
+                }
+                totalDiscountsSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
+                }
                 displayFulfillmentStatus
                 displayFinancialStatus
                 customer {
@@ -124,10 +255,92 @@ export const action = async ({ request }) => {
                       id
                       title
                       quantity
+                      originalUnitPriceSet {
+                        shopMoney {
+                          amount
+                          currencyCode
+                        }
+                      }
+                      discountedUnitPriceSet {
+                        shopMoney {
+                          amount
+                          currencyCode
+                        }
+                      }                  
                       variant {
                         id
                         title
+                        sku
                         price
+                        image {
+                          url
+                          altText
+                        }
+                        product {
+                          id
+                          title
+                          handle
+                        }
+                      }
+                      product {
+                        id
+                        title
+                        handle
+                        vendor
+                      }
+                      customAttributes {
+                        key
+                        value
+                      }
+                    }
+                  }
+                }
+                shippingLines {
+                  edges {
+                    node {
+                      title
+                      code
+                    }
+                  }
+                }
+                discountApplications(first: 10) {
+                  edges {
+                    node {
+                      ... on DiscountCodeApplication {
+                        code
+                        value {
+                          ... on MoneyV2 {
+                            amount
+                            currencyCode
+                          }
+                          ... on PricingPercentageValue {
+                            percentage
+                          }
+                        }
+                      }
+                      ... on ScriptDiscountApplication {
+                        title
+                        value {
+                          ... on MoneyV2 {
+                            amount
+                            currencyCode
+                          }
+                          ... on PricingPercentageValue {
+                            percentage
+                          }
+                        }
+                      }
+                      ... on AutomaticDiscountApplication {
+                        title
+                        value {
+                          ... on MoneyV2 {
+                            amount
+                            currencyCode
+                          }
+                          ... on PricingPercentageValue {
+                            percentage
+                          }
+                        }
                       }
                     }
                   }
@@ -239,7 +452,19 @@ export default function Orders() {
       order.totalPriceSet.shopMoney.amount,
       order.totalPriceSet.shopMoney.currencyCode
     ),
-   JSON.stringify(order),
+    formatCurrency(
+      order.subtotalPriceSet?.shopMoney.amount || 0,
+      order.subtotalPriceSet?.shopMoney.currencyCode || order.totalPriceSet.shopMoney.currencyCode
+    ),
+    formatCurrency(
+      order.totalDiscountsSet?.shopMoney.amount || 0,
+      order.totalDiscountsSet?.shopMoney.currencyCode || order.totalPriceSet.shopMoney.currencyCode
+    ),
+    formatCurrency(
+      order.totalShippingPriceSet?.shopMoney.amount || 0,
+      order.totalShippingPriceSet?.shopMoney.currencyCode || order.totalPriceSet.shopMoney.currencyCode
+    ),
+    order.lineItems?.edges?.length || 0,
     <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
     <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
     formatDate(order.createdAt),
@@ -265,6 +490,10 @@ export default function Orders() {
     '订单号',
     '客户',
     '总金额',
+    '商品小计',
+    '折扣金额',
+    '运费',
+    '商品数量',
     '发货状态',
     '支付状态',
     '创建时间',
@@ -320,7 +549,7 @@ export default function Orders() {
                 </Box>
               ) : orders.length > 0 ? (
                 <DataTable
-                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text']}
+                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'numeric', 'text', 'text', 'text', 'text']}
                   headings={headings}
                   rows={rows}
                   hoverable

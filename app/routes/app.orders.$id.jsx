@@ -53,6 +53,13 @@ export const loader = async ({ request, params }) => {
               currencyCode
             }
           }
+          totalDiscountsSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+
           displayFulfillmentStatus
           displayFinancialStatus
           note
@@ -60,6 +67,8 @@ export const loader = async ({ request, params }) => {
           customer {
             id
             displayName
+            email
+            phone
           }
           shippingAddress {
             address1
@@ -97,30 +106,149 @@ export const loader = async ({ request, params }) => {
                     currencyCode
                   }
                 }
+              
                 variant {
                   id
                   title
                   sku
+                  price
+                 
                   image {
                     url
                     altText
+                  }
+                  product {
+                    id
+                    title
+                    handle
+                    vendor
+                    productType
+                  }
+                }
+                product {
+                  id
+                  title
+                  handle
+                  vendor
+                  productType
+                  description
+                  images(first: 3) {
+                    edges {
+                      node {
+                        url
+                        altText
+                      }
+                    }
                   }
                 }
                 customAttributes {
                   key
                   value
                 }
+                discountAllocations {
+                  allocatedAmountSet {
+                    shopMoney {
+                      amount
+                      currencyCode
+                    }
+                  }
+                }
               }
             }
+          }
+          shippingLines {
+            edges {
+              node {
+                title
+               
+                code
+                carrierIdentifier
+                requestedFulfillmentService {
+                  id
+                  serviceName
+                }
+              }
+            }
+          }
+          discountApplications(first: 10) {
+            edges {
+              node {
+                ... on DiscountCodeApplication {
+                  code
+                  value {
+                    ... on MoneyV2 {
+                      amount
+                      currencyCode
+                    }
+                    ... on PricingPercentageValue {
+                      percentage
+                    }
+                  }
+                }
+                ... on ScriptDiscountApplication {
+                  title
+                  value {
+                    ... on MoneyV2 {
+                      amount
+                      currencyCode
+                    }
+                    ... on PricingPercentageValue {
+                      percentage
+                    }
+                  }
+                }
+                ... on AutomaticDiscountApplication {
+                  title
+                  value {
+                    ... on MoneyV2 {
+                      amount
+                      currencyCode
+                    }
+                    ... on PricingPercentageValue {
+                      percentage
+                    }
+                  }
+                }
+              }
+            }
+          }
+          taxLines {
+            title
+            priceSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
+            }
+            rate
+            ratePercentage
           }
           fulfillments {
             id
             status
             createdAt
+            updatedAt
             trackingInfo {
               number
               url
               company
+            }
+            fulfillmentLineItems(first: 50) {
+              edges {
+                node {
+                  id
+                  quantity
+                  lineItem {
+                    id
+                    title
+                    variant {
+                      id
+                      title
+                      sku
+                    }
+                  }
+                }
+              }
             }
           }
           transactions {
@@ -135,6 +263,11 @@ export const loader = async ({ request, params }) => {
             }
             createdAt
             gateway
+            parentTransaction {
+              id
+              kind
+              status
+            }
           }
         }
       }`,
@@ -194,6 +327,7 @@ export default function OrderDetail() {
   const lineItemRows = order.lineItems.edges.map(({ node: item }) => [
     item.title,
     item.variant?.sku || '-',
+    item.product?.vendor || '-',
     item.quantity,
     formatCurrency(
       item.originalUnitPriceSet.shopMoney.amount,
@@ -204,9 +338,20 @@ export default function OrderDetail() {
       item.discountedUnitPriceSet.shopMoney.currencyCode
     ),
     formatCurrency(
-      parseFloat(item.discountedUnitPriceSet.shopMoney.amount) * item.quantity,
-      item.discountedUnitPriceSet.shopMoney.currencyCode
+      item.originalTotalPriceSet?.shopMoney.amount || 0,
+      item.originalTotalPriceSet?.shopMoney.currencyCode || item.originalUnitPriceSet.shopMoney.currencyCode
     ),
+    formatCurrency(
+      item.discountedTotalPriceSet?.shopMoney.amount || 0,
+      item.discountedTotalPriceSet?.shopMoney.currencyCode || item.discountedUnitPriceSet.shopMoney.currencyCode
+    ),
+    item.discountAllocations?.length > 0 ? 
+      formatCurrency(
+        item.discountAllocations.reduce((sum, discount) => 
+          sum + parseFloat(discount.allocatedAmountSet.shopMoney.amount), 0
+        ),
+        item.discountAllocations[0].allocatedAmountSet.shopMoney.currencyCode
+      ) : '-',
   ]);
 
   return (
@@ -317,8 +462,8 @@ export default function OrderDetail() {
                   订单商品
                 </Text>
                 <DataTable
-                  columnContentTypes={['text', 'text', 'numeric', 'text', 'text', 'text']}
-                  headings={['商品名称', 'SKU', '数量', '原价', '售价', '小计']}
+                  columnContentTypes={['text', 'text', 'text', 'numeric', 'text', 'text', 'text', 'text', 'text']}
+                  headings={['商品名称', 'SKU', '供应商', '数量', '原单价', '折扣单价', '原总价', '折扣总价', '商品折扣']}
                   rows={lineItemRows}
                 />
               </BlockStack>
@@ -338,6 +483,14 @@ export default function OrderDetail() {
                         order.subtotalPriceSet.shopMoney.currencyCode
                       )}
                     </Text>
+                    {order.totalDiscountsSet && parseFloat(order.totalDiscountsSet.shopMoney.amount) > 0 && (
+                      <Text variant="bodyMd" tone="success">
+                        折扣: -{formatCurrency(
+                          order.totalDiscountsSet.shopMoney.amount,
+                          order.totalDiscountsSet.shopMoney.currencyCode
+                        )}
+                      </Text>
+                    )}
                     <Text variant="bodyMd">
                       运费: {formatCurrency(
                         order.totalShippingPriceSet.shopMoney.amount,
@@ -363,6 +516,103 @@ export default function OrderDetail() {
                 </InlineStack>
               </BlockStack>
             </Card>
+
+            {/* 折扣详情 */}
+            {order.discountApplications && order.discountApplications.edges.length > 0 && (
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h2" variant="headingMd">
+                    折扣详情
+                  </Text>
+                  {order.discountApplications.edges.map(({ node: discount }, index) => (
+                    <BlockStack key={index} gap="200">
+                      <InlineStack gap="300" align="space-between">
+                        <Text variant="bodyMd">
+                          <strong>
+                            {discount.code || discount.title || '折扣'}
+                          </strong>
+                        </Text>
+                        <Text variant="bodyMd">
+                          {discount.value?.amount ? 
+                            formatCurrency(discount.value.amount, discount.value.currencyCode) :
+                            `${discount.value?.percentage || 0}%`
+                          }
+                        </Text>
+                      </InlineStack>
+                    </BlockStack>
+                  ))}
+                </BlockStack>
+              </Card>
+            )}
+
+            {/* 配送信息 */}
+            {order.shippingLines && order.shippingLines.edges.length > 0 && (
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h2" variant="headingMd">
+                    配送信息
+                  </Text>
+                  {order.shippingLines.edges.map(({ node: shipping }, index) => (
+                    <BlockStack key={index} gap="200">
+                      <InlineStack gap="300" align="space-between">
+                        <Text variant="bodyMd">
+                          <strong>{shipping.title}</strong>
+                          {shipping.code && ` (${shipping.code})`}
+                        </Text>
+                        <Text variant="bodyMd">
+                          {formatCurrency(
+                            shipping.priceSet.shopMoney.amount,
+                            shipping.priceSet.shopMoney.currencyCode
+                          )}
+                        </Text>
+                      </InlineStack>
+                      {shipping.carrierIdentifier && (
+                        <Text variant="bodyMd" tone="subdued">
+                          承运商: {shipping.carrierIdentifier}
+                        </Text>
+                      )}
+                      {shipping.requestedFulfillmentService && (
+                        <Text variant="bodyMd" tone="subdued">
+                          配送服务: {shipping.requestedFulfillmentService.serviceName}
+                        </Text>
+                      )}
+                    </BlockStack>
+                  ))}
+                </BlockStack>
+              </Card>
+            )}
+
+            {/* 税费详情 */}
+            {order.taxLines && order.taxLines.length > 0 && (
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h2" variant="headingMd">
+                    税费详情
+                  </Text>
+                  {order.taxLines.map((tax, index) => (
+                    <BlockStack key={index} gap="200">
+                      <InlineStack gap="300" align="space-between">
+                        <Text variant="bodyMd">
+                          <strong>{tax.title}</strong>
+                          {tax.ratePercentage && ` (${tax.ratePercentage}%)`}
+                        </Text>
+                        <Text variant="bodyMd">
+                          {formatCurrency(
+                            tax.priceSet.shopMoney.amount,
+                            tax.priceSet.shopMoney.currencyCode
+                          )}
+                        </Text>
+                      </InlineStack>
+                      {tax.rate && (
+                        <Text variant="bodyMd" tone="subdued">
+                          税率: {tax.rate}
+                        </Text>
+                      )}
+                    </BlockStack>
+                  ))}
+                </BlockStack>
+              </Card>
+            )}
 
             {/* 发货信息 */}
             {order.fulfillments.length > 0 && (
