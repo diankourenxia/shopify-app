@@ -129,23 +129,35 @@ export default function AppOrdersPublic() {
     }
 
     return (
-      <div style={{ maxWidth: '300px' }}>
+      <div style={{ maxWidth: '400px' }}>
         {lineItems.edges.map(({ node: item }, index) => (
-          <div key={item.id} style={{ marginBottom: '8px', padding: '8px', backgroundColor: '#f6f6f7', borderRadius: '4px' }}>
-            <div style={{ fontWeight: '500', marginBottom: '4px' }}>
+          <div key={item.id} style={{ marginBottom: '12px', padding: '12px', backgroundColor: '#f6f6f7', borderRadius: '4px' }}>
+            <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '6px', color: '#202223' }}>
               {item.title}
             </div>
-            <div style={{ fontSize: '0.875rem', color: '#454f5e' }}>
+            <div style={{ fontSize: '0.875rem', color: '#454f5e', marginBottom: '4px' }}>
               数量: {item.quantity} × {formatCurrency(item.variant?.price || '0', 'USD')}
             </div>
             {item.variant?.title && item.variant.title !== 'Default Title' && (
-              <div style={{ fontSize: '0.875rem', color: '#6d7175' }}>
+              <div style={{ fontSize: '0.875rem', color: '#6d7175', marginBottom: '4px' }}>
                 变体: {item.variant.title}
               </div>
             )}
             {item.customAttributes && item.customAttributes.length > 0 && (
-              <div style={{ fontSize: '0.75rem', color: '#6d7175', marginTop: '4px' }}>
-                属性: {item.customAttributes.length} 项
+              <div style={{ marginTop: '8px' }}>
+                {item.customAttributes.map((attr, attrIndex) => (
+                  <div key={attrIndex} style={{ 
+                    fontSize: '0.75rem', 
+                    color: '#6d7175', 
+                    marginBottom: '2px',
+                    padding: '2px 4px',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '2px',
+                    border: '1px solid #e1e3e5'
+                  }}>
+                    <strong>{attr.key}:</strong> {attr.value}
+                  </div>
+                ))}
               </div>
             )}
           </div>

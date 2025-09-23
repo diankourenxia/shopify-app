@@ -134,7 +134,7 @@ export default function AppOrdersPublicDetail() {
 
   const lineItemsRows = order.lineItems?.edges?.map(({ node: item }) => [
     <div>
-      <div style={{ fontWeight: '500', marginBottom: '4px' }}>
+      <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '4px', color: '#202223' }}>
         {item.title}
       </div>
       {item.variant?.title && item.variant.title !== 'Default Title' && (
