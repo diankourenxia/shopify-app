@@ -53,6 +53,10 @@ export const loader = async ({ request }) => {
                     id
                     title
                     quantity
+                    customAttributes {
+                      key
+                      value
+                    }
                     variant {
                       id
                       title
@@ -124,6 +128,10 @@ export const action = async ({ request }) => {
                       id
                       title
                       quantity
+                      customAttributes {
+                        key
+                        value
+                      }
                       variant {
                         id
                         title

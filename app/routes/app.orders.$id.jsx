@@ -175,10 +175,13 @@ export default function OrderDetail() {
   };
 
   const formatCurrency = (amount, currencyCode) => {
+    // 修复：确保 amount 是数字且有效，避免 NaN，currencyCode 为空时默认 CNY
     return new Intl.NumberFormat('zh-CN', {
       style: 'currency',
-      currency: currencyCode,
-    }).format(parseFloat(amount));
+      currency: currencyCode || 'CNY',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number.isFinite(Number(amount)) ? Number(amount) : 0);
   };
 
   const formatDate = (dateString) => {
