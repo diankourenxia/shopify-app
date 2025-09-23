@@ -1,0 +1,24 @@
+# The version of APIs your extension will receive. Learn more:
+# https://shopify.dev/docs/api/usage/versioning
+api_version = "2025-07"
+
+[[extensions]]
+type = "ui_extension"
+name = "pos-ui-order-details"
+uid = "de38a82b-f1ee-abfc-1134-7638f9d93b97abd02c30"
+handle = "pos-ui-order-details"
+description = "A vanilla-js POS UI extension"
+
+# Controls where in POS your extension will be injected,
+# and the file that contains your extension’s source code.
+[[extensions.targeting]]
+module = "./src/Action.js"
+target = "pos.order-details.action.render"
+
+[[extensions.targeting]]
+module = "./src/Block.js"
+target = "pos.order-details.block.render"
+
+[[extensions.targeting]]
+module = "./src/MenuItem.js"
+target = "pos.order-details.action.menu-item.render"
