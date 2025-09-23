@@ -276,6 +276,37 @@ export default function Orders() {
     });
   };
 
+  const renderLineItems = (lineItems) => {
+    if (!lineItems?.edges || lineItems.edges.length === 0) {
+      return <Text variant="bodyMd" tone="subdued">无商品信息</Text>;
+    }
+
+    return (
+      <div style={{ maxWidth: '300px' }}>
+        {lineItems.edges.map(({ node: item }, index) => (
+          <div key={item.id} style={{ marginBottom: '8px', padding: '8px', backgroundColor: '#f6f6f7', borderRadius: '4px' }}>
+            <div style={{ fontWeight: '500', marginBottom: '4px' }}>
+              {item.title}
+            </div>
+            <div style={{ fontSize: '0.875rem', color: '#454f5e' }}>
+              数量: {item.quantity} × {formatCurrency(item.variant?.price || '0', 'USD')}
+            </div>
+            {item.variant?.title && item.variant.title !== 'Default Title' && (
+              <div style={{ fontSize: '0.875rem', color: '#6d7175' }}>
+                变体: {item.variant.title}
+              </div>
+            )}
+            {item.customAttributes && item.customAttributes.length > 0 && (
+              <div style={{ fontSize: '0.75rem', color: '#6d7175', marginTop: '4px' }}>
+                属性: {item.customAttributes.length} 项
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const rows = orders.map((order) => [
     order.name,
     order.customer?.displayName || '无客户信息',
@@ -283,7 +314,7 @@ export default function Orders() {
       order.totalPriceSet.shopMoney.amount,
       order.totalPriceSet.shopMoney.currencyCode
     ),
-   JSON.stringify(order),
+    renderLineItems(order.lineItems),
     <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
     <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
     formatDate(order.createdAt),
@@ -309,6 +340,7 @@ export default function Orders() {
     '订单号',
     '客户',
     '总金额',
+    '商品信息',
     '发货状态',
     '支付状态',
     '创建时间',
@@ -378,7 +410,7 @@ export default function Orders() {
                 </Box>
               ) : orders.length > 0 ? (
                 <DataTable
-                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text']}
+                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
                   headings={headings}
                   rows={rows}
                   hoverable

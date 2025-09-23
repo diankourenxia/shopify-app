@@ -105,12 +105,51 @@ export default function AppOrdersPublicDetail() {
     );
   }
 
+  const renderCustomAttributes = (customAttributes) => {
+    if (!customAttributes || customAttributes.length === 0) {
+      return <Text variant="bodyMd" tone="subdued">无自定义属性</Text>;
+    }
+
+    return (
+      <div style={{ maxWidth: '300px' }}>
+        {customAttributes.map((attr, index) => (
+          <div key={index} style={{ 
+            marginBottom: '4px', 
+            padding: '4px 8px', 
+            backgroundColor: '#f6f6f7', 
+            borderRadius: '4px',
+            fontSize: '0.875rem'
+          }}>
+            <div style={{ fontWeight: '500', color: '#202223' }}>
+              {attr.key}
+            </div>
+            <div style={{ color: '#454f5e' }}>
+              {attr.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const lineItemsRows = order.lineItems?.edges?.map(({ node: item }) => [
-    item.title,
+    <div>
+      <div style={{ fontWeight: '500', marginBottom: '4px' }}>
+        {item.title}
+      </div>
+      {item.variant?.title && item.variant.title !== 'Default Title' && (
+        <div style={{ fontSize: '0.875rem', color: '#6d7175' }}>
+          变体: {item.variant.title}
+        </div>
+      )}
+    </div>,
     item.quantity,
-    item.variant?.title || '无变体',
     formatCurrency(item.variant?.price || '0', order.totalPriceSet.shopMoney.currencyCode),
-    item.customAttributes?.map(attr => `${attr.key}: ${attr.value}`).join(', ') || '无'
+    formatCurrency(
+      (parseFloat(item.variant?.price || '0') * item.quantity).toFixed(2), 
+      order.totalPriceSet.shopMoney.currencyCode
+    ),
+    renderCustomAttributes(item.customAttributes)
   ]) || [];
 
   return (
@@ -160,7 +199,7 @@ export default function AppOrdersPublicDetail() {
                   {lineItemsRows.length > 0 ? (
                     <DataTable
                       columnContentTypes={['text', 'text', 'text', 'text', 'text']}
-                      headings={['商品名称', '数量', '变体', '单价', '自定义属性']}
+                      headings={['商品信息', '数量', '单价', '小计', '自定义属性']}
                       rows={lineItemsRows}
                       hoverable
                     />
