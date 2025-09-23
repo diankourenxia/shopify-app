@@ -68,6 +68,22 @@ export const loader = async ({ request }) => {
               }
               displayFulfillmentStatus
               displayFinancialStatus
+              customAttributes {
+                key
+                value
+              }
+              metafields(first: 20) {
+                edges {
+                  node {
+                    id
+                    namespace
+                    key
+                    value
+                    type
+                    description
+                  }
+                }
+              }
               customer {
                 id
                 displayName
@@ -245,6 +261,10 @@ export const loader = async ({ request }) => {
                   }
                 }
               }
+              sourceIdentifier
+              sourceName
+             
+              
             }
           }
           pageInfo {

@@ -63,6 +63,35 @@ export const loader = async ({ request, params }) => {
           displayFinancialStatus
           fulfillmentStatus
           financialStatus
+          customAttributes {
+            key
+            value
+          }
+          metafields(first: 50) {
+            edges {
+              node {
+                id
+                namespace
+                key
+                value
+                type
+                description
+                createdAt
+                updatedAt
+              }
+            }
+          }
+          attributes {
+            key
+            value
+          }
+          app {
+            id
+            title
+            developerName
+            developerUrl
+            installationId
+          }
           customer {
             id
             displayName
@@ -249,6 +278,38 @@ export const loader = async ({ request, params }) => {
                 }
               }
             }
+          }
+          sourceIdentifier
+          sourceName
+          sourceUrl
+          landingSite {
+            id
+            handle
+            title
+          }
+          referringSite
+          marketingEvent {
+            id
+            description
+            marketingChannel
+            paid
+            startedAt
+            budget
+            currencyCode
+          }
+          marketingAttribution {
+            campaign
+            source
+            medium
+            term
+            content
+          }
+          app {
+            id
+            title
+            developerName
+            developerUrl
+            installationId
           }
         }
       }`,
