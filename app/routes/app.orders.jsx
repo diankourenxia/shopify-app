@@ -20,8 +20,16 @@ import {
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
+import { getOrdersFromCache, saveOrdersToCache, isCacheValid } from "../services/cache.server";
 
 export const loader = async ({ request }) => {
+  // 首先尝试从缓存获取数据
+  const cacheData = await getOrdersFromCache();
+  if (cacheData) {
+    return cacheData;
+  }
+
+  // 缓存不存在或过期，从Shopify获取数据
   const { admin } = await authenticate.admin(request);
   
   // 获取订单列表
@@ -86,9 +94,13 @@ export const loader = async ({ request }) => {
   const orders = responseJson.data.orders.edges.map(edge => edge.node);
   const pageInfo = responseJson.data.orders.pageInfo;
 
+  // 将新获取的数据保存到缓存
+  await saveOrdersToCache(orders, pageInfo);
+
   return {
     orders,
     pageInfo,
+    fromCache: false
   };
 };
 
@@ -182,6 +194,8 @@ export default function Orders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
+  const [isUpdatingCache, setIsUpdatingCache] = useState(false);
+  const [fromCache, setFromCache] = useState(initialOrders.fromCache || false);
 
   // 处理搜索结果
   useEffect(() => {
@@ -206,6 +220,26 @@ export default function Orders() {
     setStatusFilter("all");
     setOrders(initialOrders);
     setPageInfo(initialPageInfo);
+  };
+
+  const handleUpdateCache = async () => {
+    setIsUpdatingCache(true);
+    try {
+      const response = await fetch('/app/api/cache-update', {
+        method: 'POST',
+      });
+      const result = await response.json();
+      if (result.success) {
+        // 刷新页面以显示新数据
+        window.location.reload();
+      } else {
+        console.error('更新缓存失败:', result.message);
+      }
+    } catch (error) {
+      console.error('更新缓存失败:', error);
+    } finally {
+      setIsUpdatingCache(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -282,6 +316,20 @@ export default function Orders() {
   return (
     <Page>
       <TitleBar title="订单管理" />
+      {fromCache && (
+        <Box padding="200">
+          <InlineStack gap="200" align="space-between">
+            <Badge status="info">当前显示缓存数据</Badge>
+            <Button 
+              size="slim" 
+              onClick={handleUpdateCache} 
+              loading={isUpdatingCache}
+            >
+              更新缓存
+            </Button>
+          </InlineStack>
+        </Box>
+      )}
       
       <Layout>
         <Layout.Section>
