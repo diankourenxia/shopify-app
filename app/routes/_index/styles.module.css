@@ -333,6 +333,139 @@
   color: #202223;
 }
 
+/* 登录页面样式 */
+.loginSection {
+  max-width: 400px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.formGroup .label {
+  font-weight: 500;
+  color: #202223;
+  font-size: 0.875rem;
+}
+
+.formGroup .input {
+  padding: 0.75rem;
+  border: 1px solid #e1e3e5;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.formGroup .input:focus {
+  outline: none;
+  border-color: #008060;
+  box-shadow: 0 0 0 2px rgba(0, 128, 96, 0.1);
+}
+
+.loginButton {
+  background-color: #008060;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 1rem;
+}
+
+.loginButton:hover {
+  background-color: #006f52;
+}
+
+.errorMessage {
+  background-color: #fecaca;
+  color: #dc2626;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.loginInfo {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e1e3e5;
+  text-align: left;
+}
+
+.loginInfo h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #202223;
+}
+
+.accountInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.accountItem {
+  font-size: 0.875rem;
+  color: #454f5e;
+  padding: 0.5rem;
+  background-color: #f6f6f7;
+  border-radius: 4px;
+}
+
+/* 用户信息显示样式 */
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: #e1f3d8;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.userBadge {
+  background-color: #008060;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.logoutButton {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logoutButton:hover {
+  background-color: #b91c1c;
+}
+
 @media only screen and (max-width: 50rem) {
   .list {
     display: block;

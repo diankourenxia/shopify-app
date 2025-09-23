@@ -1,9 +1,27 @@
 import { useState, useEffect } from "react";
 import { useLoaderData } from "@remix-run/react";
+import { redirect } from "@remix-run/node";
 import styles from "./_index/styles.module.css";
 
 export const loader = async ({ request, params }) => {
   const orderId = params.id;
+  const url = new URL(request.url);
+  const sessionParam = url.searchParams.get("session");
+  
+  // 检查是否有会话信息
+  let userSession = null;
+  if (sessionParam) {
+    try {
+      userSession = JSON.parse(decodeURIComponent(sessionParam));
+    } catch (error) {
+      console.log("Invalid session data");
+    }
+  }
+
+  // 如果没有会话，重定向到登录页面
+  if (!userSession) {
+    throw redirect(`/login?redirectTo=${encodeURIComponent(url.pathname)}`);
+  }
   
   // 动态导入服务器端模块
   const { getOrdersFromCache } = await import("../services/cache.server");
@@ -21,7 +39,8 @@ export const loader = async ({ request, params }) => {
       return {
         order,
         publicAccess: true,
-        fromCache: true
+        fromCache: true,
+        userSession
       };
     }
   }
@@ -30,12 +49,18 @@ export const loader = async ({ request, params }) => {
     order: null,
     publicAccess: true,
     fromCache: false,
-    notFound: true
+    notFound: true,
+    userSession
   };
 };
 
 export default function PublicOrderDetail() {
-  const { order, notFound } = useLoaderData();
+  const { order, notFound, userSession } = useLoaderData();
+
+  const handleLogout = () => {
+    // 清除会话并重定向到登录页面
+    window.location.href = "/login";
+  };
 
   const getStatusBadge = (status) => {
     const statusMap = {
@@ -91,12 +116,23 @@ export default function PublicOrderDetail() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
+        {/* 用户信息 */}
+        {userSession && (
+          <div className={styles.userInfo}>
+            <span>欢迎，{userSession.username}</span>
+            <span className={styles.userBadge}>{userSession.role === 'admin' ? '管理员' : '查看者'}</span>
+            <button onClick={handleLogout} className={styles.logoutButton}>
+              登出
+            </button>
+          </div>
+        )}
+
         {/* 页面标题 */}
         <div className={styles.ordersSection}>
           <div className={styles.sectionHeader}>
             <h1 className={styles.heading}>订单详情 - {order.name}</h1>
             <div className={styles.headerActions}>
-              <span className={styles.badge}>公开访问模式</span>
+              <span className={styles.badge}>已登录访问</span>
               <span className={styles.badge}>缓存数据</span>
             </div>
           </div>

@@ -1,12 +1,31 @@
 import { useState, useEffect } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
+import { redirect } from "@remix-run/node";
 import styles from "./_index/styles.module.css";
 
 export const loader = async ({ request }) => {
+  const url = new URL(request.url);
+  const sessionParam = url.searchParams.get("session");
+  
+  // 检查是否有会话信息
+  let userSession = null;
+  if (sessionParam) {
+    try {
+      userSession = JSON.parse(decodeURIComponent(sessionParam));
+    } catch (error) {
+      console.log("Invalid session data");
+    }
+  }
+
+  // 如果没有会话，重定向到登录页面
+  if (!userSession) {
+    throw redirect(`/login?redirectTo=${encodeURIComponent(url.pathname)}`);
+  }
+
   // 动态导入服务器端模块
   const { getOrdersFromCache } = await import("../services/cache.server");
   
-  // 直接从缓存获取数据，不需要认证
+  // 从缓存获取数据
   const cacheData = await getOrdersFromCache();
   
   if (cacheData) {
@@ -14,7 +33,8 @@ export const loader = async ({ request }) => {
       orders: cacheData.orders,
       pageInfo: cacheData.pageInfo,
       fromCache: true,
-      publicAccess: true
+      publicAccess: true,
+      userSession
     };
   }
 
@@ -24,7 +44,8 @@ export const loader = async ({ request }) => {
     pageInfo: null,
     fromCache: false,
     publicAccess: true,
-    noCache: true
+    noCache: true,
+    userSession
   };
 };
 
@@ -51,7 +72,7 @@ export const action = async ({ request }) => {
 };
 
 export default function PublicOrders() {
-  const { orders: initialOrders, pageInfo: initialPageInfo, noCache } = useLoaderData();
+  const { orders: initialOrders, pageInfo: initialPageInfo, noCache, userSession } = useLoaderData();
   const fetcher = useFetcher();
   
   const [orders, setOrders] = useState(initialOrders);
@@ -74,6 +95,11 @@ export default function PublicOrders() {
     const formData = new FormData();
     formData.append("action", "refresh");
     fetcher.submit(formData, { method: "POST" });
+  };
+
+  const handleLogout = () => {
+    // 清除会话并重定向到登录页面
+    window.location.href = "/login";
   };
 
   const getStatusBadge = (status) => {
@@ -111,12 +137,23 @@ export default function PublicOrders() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
+        {/* 用户信息 */}
+        {userSession && (
+          <div className={styles.userInfo}>
+            <span>欢迎，{userSession.username}</span>
+            <span className={styles.userBadge}>{userSession.role === 'admin' ? '管理员' : '查看者'}</span>
+            <button onClick={handleLogout} className={styles.logoutButton}>
+              登出
+            </button>
+          </div>
+        )}
+
         {/* 页面标题和状态 */}
         <div className={styles.ordersSection}>
           <div className={styles.sectionHeader}>
             <h1 className={styles.heading}>订单管理 - 公开访问</h1>
             <div className={styles.headerActions}>
-              <span className={styles.badge}>公开访问模式</span>
+              <span className={styles.badge}>已登录访问</span>
               {noCache && (
                 <span className={`${styles.badge} ${styles.statusWarning}`}>暂无缓存数据</span>
               )}
