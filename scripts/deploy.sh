@@ -64,9 +64,24 @@ npm ci --only=production
 echo -e "${BLUE}🗄️  生成 Prisma 客户端...${NC}"
 npx prisma generate
 
+# 确保数据库目录存在
+echo -e "${BLUE}📁 确保数据库目录存在...${NC}"
+mkdir -p prisma
+
 # 运行数据库迁移
 echo -e "${BLUE}🔄 运行数据库迁移...${NC}"
 npx prisma migrate deploy
+
+# 如果迁移失败，尝试重置数据库
+if [ $? -ne 0 ]; then
+    echo -e "${YELLOW}⚠️  迁移失败，尝试重置数据库...${NC}"
+    npx prisma migrate reset --force
+    npx prisma migrate deploy
+fi
+
+# 验证数据库表是否存在
+echo -e "${BLUE}🔍 验证数据库表...${NC}"
+npx prisma db push
 
 # 构建应用
 echo -e "${BLUE}🔨 构建应用...${NC}"
