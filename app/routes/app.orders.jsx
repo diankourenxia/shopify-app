@@ -35,32 +35,7 @@ export const loader = async ({ request }) => {
               name
               createdAt
               updatedAt
-              processedAt
-              cancelledAt
-              closedAt
-              note
-              tags
-              test
-              confirmed
               totalPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              subtotalPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              totalTaxSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              totalShippingPriceSet {
                 shopMoney {
                   amount
                   currencyCode
@@ -68,203 +43,24 @@ export const loader = async ({ request }) => {
               }
               displayFulfillmentStatus
               displayFinancialStatus
-              customAttributes {
-                key
-                value
-              }
-              metafields(first: 20) {
-                edges {
-                  node {
-                    id
-                    namespace
-                    key
-                    value
-                    type
-                    description
-                  }
-                }
-              }
               customer {
                 id
                 displayName
-                firstName
-                lastName
-                email
-                phone
-                defaultAddress {
-                  id
-                  address1
-                  address2
-                  city
-                  province
-                  country
-                  zip
-                }
               }
-              shippingAddress {
-                id
-                firstName
-                lastName
-                company
-                address1
-                address2
-                city
-                province
-                country
-                zip
-                phone
-              }
-              billingAddress {
-                id
-                firstName
-                lastName
-                company
-                address1
-                address2
-                city
-                province
-                country
-                zip
-                phone
-              }
-              lineItems(first: 10) {
+              lineItems(first: 5) {
                 edges {
                   node {
                     id
                     title
                     quantity
-                    originalUnitPriceSet {
-                      shopMoney {
-                        amount
-                        currencyCode
-                      }
-                    }
-                    discountedUnitPriceSet {
-                      shopMoney {
-                        amount
-                        currencyCode
-                      }
-                    }
                     variant {
                       id
                       title
-                      sku
-                      barcode
                       price
-                      compareAtPrice
-                      image {
-                        id
-                        url
-                        altText
-                      }
-                      product {
-                        id
-                        title
-                        handle
-                        vendor
-                        productType
-                      }
-                    }
-                    customAttributes {
-                      key
-                      value
                     }
                   }
                 }
               }
-              fulfillments {
-                id
-                status
-                createdAt
-                updatedAt
-                trackingInfo {
-                  number
-                  url
-                  company
-                }
-                fulfillmentLineItems {
-                  edges {
-                    node {
-                      id
-                      quantity
-                      lineItem {
-                        id
-                        title
-                      }
-                    }
-                  }
-                }
-              }
-              refunds {
-                id
-                createdAt
-                note
-                totalRefundedSet {
-                  shopMoney {
-                    amount
-                    currencyCode
-                  }
-                }
-                refundLineItems {
-                  edges {
-                    node {
-                      id
-                      quantity
-                      restockType
-                      lineItem {
-                        id
-                        title
-                      }
-                    }
-                  }
-                }
-              }
-              transactions {
-                id
-                kind
-                status
-                amount
-                gateway
-                createdAt
-                processedAt
-                parentTransaction {
-                  id
-                }
-              }
-              discountApplications {
-                edges {
-                  node {
-                    ... on DiscountCodeApplication {
-                      code
-                      value {
-                        ... on MoneyV2 {
-                          amount
-                          currencyCode
-                        }
-                        ... on PricingPercentageValue {
-                          percentage
-                        }
-                      }
-                    }
-                    ... on AutomaticDiscountApplication {
-                      title
-                      value {
-                        ... on MoneyV2 {
-                          amount
-                          currencyCode
-                        }
-                        ... on PricingPercentageValue {
-                          percentage
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-              sourceIdentifier
-              sourceName
-             
-              
             }
           }
           pageInfo {

@@ -29,12 +29,6 @@ export const loader = async ({ request, params }) => {
           createdAt
           updatedAt
           processedAt
-          cancelledAt
-          closedAt
-          note
-          tags
-          test
-          confirmed
           totalPriceSet {
             shopMoney {
               amount
@@ -61,59 +55,13 @@ export const loader = async ({ request, params }) => {
           }
           displayFulfillmentStatus
           displayFinancialStatus
-          fulfillmentStatus
-          financialStatus
-          customAttributes {
-            key
-            value
-          }
-          metafields(first: 50) {
-            edges {
-              node {
-                id
-                namespace
-                key
-                value
-                type
-                description
-                createdAt
-                updatedAt
-              }
-            }
-          }
-          attributes {
-            key
-            value
-          }
-          app {
-            id
-            title
-            developerName
-            developerUrl
-            installationId
-          }
+          note
+          tags
           customer {
             id
             displayName
-            firstName
-            lastName
-            email
-            phone
-            defaultAddress {
-              id
-              address1
-              address2
-              city
-              province
-              country
-              zip
-            }
           }
           shippingAddress {
-            id
-            firstName
-            lastName
-            company
             address1
             address2
             city
@@ -123,10 +71,6 @@ export const loader = async ({ request, params }) => {
             phone
           }
           billingAddress {
-            id
-            firstName
-            lastName
-            company
             address1
             address2
             city
@@ -157,23 +101,9 @@ export const loader = async ({ request, params }) => {
                   id
                   title
                   sku
-                  barcode
-                  price
-                  compareAtPrice
-                  weight
-                  weightUnit
                   image {
-                    id
                     url
                     altText
-                  }
-                  product {
-                    id
-                    title
-                    handle
-                    vendor
-                    productType
-                    tags
                   }
                 }
                 customAttributes {
@@ -187,129 +117,24 @@ export const loader = async ({ request, params }) => {
             id
             status
             createdAt
-            updatedAt
             trackingInfo {
               number
               url
               company
-            }
-            fulfillmentLineItems {
-              edges {
-                node {
-                  id
-                  quantity
-                  lineItem {
-                    id
-                    title
-                  }
-                }
-              }
-            }
-          }
-          refunds {
-            id
-            createdAt
-            note
-            totalRefundedSet {
-              shopMoney {
-                amount
-                currencyCode
-              }
-            }
-            refundLineItems {
-              edges {
-                node {
-                  id
-                  quantity
-                  restockType
-                  lineItem {
-                    id
-                    title
-                  }
-                }
-              }
             }
           }
           transactions {
             id
             kind
             status
-            amount
-            currency
-            gateway
-            createdAt
-            processedAt
-            parentTransaction {
-              id
-            }
             amountSet {
               shopMoney {
                 amount
                 currencyCode
               }
             }
-          }
-          discountApplications {
-            edges {
-              node {
-                ... on DiscountCodeApplication {
-                  code
-                  value {
-                    ... on MoneyV2 {
-                      amount
-                      currencyCode
-                    }
-                    ... on PricingPercentageValue {
-                      percentage
-                    }
-                  }
-                }
-                ... on AutomaticDiscountApplication {
-                  title
-                  value {
-                    ... on MoneyV2 {
-                      amount
-                      currencyCode
-                    }
-                    ... on PricingPercentageValue {
-                      percentage
-                    }
-                  }
-                }
-              }
-            }
-          }
-          sourceIdentifier
-          sourceName
-          sourceUrl
-          landingSite {
-            id
-            handle
-            title
-          }
-          referringSite
-          marketingEvent {
-            id
-            description
-            marketingChannel
-            paid
-            startedAt
-            budget
-            currencyCode
-          }
-          marketingAttribution {
-            campaign
-            source
-            medium
-            term
-            content
-          }
-          app {
-            id
-            title
-            developerName
-            developerUrl
-            installationId
+            createdAt
+            gateway
           }
         }
       }`,
