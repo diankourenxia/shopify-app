@@ -151,7 +151,6 @@ export default function PublicOrders() {
                     <tr>
                       <th>订单号</th>
                       <th>客户</th>
-                      <th>总金额</th>
                       <th>发货状态</th>
                       <th>支付状态</th>
                       <th>创建时间</th>
@@ -167,10 +166,7 @@ export default function PublicOrders() {
                         <tr key={order.id}>
                           <td>{order.name}</td>
                           <td>{order.customer?.displayName || '无客户信息'}</td>
-                          <td>{formatCurrency(
-                            order.totalPriceSet.shopMoney.amount,
-                            order.totalPriceSet.shopMoney.currencyCode
-                          )}</td>
+                         
                           <td>
                             <span className={`${styles.statusBadge} ${styles[fulfillmentStatus.className]}`}>
                               {fulfillmentStatus.text}
