@@ -16,7 +16,6 @@ import {
   ButtonGroup,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   // 动态导入服务器端模块

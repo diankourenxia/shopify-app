@@ -14,7 +14,6 @@ import {
   Divider,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { getOrdersFromCache } from "../services/cache.server";
 
 export const loader = async ({ request, params }) => {
   const orderId = params.id;
