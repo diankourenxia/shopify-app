@@ -1,4 +1,3 @@
-import { config } from "dotenv";
 import "@shopify/shopify-app-remix/adapters/node";
 import {
   ApiVersion,
@@ -7,9 +6,7 @@ import {
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
-
-// Load environment variables
-config();
+import "./env.server"; // Load and validate environment variables
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
