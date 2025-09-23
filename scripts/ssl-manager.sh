@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 # 默认配置
 DOMAIN="fr-manage.ecolife-us.com"
 EMAIL="447536716@qq.com"
-NGINX_CONF="/root/nginx/sites-available/shopify-app"
+NGINX_CONF="/etc/nginx/sites-available/shopify-app"
 DAYS_THRESHOLD=30
 
 # 显示帮助信息
