@@ -1,23 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import {
-  Page,
-  Layout,
-  Text,
-  Card,
-  Button,
-  BlockStack,
-  InlineStack,
-  DataTable,
-  TextField,
-  Select,
-  Badge,
-  Pagination,
-  EmptyState,
-  Spinner,
-  Box,
-  ButtonGroup,
-} from "@shopify/polaris";
+import styles from "./_index/styles.module.css";
 
 export const loader = async ({ request }) => {
   // 动态导入服务器端模块
@@ -95,17 +78,17 @@ export default function PublicOrders() {
 
   const getStatusBadge = (status) => {
     const statusMap = {
-      'FULFILLED': { status: 'success', children: '已发货' },
-      'UNFULFILLED': { status: 'warning', children: '未发货' },
-      'PARTIALLY_FULFILLED': { status: 'attention', children: '部分发货' },
-      'PAID': { status: 'success', children: '已支付' },
-      'PENDING': { status: 'warning', children: '待支付' },
-      'PARTIALLY_PAID': { status: 'attention', children: '部分支付' },
-      'REFUNDED': { status: 'info', children: '已退款' },
-      'VOIDED': { status: 'critical', children: '已取消' },
+      'FULFILLED': { className: 'status-success', text: '已发货' },
+      'UNFULFILLED': { className: 'status-warning', text: '未发货' },
+      'PARTIALLY_FULFILLED': { className: 'status-attention', text: '部分发货' },
+      'PAID': { className: 'status-success', text: '已支付' },
+      'PENDING': { className: 'status-warning', text: '待支付' },
+      'PARTIALLY_PAID': { className: 'status-attention', text: '部分支付' },
+      'REFUNDED': { className: 'status-info', text: '已退款' },
+      'VOIDED': { className: 'status-critical', text: '已取消' },
     };
     
-    return statusMap[status] || { status: 'info', children: status };
+    return statusMap[status] || { className: 'status-info', text: status };
   };
 
   const formatCurrency = (amount, currencyCode) => {
@@ -125,113 +108,108 @@ export default function PublicOrders() {
     });
   };
 
-  const rows = orders.map((order) => [
-    order.name,
-    order.customer?.displayName || '无客户信息',
-    formatCurrency(
-      order.totalPriceSet.shopMoney.amount,
-      order.totalPriceSet.shopMoney.currencyCode
-    ),
-    <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
-    <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
-    formatDate(order.createdAt),
-    <ButtonGroup key={`actions-${order.id}`}>
-      <Button
-        size="slim"
-        url={`/orders/public/${order.id.replace('gid://shopify/Order/', '')}`}
-      >
-        查看详情
-      </Button>
-    </ButtonGroup>,
-  ]);
-
-  const headings = [
-    '订单号',
-    '客户',
-    '总金额',
-    '发货状态',
-    '支付状态',
-    '创建时间',
-    '操作',
-  ];
-
   return (
-    <Page>
-      <Layout>
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              {/* 页面标题和状态 */}
-              <InlineStack gap="300" align="space-between">
-                <Text variant="headingMd">订单管理 - 公开访问</Text>
-                <InlineStack gap="200">
-                  <Badge status="info">公开访问模式</Badge>
-                  {noCache && (
-                    <Badge status="warning">暂无缓存数据</Badge>
-                  )}
-                </InlineStack>
-              </InlineStack>
-
-              {/* 操作按钮 */}
-              <InlineStack gap="300">
-                <Button onClick={handleRefresh} loading={isLoading}>
-                  刷新数据
-                </Button>
-                <Text variant="bodyMd" tone="subdued">
-                  注意：这是公开访问页面，只能查看缓存数据。如需更新数据，请联系管理员。
-                </Text>
-              </InlineStack>
-
-              {/* 订单列表 */}
-              {isLoading ? (
-                <Box padding="800">
-                  <InlineStack align="center">
-                    <Spinner size="large" />
-                    <Text variant="bodyMd">正在刷新数据...</Text>
-                  </InlineStack>
-                </Box>
-              ) : orders.length > 0 ? (
-                <DataTable
-                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text']}
-                  headings={headings}
-                  rows={rows}
-                  hoverable
-                />
-              ) : (
-                <EmptyState
-                  heading="没有找到订单数据"
-                  image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                >
-                  <p>
-                    {noCache 
-                      ? "暂无缓存数据，请联系管理员更新缓存后再次访问"
-                      : "没有找到符合条件的订单"
-                    }
-                  </p>
-                </EmptyState>
+    <div className={styles.index}>
+      <div className={styles.content}>
+        {/* 页面标题和状态 */}
+        <div className={styles.ordersSection}>
+          <div className={styles.sectionHeader}>
+            <h1 className={styles.heading}>订单管理 - 公开访问</h1>
+            <div className={styles.headerActions}>
+              <span className={styles.badge}>公开访问模式</span>
+              {noCache && (
+                <span className={`${styles.badge} ${styles.statusWarning}`}>暂无缓存数据</span>
               )}
+            </div>
+          </div>
 
-              {/* 分页 */}
-              {pageInfo && (pageInfo.hasNextPage || pageInfo.hasPreviousPage) && (
-                <Box padding="400">
-                  <InlineStack align="center">
-                    <Pagination
-                      hasPrevious={pageInfo.hasPreviousPage}
-                      onPrevious={() => {
-                        // 公开页面暂不支持分页
-                      }}
-                      hasNext={pageInfo.hasNextPage}
-                      onNext={() => {
-                        // 公开页面暂不支持分页
-                      }}
-                    />
-                  </InlineStack>
-                </Box>
-              )}
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-      </Layout>
-    </Page>
+          {/* 操作按钮 */}
+          <div className={styles.actionsSection}>
+            <button 
+              className={styles.refreshButton} 
+              onClick={handleRefresh} 
+              disabled={isLoading}
+            >
+              {isLoading ? '正在刷新...' : '刷新数据'}
+            </button>
+            <p className={styles.note}>
+              注意：这是公开访问页面，只能查看缓存数据。如需更新数据，请联系管理员。
+            </p>
+          </div>
+
+          {/* 订单列表 */}
+          {isLoading ? (
+            <div className={styles.loadingState}>
+              <div className={styles.spinner}></div>
+              <p>正在刷新数据...</p>
+            </div>
+          ) : orders.length > 0 ? (
+            <>
+              <div className={styles.tableContainer}>
+                <table className={styles.ordersTable}>
+                  <thead>
+                    <tr>
+                      <th>订单号</th>
+                      <th>客户</th>
+                      <th>总金额</th>
+                      <th>发货状态</th>
+                      <th>支付状态</th>
+                      <th>创建时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.map((order) => {
+                      const fulfillmentStatus = getStatusBadge(order.displayFulfillmentStatus);
+                      const financialStatus = getStatusBadge(order.displayFinancialStatus);
+                      
+                      return (
+                        <tr key={order.id}>
+                          <td>{order.name}</td>
+                          <td>{order.customer?.displayName || '无客户信息'}</td>
+                          <td>{formatCurrency(
+                            order.totalPriceSet.shopMoney.amount,
+                            order.totalPriceSet.shopMoney.currencyCode
+                          )}</td>
+                          <td>
+                            <span className={`${styles.statusBadge} ${styles[fulfillmentStatus.className]}`}>
+                              {fulfillmentStatus.text}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`${styles.statusBadge} ${styles[financialStatus.className]}`}>
+                              {financialStatus.text}
+                            </span>
+                          </td>
+                          <td>{formatDate(order.createdAt)}</td>
+                          <td>
+                            <a 
+                              href={`/orders/public/${order.id.replace('gid://shopify/Order/', '')}`}
+                              className={styles.linkButton}
+                            >
+                              查看详情
+                            </a>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <div className={styles.emptyState}>
+              <h3>没有找到订单数据</h3>
+              <p>
+                {noCache 
+                  ? "暂无缓存数据，请联系管理员更新缓存后再次访问"
+                  : "没有找到符合条件的订单"
+                }
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

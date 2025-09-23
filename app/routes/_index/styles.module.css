@@ -226,6 +226,113 @@
   color: #202223;
 }
 
+/* 公开页面专用样式 */
+.actionsSection {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #f6f6f7;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.refreshButton {
+  background-color: #008060;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background-color: #006f52;
+}
+
+.refreshButton:disabled {
+  background-color: #8c9196;
+  cursor: not-allowed;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6d7175;
+}
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  color: #6d7175;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e1e3e5;
+  border-top: 2px solid #008060;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 订单详情页面样式 */
+.infoSection {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.infoSection h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  color: #202223;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.infoColumn p {
+  margin: 0 0 0.75rem 0;
+  color: #454f5e;
+  font-size: 0.875rem;
+}
+
+.infoColumn strong {
+  color: #202223;
+}
+
+.itemsSection {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.itemsSection h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  color: #202223;
+}
+
 @media only screen and (max-width: 50rem) {
   .list {
     display: block;
@@ -251,5 +358,10 @@
 
   .index {
     padding: 1rem;
+  }
+
+  .infoGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
 }

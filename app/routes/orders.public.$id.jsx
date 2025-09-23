@@ -1,18 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLoaderData } from "@remix-run/react";
-import {
-  Page,
-  Layout,
-  Text,
-  Card,
-  Button,
-  BlockStack,
-  InlineStack,
-  DataTable,
-  Badge,
-  Box,
-  Divider,
-} from "@shopify/polaris";
+import styles from "./_index/styles.module.css";
 
 export const loader = async ({ request, params }) => {
   const orderId = params.id;
@@ -49,41 +37,19 @@ export const loader = async ({ request, params }) => {
 export default function PublicOrderDetail() {
   const { order, notFound } = useLoaderData();
 
-  if (notFound || !order) {
-    return (
-      <Page>
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <Box padding="800">
-                <Text variant="headingMd">订单未找到</Text>
-                <Text variant="bodyMd" tone="subdued">
-                  该订单不存在或缓存中无此数据
-                </Text>
-                <Box padding="400">
-                  <Button url="/orders/public">返回订单列表</Button>
-                </Box>
-              </Box>
-            </Card>
-          </Layout.Section>
-        </Layout>
-      </Page>
-    );
-  }
-
   const getStatusBadge = (status) => {
     const statusMap = {
-      'FULFILLED': { status: 'success', children: '已发货' },
-      'UNFULFILLED': { status: 'warning', children: '未发货' },
-      'PARTIALLY_FULFILLED': { status: 'attention', children: '部分发货' },
-      'PAID': { status: 'success', children: '已支付' },
-      'PENDING': { status: 'warning', children: '待支付' },
-      'PARTIALLY_PAID': { status: 'attention', children: '部分支付' },
-      'REFUNDED': { status: 'info', children: '已退款' },
-      'VOIDED': { status: 'critical', children: '已取消' },
+      'FULFILLED': { className: 'status-success', text: '已发货' },
+      'UNFULFILLED': { className: 'status-warning', text: '未发货' },
+      'PARTIALLY_FULFILLED': { className: 'status-attention', text: '部分发货' },
+      'PAID': { className: 'status-success', text: '已支付' },
+      'PENDING': { className: 'status-warning', text: '待支付' },
+      'PARTIALLY_PAID': { className: 'status-attention', text: '部分支付' },
+      'REFUNDED': { className: 'status-info', text: '已退款' },
+      'VOIDED': { className: 'status-critical', text: '已取消' },
     };
     
-    return statusMap[status] || { status: 'info', children: status };
+    return statusMap[status] || { className: 'status-info', text: status };
   };
 
   const formatCurrency = (amount, currencyCode) => {
@@ -103,82 +69,109 @@ export default function PublicOrderDetail() {
     });
   };
 
-  const lineItemsRows = order.lineItems?.edges?.map(({ node: item }) => [
-    item.title,
-    item.quantity,
-    item.variant?.title || '无变体',
-    formatCurrency(item.variant?.price || '0', order.totalPriceSet.shopMoney.currencyCode),
-    item.customAttributes?.map(attr => `${attr.key}: ${attr.value}`).join(', ') || '无'
-  ]) || [];
+  if (notFound || !order) {
+    return (
+      <div className={styles.index}>
+        <div className={styles.content}>
+          <div className={styles.emptyState}>
+            <h1>订单未找到</h1>
+            <p>该订单不存在或缓存中无此数据</p>
+            <a href="/orders/public" className={styles.linkButton}>
+              返回订单列表
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const fulfillmentStatus = getStatusBadge(order.displayFulfillmentStatus);
+  const financialStatus = getStatusBadge(order.displayFinancialStatus);
 
   return (
-    <Page>
-      <Layout>
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              {/* 页面标题 */}
-              <InlineStack gap="300" align="space-between">
-                <Text variant="headingLg">订单详情 - {order.name}</Text>
-                <InlineStack gap="200">
-                  <Badge status="info">公开访问模式</Badge>
-                  <Badge status="info">缓存数据</Badge>
-                </InlineStack>
-              </InlineStack>
+    <div className={styles.index}>
+      <div className={styles.content}>
+        {/* 页面标题 */}
+        <div className={styles.ordersSection}>
+          <div className={styles.sectionHeader}>
+            <h1 className={styles.heading}>订单详情 - {order.name}</h1>
+            <div className={styles.headerActions}>
+              <span className={styles.badge}>公开访问模式</span>
+              <span className={styles.badge}>缓存数据</span>
+            </div>
+          </div>
 
-              {/* 订单基本信息 */}
-              <Card sectioned>
-                <BlockStack gap="300">
-                  <Text variant="headingMd">订单信息</Text>
-                  <InlineStack gap="800">
-                    <BlockStack gap="200">
-                      <Text variant="bodyMd"><strong>订单号:</strong> {order.name}</Text>
-                      <Text variant="bodyMd"><strong>客户:</strong> {order.customer?.displayName || '无客户信息'}</Text>
-                      <Text variant="bodyMd"><strong>创建时间:</strong> {formatDate(order.createdAt)}</Text>
-                      <Text variant="bodyMd"><strong>更新时间:</strong> {formatDate(order.updatedAt)}</Text>
-                    </BlockStack>
-                    <BlockStack gap="200">
-                      <Text variant="bodyMd"><strong>总金额:</strong> {formatCurrency(
-                        order.totalPriceSet.shopMoney.amount,
-                        order.totalPriceSet.shopMoney.currencyCode
-                      )}</Text>
-                      <Text variant="bodyMd"><strong>发货状态:</strong> <Badge {...getStatusBadge(order.displayFulfillmentStatus)} /></Text>
-                      <Text variant="bodyMd"><strong>支付状态:</strong> <Badge {...getStatusBadge(order.displayFinancialStatus)} /></Text>
-                    </BlockStack>
-                  </InlineStack>
-                </BlockStack>
-              </Card>
+          {/* 订单基本信息 */}
+          <div className={styles.infoSection}>
+            <h2>订单信息</h2>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoColumn}>
+                <p><strong>订单号:</strong> {order.name}</p>
+                <p><strong>客户:</strong> {order.customer?.displayName || '无客户信息'}</p>
+                <p><strong>创建时间:</strong> {formatDate(order.createdAt)}</p>
+                <p><strong>更新时间:</strong> {formatDate(order.updatedAt)}</p>
+              </div>
+              <div className={styles.infoColumn}>
+                <p><strong>总金额:</strong> {formatCurrency(
+                  order.totalPriceSet.shopMoney.amount,
+                  order.totalPriceSet.shopMoney.currencyCode
+                )}</p>
+                <p><strong>发货状态:</strong> 
+                  <span className={`${styles.statusBadge} ${styles[fulfillmentStatus.className]}`}>
+                    {fulfillmentStatus.text}
+                  </span>
+                </p>
+                <p><strong>支付状态:</strong> 
+                  <span className={`${styles.statusBadge} ${styles[financialStatus.className]}`}>
+                    {financialStatus.text}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
 
-              {/* 商品列表 */}
-              <Card sectioned>
-                <BlockStack gap="300">
-                  <Text variant="headingMd">商品列表</Text>
-                  {lineItemsRows.length > 0 ? (
-                    <DataTable
-                      columnContentTypes={['text', 'text', 'text', 'text', 'text']}
-                      headings={['商品名称', '数量', '变体', '单价', '自定义属性']}
-                      rows={lineItemsRows}
-                      hoverable
-                    />
-                  ) : (
-                    <Text variant="bodyMd" tone="subdued">暂无商品信息</Text>
-                  )}
-                </BlockStack>
-              </Card>
+          {/* 商品列表 */}
+          {order.lineItems?.edges && order.lineItems.edges.length > 0 && (
+            <div className={styles.itemsSection}>
+              <h2>商品列表</h2>
+              <div className={styles.tableContainer}>
+                <table className={styles.ordersTable}>
+                  <thead>
+                    <tr>
+                      <th>商品名称</th>
+                      <th>数量</th>
+                      <th>变体</th>
+                      <th>单价</th>
+                      <th>自定义属性</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {order.lineItems.edges.map(({ node: item }, index) => (
+                      <tr key={index}>
+                        <td>{item.title}</td>
+                        <td>{item.quantity}</td>
+                        <td>{item.variant?.title || '无变体'}</td>
+                        <td>{formatCurrency(item.variant?.price || '0', order.totalPriceSet.shopMoney.currencyCode)}</td>
+                        <td>{item.customAttributes?.map(attr => `${attr.key}: ${attr.value}`).join(', ') || '无'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
-              {/* 操作按钮 */}
-              <Box padding="400">
-                <InlineStack gap="300">
-                  <Button url="/orders/public">返回订单列表</Button>
-                  <Text variant="bodyMd" tone="subdued">
-                    注意：这是公开访问页面，只能查看缓存数据
-                  </Text>
-                </InlineStack>
-              </Box>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-      </Layout>
-    </Page>
+          {/* 操作按钮 */}
+          <div className={styles.actionsSection}>
+            <a href="/orders/public" className={styles.linkButton}>
+              返回订单列表
+            </a>
+            <p className={styles.note}>
+              注意：这是公开访问页面，只能查看缓存数据
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
