@@ -193,10 +193,10 @@ EOF
 
 # 启用站点
 echo -e "${BLUE}🔗 启用站点...${NC}"
-ln -sf /etc/nginx/sites-available/shopify-app /etc/nginx/sites-enabled/
+ln -sf /root/nginx/sites-available/shopify-app /root/nginx/sites-enabled/
 
 # 删除默认站点
-rm -f /etc/nginx/sites-enabled/default
+rm -f /root/nginx/sites-enabled/default
 
 # 测试 Nginx 配置
 echo -e "${BLUE}🧪 测试 Nginx 配置...${NC}"
