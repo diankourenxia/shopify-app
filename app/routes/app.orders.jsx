@@ -22,13 +22,19 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
+  const url = new URL(request.url);
+  const after = url.searchParams.get("after");
+  const before = url.searchParams.get("before");
+  
   // 动态导入服务器端模块
   const { getOrdersFromCache, saveOrdersToCache } = await import("../services/cache.server");
   
-  // 首先尝试从缓存获取数据
-  const cacheData = await getOrdersFromCache();
-  if (cacheData) {
-    return cacheData;
+  // 只有在没有分页参数时才使用缓存
+  if (!after && !before) {
+    const cacheData = await getOrdersFromCache();
+    if (cacheData) {
+      return cacheData;
+    }
   }
 
   // 缓存不存在或过期，从Shopify获取数据
@@ -37,8 +43,8 @@ export const loader = async ({ request }) => {
   // 获取订单列表
   const response = await admin.graphql(
     `#graphql
-      query getOrders($first: Int!, $after: String) {
-        orders(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
+      query getOrders($first: Int!, $after: String, $before: String) {
+        orders(first: $first, after: $after, before: $before, sortKey: CREATED_AT, reverse: true) {
           edges {
             node {
               id
@@ -88,21 +94,27 @@ export const loader = async ({ request }) => {
     {
       variables: {
         first: 20,
+        after: after || undefined,
+        before: before || undefined,
       },
     }
   );
-  console.log(123,response)
+  
   const responseJson = await response.json();
   const orders = responseJson.data.orders.edges.map(edge => edge.node);
   const pageInfo = responseJson.data.orders.pageInfo;
 
-  // 将新获取的数据保存到缓存
-  await saveOrdersToCache(orders, pageInfo);
+  // 只有在没有分页参数时才保存到缓存
+  if (!after && !before) {
+    await saveOrdersToCache(orders, pageInfo);
+  }
 
   return {
     orders,
     pageInfo,
-    fromCache: false
+    fromCache: false,
+    currentAfter: after,
+    currentBefore: before,
   };
 };
 
@@ -113,11 +125,14 @@ export const action = async ({ request }) => {
   const searchQuery = formData.get("searchQuery");
 
   if (action === "search") {
+    const after = formData.get("after");
+    const before = formData.get("before");
+    
     // 搜索订单
     const response = await admin.graphql(
       `#graphql
-        query searchOrders($query: String!, $first: Int!) {
-          orders(first: $first, query: $query, sortKey: CREATED_AT, reverse: true) {
+        query searchOrders($query: String!, $first: Int!, $after: String, $before: String) {
+          orders(first: $first, query: $query, after: $after, before: $before, sortKey: CREATED_AT, reverse: true) {
             edges {
               node {
                 id
@@ -168,12 +183,13 @@ export const action = async ({ request }) => {
         variables: {
           query: searchQuery,
           first: 20,
+          after: after || undefined,
+          before: before || undefined,
         },
       }
     );
 
     const responseJson = await response.json();
-    console.log(222,responseJson)
     const orders = responseJson.data.orders.edges.map(edge => edge.node);
     const pageInfo = responseJson.data.orders.pageInfo;
 
@@ -181,6 +197,8 @@ export const action = async ({ request }) => {
       orders,
       pageInfo,
       searchQuery,
+      currentAfter: after,
+      currentBefore: before,
     };
   }
 
@@ -188,7 +206,13 @@ export const action = async ({ request }) => {
 };
 
 export default function Orders() {
-  const { orders: initialOrders, pageInfo: initialPageInfo, fromCache: initialFromCache } = useLoaderData();
+  const { 
+    orders: initialOrders, 
+    pageInfo: initialPageInfo, 
+    fromCache: initialFromCache,
+    currentAfter,
+    currentBefore 
+  } = useLoaderData();
   const fetcher = useFetcher();
   
   const [orders, setOrders] = useState(initialOrders);
@@ -198,6 +222,8 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdatingCache, setIsUpdatingCache] = useState(false);
   const [fromCache, setFromCache] = useState(initialFromCache || false);
+  const [currentPageAfter, setCurrentPageAfter] = useState(currentAfter);
+  const [currentPageBefore, setCurrentPageBefore] = useState(currentBefore);
 
   // 处理搜索结果
   useEffect(() => {
@@ -208,12 +234,14 @@ export default function Orders() {
     }
   }, [fetcher.data]);
 
-  const handleSearch = () => {
+  const handleSearch = (pageAfter = null, pageBefore = null) => {
     setIsLoading(true);
     const formData = new FormData();
     formData.append("action", "search");
     formData.append("searchQuery", searchQuery);
     formData.append("statusFilter", statusFilter);
+    if (pageAfter) formData.append("after", pageAfter);
+    if (pageBefore) formData.append("before", pageBefore);
     fetcher.submit(formData, { method: "POST" });
   };
 
@@ -222,6 +250,38 @@ export default function Orders() {
     setStatusFilter("all");
     setOrders(initialOrders);
     setPageInfo(initialPageInfo);
+    setCurrentPageAfter(null);
+    setCurrentPageBefore(null);
+  };
+
+  const handleNextPage = () => {
+    if (pageInfo.hasNextPage && pageInfo.endCursor) {
+      setIsLoading(true);
+      if (searchQuery) {
+        // 如果有搜索条件，使用 fetcher 提交搜索请求
+        handleSearch(pageInfo.endCursor, null);
+      } else {
+        // 没有搜索条件，使用 URL 导航
+        const searchParams = new URLSearchParams();
+        searchParams.set("after", pageInfo.endCursor);
+        window.location.href = `/app/orders?${searchParams.toString()}`;
+      }
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (pageInfo.hasPreviousPage && pageInfo.startCursor) {
+      setIsLoading(true);
+      if (searchQuery) {
+        // 如果有搜索条件，使用 fetcher 提交搜索请求
+        handleSearch(null, pageInfo.startCursor);
+      } else {
+        // 没有搜索条件，使用 URL 导航
+        const searchParams = new URLSearchParams();
+        searchParams.set("before", pageInfo.startCursor);
+        window.location.href = `/app/orders?${searchParams.toString()}`;
+      }
+    }
   };
 
   const handleUpdateCache = async () => {
@@ -442,13 +502,9 @@ export default function Orders() {
                   <InlineStack align="center">
                     <Pagination
                       hasPrevious={pageInfo.hasPreviousPage}
-                      onPrevious={() => {
-                        // 实现上一页逻辑
-                      }}
+                      onPrevious={handlePreviousPage}
                       hasNext={pageInfo.hasNextPage}
-                      onNext={() => {
-                        // 实现下一页逻辑
-                      }}
+                      onNext={handleNextPage}
                     />
                   </InlineStack>
                 </Box>
