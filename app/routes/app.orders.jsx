@@ -219,7 +219,7 @@ export default function Orders() {
   const [currentPageAfter, setCurrentPageAfter] = useState(currentAfter);
   const [currentPageBefore, setCurrentPageBefore] = useState(currentBefore);
 
-  // 处理搜索结果
+  // 处理搜索结果和页面数据更新
   useEffect(() => {
     if (fetcher.data?.orders) {
       setOrders(fetcher.data.orders);
@@ -227,6 +227,15 @@ export default function Orders() {
       setIsLoading(false);
     }
   }, [fetcher.data]);
+
+  // 当loader数据更新时重置loading状态
+  useEffect(() => {
+    setOrders(initialOrders);
+    setPageInfo(initialPageInfo);
+    setCurrentPageAfter(currentAfter);
+    setCurrentPageBefore(currentBefore);
+    setIsLoading(false);
+  }, [initialOrders, initialPageInfo, currentAfter, currentBefore]);
 
   const handleSearch = (pageAfter = null, pageBefore = null) => {
     setIsLoading(true);
@@ -250,7 +259,6 @@ export default function Orders() {
 
   const handleNextPage = () => {
     if (pageInfo.hasNextPage && pageInfo.endCursor) {
-      setIsLoading(true);
       if (searchQuery) {
         // 如果有搜索条件，使用 fetcher 提交搜索请求
         handleSearch(pageInfo.endCursor, null);
@@ -265,7 +273,6 @@ export default function Orders() {
 
   const handlePreviousPage = () => {
     if (pageInfo.hasPreviousPage && pageInfo.startCursor) {
-      setIsLoading(true);
       if (searchQuery) {
         // 如果有搜索条件，使用 fetcher 提交搜索请求
         handleSearch(null, pageInfo.startCursor);
