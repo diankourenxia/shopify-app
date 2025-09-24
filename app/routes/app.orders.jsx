@@ -22,21 +22,30 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
-  const url = new URL(request.url);
-  const after = url.searchParams.get("after");
-  const before = url.searchParams.get("before");
-  
-  // 动态导入服务器端模块
-  const { saveOrdersToCache } = await import("../services/cache.server");
-  
-  // 直接从Shopify获取实时数据，不使用缓存显示
-  const { admin } = await authenticate.admin(request);
+  try {
+    const url = new URL(request.url);
+    const after = url.searchParams.get("after");
+    const before = url.searchParams.get("before");
+    
+    console.log('Loader called with:', { after, before, url: url.toString() });
+    
+    // 动态导入服务器端模块
+    const { saveOrdersToCache } = await import("../services/cache.server");
+    
+    // 直接从Shopify获取实时数据，不使用缓存显示
+    const { admin } = await authenticate.admin(request);
   
   // 获取订单列表
+  const query = before 
+    ? `#graphql
+        query getOrders($last: Int!, $before: String) {
+          orders(last: $last, before: $before, sortKey: CREATED_AT, reverse: true) {`
+    : `#graphql
+        query getOrders($first: Int!, $after: String) {
+          orders(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {`;
+  
   const response = await admin.graphql(
-    `#graphql
-      query getOrders($first: Int!, $after: String, $before: String) {
-        orders(first: $first, after: $after, before: $before, sortKey: CREATED_AT, reverse: true) {
+    query + `
           edges {
             node {
               id
@@ -84,11 +93,9 @@ export const loader = async ({ request }) => {
         }
       }`,
     {
-      variables: {
-        first: 20,
-        ...(after && { after }),
-        ...(before && { before }),
-      },
+      variables: before 
+        ? { last: 20, before }
+        : { first: 20, ...(after && { after }) },
     }
   );
   
@@ -108,6 +115,11 @@ export const loader = async ({ request }) => {
     throw new Error(`GraphQL Error: ${responseJson.errors[0]?.message}`);
   }
   
+  if (!responseJson.data || !responseJson.data.orders) {
+    console.error('Missing data in response:', responseJson);
+    throw new Error('Invalid GraphQL response structure');
+  }
+  
   const orders = responseJson.data.orders.edges.map(edge => edge.node);
   const pageInfo = responseJson.data.orders.pageInfo;
 
@@ -119,13 +131,18 @@ export const loader = async ({ request }) => {
     });
   }
 
-  return {
-    orders,
-    pageInfo,
-    fromCache: false,
-    currentAfter: after,
-    currentBefore: before,
-  };
+    return {
+      orders,
+      pageInfo,
+      fromCache: false,
+      currentAfter: after,
+      currentBefore: before,
+    };
+  } catch (error) {
+    console.error('Loader error:', error);
+    console.error('Error stack:', error.stack);
+    throw error;
+  }
 };
 
 export const action = async ({ request }) => {
@@ -139,10 +156,16 @@ export const action = async ({ request }) => {
     const before = formData.get("before");
     
     // 搜索订单
+    const searchQuery = before 
+      ? `#graphql
+          query searchOrders($query: String!, $last: Int!, $before: String) {
+            orders(last: $last, query: $query, before: $before, sortKey: CREATED_AT, reverse: true) {`
+      : `#graphql
+          query searchOrders($query: String!, $first: Int!, $after: String) {
+            orders(first: $first, query: $query, after: $after, sortKey: CREATED_AT, reverse: true) {`;
+    
     const response = await admin.graphql(
-      `#graphql
-        query searchOrders($query: String!, $first: Int!, $after: String, $before: String) {
-          orders(first: $first, query: $query, after: $after, before: $before, sortKey: CREATED_AT, reverse: true) {
+      searchQuery + `
             edges {
               node {
                 id
@@ -190,12 +213,9 @@ export const action = async ({ request }) => {
           }
         }`,
       {
-        variables: {
-          query: searchQuery,
-          first: 20,
-          ...(after && { after }),
-          ...(before && { before }),
-        },
+        variables: before 
+          ? { query: searchQuery, last: 20, before }
+          : { query: searchQuery, first: 20, ...(after && { after }) },
       }
     );
 
