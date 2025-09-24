@@ -86,13 +86,28 @@ export const loader = async ({ request }) => {
     {
       variables: {
         first: 20,
-        after: after || undefined,
-        before: before || undefined,
+        ...(after && { after }),
+        ...(before && { before }),
       },
     }
   );
   
   const responseJson = await response.json();
+  
+  // 添加调试信息
+  console.log('GraphQL Response:', {
+    after,
+    before,
+    hasErrors: responseJson.errors?.length > 0,
+    errors: responseJson.errors,
+    data: responseJson.data ? 'present' : 'missing'
+  });
+  
+  if (responseJson.errors) {
+    console.error('GraphQL Errors:', responseJson.errors);
+    throw new Error(`GraphQL Error: ${responseJson.errors[0]?.message}`);
+  }
+  
   const orders = responseJson.data.orders.edges.map(edge => edge.node);
   const pageInfo = responseJson.data.orders.pageInfo;
 
@@ -178,8 +193,8 @@ export const action = async ({ request }) => {
         variables: {
           query: searchQuery,
           first: 20,
-          after: after || undefined,
-          before: before || undefined,
+          ...(after && { after }),
+          ...(before && { before }),
         },
       }
     );
