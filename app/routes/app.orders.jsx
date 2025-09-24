@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -27,17 +27,9 @@ export const loader = async ({ request }) => {
   const before = url.searchParams.get("before");
   
   // 动态导入服务器端模块
-  const { getOrdersFromCache, saveOrdersToCache } = await import("../services/cache.server");
+  const { saveOrdersToCache } = await import("../services/cache.server");
   
-  // 只有在没有分页参数时才使用缓存
-  if (!after && !before) {
-    const cacheData = await getOrdersFromCache();
-    if (cacheData) {
-      return cacheData;
-    }
-  }
-
-  // 缓存不存在或过期，从Shopify获取数据
+  // 直接从Shopify获取实时数据，不使用缓存显示
   const { admin } = await authenticate.admin(request);
   
   // 获取订单列表
@@ -104,9 +96,12 @@ export const loader = async ({ request }) => {
   const orders = responseJson.data.orders.edges.map(edge => edge.node);
   const pageInfo = responseJson.data.orders.pageInfo;
 
-  // 只有在没有分页参数时才保存到缓存
+  // 在后台保存数据到缓存（不影响显示）
   if (!after && !before) {
-    await saveOrdersToCache(orders, pageInfo);
+    // 异步保存到缓存，不等待完成
+    saveOrdersToCache(orders, pageInfo).catch(error => {
+      console.error('缓存保存失败:', error);
+    });
   }
 
   return {
@@ -214,14 +209,13 @@ export default function Orders() {
     currentBefore 
   } = useLoaderData();
   const fetcher = useFetcher();
+  const navigate = useNavigate();
   
   const [orders, setOrders] = useState(initialOrders);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
-  const [isUpdatingCache, setIsUpdatingCache] = useState(false);
-  const [fromCache, setFromCache] = useState(initialFromCache || false);
   const [currentPageAfter, setCurrentPageAfter] = useState(currentAfter);
   const [currentPageBefore, setCurrentPageBefore] = useState(currentBefore);
 
@@ -264,7 +258,7 @@ export default function Orders() {
         // 没有搜索条件，使用 URL 导航
         const searchParams = new URLSearchParams();
         searchParams.set("after", pageInfo.endCursor);
-        window.location.href = `/app/orders?${searchParams.toString()}`;
+        navigate(`/app/orders?${searchParams.toString()}`);
       }
     }
   };
@@ -279,30 +273,11 @@ export default function Orders() {
         // 没有搜索条件，使用 URL 导航
         const searchParams = new URLSearchParams();
         searchParams.set("before", pageInfo.startCursor);
-        window.location.href = `/app/orders?${searchParams.toString()}`;
+        navigate(`/app/orders?${searchParams.toString()}`);
       }
     }
   };
 
-  const handleUpdateCache = async () => {
-    setIsUpdatingCache(true);
-    try {
-      const response = await fetch('/app/api/cache-update', {
-        method: 'POST',
-      });
-      const result = await response.json();
-      if (result.success) {
-        // 刷新页面以显示新数据
-        window.location.reload();
-      } else {
-        console.error('更新缓存失败:', result.message);
-      }
-    } catch (error) {
-      console.error('更新缓存失败:', error);
-    } finally {
-      setIsUpdatingCache(false);
-    }
-  };
 
   const getStatusBadge = (status) => {
     const statusMap = {
@@ -422,20 +397,6 @@ export default function Orders() {
   return (
     <Page>
       <TitleBar title="订单管理" />
-      {fromCache && (
-        <Box padding="200">
-          <InlineStack gap="200" align="space-between">
-            <Badge status="info">当前显示缓存数据</Badge>
-            <Button 
-              size="slim" 
-              onClick={handleUpdateCache} 
-              loading={isUpdatingCache}
-            >
-              更新缓存
-            </Button>
-          </InlineStack>
-        </Box>
-      )}
       
       <Layout>
         <Layout.Section>
@@ -509,6 +470,7 @@ export default function Orders() {
                   </InlineStack>
                 </Box>
               )}
+              
             </BlockStack>
           </Card>
         </Layout.Section>
