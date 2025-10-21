@@ -658,3 +658,8 @@
     gap: 1rem;
   }
 }
+
+.Polaris-DataTable--condensed{
+  max-height:800px;
+  overflow-y: scroll;
+}
