@@ -30,3 +30,11 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 }
+
+model OrderStatus {
+  id          String   @id @default(uuid())
+  orderId     String   @unique
+  status      String   // 
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}

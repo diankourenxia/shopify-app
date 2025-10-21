@@ -3,10 +3,11 @@
 client_id = "7d75de835d000b08084b28b703115b48"
 name = "order-prodcut"
 application_url = "https://fr-manage.ecolife-us.com"
+#application_url = "https://order-product-store.myshopify.com"
 embedded = true
 
 [build]
-automatically_update_urls_on_dev = false
+automatically_update_urls_on_dev = true
 
 [webhooks]
 api_version = "2025-10"
@@ -29,4 +30,5 @@ api_version = "2025-10"
 scopes = "write_products,read_orders,read_customers"
 
 [auth]
-redirect_urls = [ "https://fr-manage.ecolife-us.com/api/auth" ]
+#redirect_urls = [ "https://fr-manage.ecolife-us.com/api/auth" ]
+redirect_urls = [ "https://order-product-store.myshopify.com/api/auth" ]

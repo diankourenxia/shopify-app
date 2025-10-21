@@ -31,6 +31,8 @@ export const loader = async ({ request }) => {
     
     // 动态导入服务器端模块
     const { saveOrdersToCache } = await import("../services/cache.server");
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
     
     // 直接从Shopify获取实时数据，不使用缓存显示
     const { admin } = await authenticate.admin(request);
@@ -123,6 +125,14 @@ export const loader = async ({ request }) => {
   const orders = responseJson.data.orders.edges.map(edge => edge.node);
   const pageInfo = responseJson.data.orders.pageInfo;
 
+  // 获取所有订单的自定义状态
+  const orderStatuses = await prisma.orderStatus.findMany();
+  const statusMap = {};
+  orderStatuses.forEach(status => {
+    const orderId = status.orderId;
+    statusMap[orderId] = status.status;
+  });
+
   // 在后台保存数据到缓存（不影响显示）
   if (!after && !before) {
     // 异步保存到缓存，不等待完成
@@ -134,6 +144,7 @@ export const loader = async ({ request }) => {
     return {
       orders,
       pageInfo,
+      statusMap,
       fromCache: false,
       currentAfter: after,
       currentBefore: before,
@@ -150,6 +161,31 @@ export const action = async ({ request }) => {
   const formData = await request.formData();
   const action = formData.get("action");
   const searchQuery = formData.get("searchQuery");
+
+  // 处理订单状态更新
+  if (action === "updateStatus") {
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
+    
+    const orderId = formData.get("orderId");
+    const status = formData.get("status");
+
+    if (!orderId || !status) {
+      return { error: "缺少必要参数" };
+    }
+
+    try {
+      const orderStatus = await prisma.orderStatus.upsert({
+        where: { orderId },
+        update: { status },
+        create: { orderId, status },
+      });
+      return { success: true, orderStatus };
+    } catch (error) {
+      console.error("更新订单状态失败:", error);
+      return { error: "更新失败" };
+    }
+  }
 
   if (action === "search") {
     const after = formData.get("after");
@@ -223,9 +259,19 @@ export const action = async ({ request }) => {
     const orders = responseJson.data.orders.edges.map(edge => edge.node);
     const pageInfo = responseJson.data.orders.pageInfo;
 
+    // 获取订单状态
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
+    const orderStatuses = await prisma.orderStatus.findMany();
+    const statusMap = {};
+    orderStatuses.forEach(status => {
+      statusMap[status.orderId] = status.status;
+    });
+
     return {
       orders,
       pageInfo,
+      statusMap,
       searchQuery,
       currentAfter: after,
       currentBefore: before,
@@ -239,15 +285,18 @@ export default function Orders() {
   const { 
     orders: initialOrders, 
     pageInfo: initialPageInfo, 
+    statusMap: initialStatusMap,
     fromCache: initialFromCache,
     currentAfter,
     currentBefore 
   } = useLoaderData();
   const fetcher = useFetcher();
+  const statusFetcher = useFetcher();
   const navigate = useNavigate();
   
   const [orders, setOrders] = useState(initialOrders);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
+  const [statusMap, setStatusMap] = useState(initialStatusMap || {});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
@@ -259,18 +308,33 @@ export default function Orders() {
     if (fetcher.data?.orders) {
       setOrders(fetcher.data.orders);
       setPageInfo(fetcher.data.pageInfo);
+      if (fetcher.data.statusMap) {
+        setStatusMap(fetcher.data.statusMap);
+      }
       setIsLoading(false);
     }
   }, [fetcher.data]);
+
+  // 处理状态更新结果
+  useEffect(() => {
+    if (statusFetcher.data?.success) {
+      const { orderStatus } = statusFetcher.data;
+      setStatusMap(prev => ({
+        ...prev,
+        [orderStatus.orderId]: orderStatus.status
+      }));
+    }
+  }, [statusFetcher.data]);
 
   // 当loader数据更新时重置loading状态
   useEffect(() => {
     setOrders(initialOrders);
     setPageInfo(initialPageInfo);
+    setStatusMap(initialStatusMap || {});
     setCurrentPageAfter(currentAfter);
     setCurrentPageBefore(currentBefore);
     setIsLoading(false);
-  }, [initialOrders, initialPageInfo, currentAfter, currentBefore]);
+  }, [initialOrders, initialPageInfo, initialStatusMap, currentAfter, currentBefore]);
 
   const handleSearch = (pageAfter = null, pageBefore = null) => {
     setIsLoading(true);
@@ -321,8 +385,16 @@ export default function Orders() {
   };
 
 
+  const handleStatusChange = (orderId, newStatus) => {
+    const formData = new FormData();
+    formData.append("action", "updateStatus");
+    formData.append("orderId", orderId);
+    formData.append("status", newStatus);
+    statusFetcher.submit(formData, { method: "POST" });
+  };
+
   const getStatusBadge = (status) => {
-    const statusMap = {
+    const badgeMap = {
       'FULFILLED': { status: 'success', children: '已发货' },
       'UNFULFILLED': { status: 'warning', children: '未发货' },
       'PARTIALLY_FULFILLED': { status: 'attention', children: '部分发货' },
@@ -333,7 +405,18 @@ export default function Orders() {
       'VOIDED': { status: 'critical', children: '已取消' },
     };
     
-    return statusMap[status] || { status: 'info', children: status };
+    return badgeMap[status] || { status: 'info', children: status };
+  };
+
+  const getCustomStatusBadge = (status) => {
+    const badgeMap = {
+      '待生产': { status: 'info', children: '待生产' },
+      '生产中': { status: 'warning', children: '生产中' },
+      '待发货': { status: 'success', children: '待发货' },
+      '发货': { status: 'success', children: '发货' },
+    };
+    
+    return badgeMap[status] || { status: 'default', children: status || '未设置' };
   };
 
   const formatCurrency = (amount, currencyCode) => {
@@ -396,40 +479,60 @@ export default function Orders() {
     );
   };
 
-  const rows = orders.map((order) => [
-    order.name,
-    order.customer?.displayName || '无客户信息',
-    formatCurrency(
-      order.totalPriceSet.shopMoney.amount,
-      order.totalPriceSet.shopMoney.currencyCode
-    ),
-    renderLineItems(order.lineItems),
-    <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
-    <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
-    formatDate(order.createdAt),
-    <ButtonGroup key={`actions-${order.id}`}>
-      <Button
-        size="slim"
-        url={`/app/orders/${order.id.replace('gid://shopify/Order/', '')}`}
-      >
-        查看详情
-      </Button>
-      <Button
-        size="slim"
-        url={`shopify:admin/orders/${order.id.replace('gid://shopify/Order/', '')}`}
-        target="_blank"
-        variant="secondary"
-      >
-        在Shopify中查看
-      </Button>
-    </ButtonGroup>,
-  ]);
+  const rows = orders.map((order) => {
+    const orderId = order.id.replace('gid://shopify/Order/', '');
+    const currentStatus = statusMap[orderId] || '';
+    
+    return [
+      order.name,
+      order.customer?.displayName || '无客户信息',
+      formatCurrency(
+        order.totalPriceSet.shopMoney.amount,
+        order.totalPriceSet.shopMoney.currencyCode
+      ),
+      renderLineItems(order.lineItems),
+      <div key={`custom-status-${order.id}`} style={{ minWidth: '120px' }}>
+        <Select
+          label=""
+          options={[
+            { label: '未设置', value: '' },
+            { label: '待生产', value: '待生产' },
+            { label: '生产中', value: '生产中' },
+            { label: '待发货', value: '待发货' },
+            { label: '已发货', value: '已发货' },
+          ]}
+          value={currentStatus}
+          onChange={(value) => handleStatusChange(orderId, value)}
+        />
+      </div>,
+      <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
+      <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
+      formatDate(order.createdAt),
+      <ButtonGroup key={`actions-${order.id}`}>
+        <Button
+          size="slim"
+          url={`/app/orders/${orderId}`}
+        >
+          查看详情
+        </Button>
+        <Button
+          size="slim"
+          url={`shopify:admin/orders/${orderId}`}
+          target="_blank"
+          variant="secondary"
+        >
+          在Shopify中查看
+        </Button>
+      </ButtonGroup>,
+    ];
+  });
 
   const headings = [
     '订单号',
     '客户',
     '总金额',
-    '商品信息',
+    '商品信息2',
+    '订单状态',
     '发货状态',
     '支付状态',
     '创建时间',
@@ -485,7 +588,7 @@ export default function Orders() {
                 </Box>
               ) : orders.length > 0 ? (
                 <DataTable
-                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
+                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
                   headings={headings}
                   rows={rows}
                   hoverable

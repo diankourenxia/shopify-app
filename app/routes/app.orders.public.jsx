@@ -20,14 +20,25 @@ import { TitleBar } from "@shopify/app-bridge-react";
 export const loader = async ({ request }) => {
   // 动态导入服务器端模块
   const { getOrdersFromCache } = await import("../services/cache.server");
+  const { PrismaClient } = await import("@prisma/client");
+  const prisma = new PrismaClient();
   
   // 从缓存获取数据
   const cacheData = await getOrdersFromCache();
+  
+  // 获取所有订单的自定义状态
+  const orderStatuses = await prisma.orderStatus.findMany();
+  const statusMap = {};
+  orderStatuses.forEach(status => {
+    const orderId = status.orderId;
+    statusMap[orderId] = status.status;
+  });
   
   if (cacheData) {
     return {
       orders: cacheData.orders,
       pageInfo: cacheData.pageInfo,
+      statusMap,
       fromCache: true,
       publicAccess: true
     };
@@ -37,6 +48,7 @@ export const loader = async ({ request }) => {
   return {
     orders: [],
     pageInfo: null,
+    statusMap,
     fromCache: false,
     publicAccess: true,
     noCache: true
@@ -50,13 +62,24 @@ export const action = async ({ request }) => {
   if (action === "refresh") {
     // 动态导入服务器端模块
     const { getOrdersFromCache } = await import("../services/cache.server");
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
     
     // 尝试从缓存获取最新数据
     const cacheData = await getOrdersFromCache();
+    
+    // 获取所有订单的自定义状态
+    const orderStatuses = await prisma.orderStatus.findMany();
+    const statusMap = {};
+    orderStatuses.forEach(status => {
+      statusMap[status.orderId] = status.status;
+    });
+    
     if (cacheData) {
       return {
         orders: cacheData.orders,
         pageInfo: cacheData.pageInfo,
+        statusMap,
         fromCache: true
       };
     }
@@ -66,11 +89,12 @@ export const action = async ({ request }) => {
 };
 
 export default function AppOrdersPublic() {
-  const { orders: initialOrders, pageInfo: initialPageInfo, noCache } = useLoaderData();
+  const { orders: initialOrders, pageInfo: initialPageInfo, statusMap: initialStatusMap, noCache } = useLoaderData();
   const fetcher = useFetcher();
   
   const [orders, setOrders] = useState(initialOrders);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
+  const [statusMap, setStatusMap] = useState(initialStatusMap || {});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
@@ -80,6 +104,9 @@ export default function AppOrdersPublic() {
     if (fetcher.data?.orders) {
       setOrders(fetcher.data.orders);
       setPageInfo(fetcher.data.pageInfo);
+      if (fetcher.data.statusMap) {
+        setStatusMap(fetcher.data.statusMap);
+      }
       setIsLoading(false);
     }
   }, [fetcher.data]);
@@ -92,7 +119,7 @@ export default function AppOrdersPublic() {
   };
 
   const getStatusBadge = (status) => {
-    const statusMap = {
+    const badgeMap = {
       'FULFILLED': { status: 'success', children: '已发货' },
       'UNFULFILLED': { status: 'warning', children: '未发货' },
       'PARTIALLY_FULFILLED': { status: 'attention', children: '部分发货' },
@@ -103,7 +130,18 @@ export default function AppOrdersPublic() {
       'VOIDED': { status: 'critical', children: '已取消' },
     };
     
-    return statusMap[status] || { status: 'info', children: status };
+    return badgeMap[status] || { status: 'info', children: status };
+  };
+
+  const getCustomStatusBadge = (status) => {
+    const badgeMap = {
+      '待生产': { status: 'info', children: '待生产' },
+      '生产中': { status: 'warning', children: '生产中' },
+      '待发货': { status: 'success', children: '待发货' },
+      '已发货': { status: 'success', children: '已发货' },
+    };
+    
+    return badgeMap[status] || { status: 'default', children: status || '未设置' };
   };
 
   const formatCurrency = (amount, currencyCode) => {
@@ -166,32 +204,39 @@ export default function AppOrdersPublic() {
     );
   };
 
-  const rows = orders.map((order) => [
-    order.name,
-    order.customer?.displayName || '无客户信息',
-    formatCurrency(
-      order.totalPriceSet.shopMoney.amount,
-      order.totalPriceSet.shopMoney.currencyCode
-    ),
-    renderLineItems(order.lineItems),
-    <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
-    <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
-    formatDate(order.createdAt),
-    <ButtonGroup key={`actions-${order.id}`}>
-      <Button
-        size="slim"
-        url={`/app/orders/public/${order.id.replace('gid://shopify/Order/', '')}`}
-      >
-        查看详情
-      </Button>
-    </ButtonGroup>,
-  ]);
+  const rows = orders.map((order) => {
+    const orderId = order.id.replace('gid://shopify/Order/', '');
+    const currentStatus = statusMap[orderId] || '';
+    
+    return [
+      order.name,
+      order.customer?.displayName || '无客户信息',
+      formatCurrency(
+        order.totalPriceSet.shopMoney.amount,
+        order.totalPriceSet.shopMoney.currencyCode
+      ),
+      renderLineItems(order.lineItems),
+      <Badge key={`custom-status-${order.id}`} {...getCustomStatusBadge(currentStatus)} />,
+      <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
+      <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
+      formatDate(order.createdAt),
+      <ButtonGroup key={`actions-${order.id}`}>
+        <Button
+          size="slim"
+          url={`/app/orders/public/${orderId}`}
+        >
+          查看详情
+        </Button>
+      </ButtonGroup>,
+    ];
+  });
 
   const headings = [
     '订单号',
     '客户',
     '总金额',
-    '商品信息',
+    '商品信息2',
+    '订单状态',
     '发货状态',
     '支付状态',
     '创建时间',
@@ -237,7 +282,7 @@ export default function AppOrdersPublic() {
                 </Box>
               ) : orders.length > 0 ? (
                 <DataTable
-                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
+                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
                   headings={headings}
                   rows={rows}
                   hoverable

@@ -1,0 +1,57 @@
+{
+  "orders": [
+    {
+      "id": "gid://shopify/Order/6780402958632",
+      "name": "#1001",
+      "createdAt": "2025-09-11T09:38:29Z",
+      "updatedAt": "2025-09-11T09:38:30Z",
+      "totalPriceSet": {
+        "shopMoney": {
+          "amount": "3654.95",
+          "currencyCode": "USD"
+        }
+      },
+      "displayFulfillmentStatus": "UNFULFILLED",
+      "displayFinancialStatus": "PAID",
+      "customer": null,
+      "lineItems": {
+        "edges": [
+          {
+            "node": {
+              "id": "gid://shopify/LineItem/16936285143336",
+              "title": "The 3p Fulfilled Snowboard",
+              "quantity": 1,
+              "customAttributes": [],
+              "variant": {
+                "id": "gid://shopify/ProductVariant/50635321540904",
+                "title": "Default Title",
+                "price": "2629.95"
+              }
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/LineItem/16936285176104",
+              "title": "The Collection Snowboard: Oxygen",
+              "quantity": 1,
+              "customAttributes": [],
+              "variant": {
+                "id": "gid://shopify/ProductVariant/50635321475368",
+                "title": "Default Title",
+                "price": "1025.00"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "pageInfo": {
+    "hasNextPage": false,
+    "hasPreviousPage": false,
+    "startCursor": "eyJsYXN0X2lkIjo2NzgwNDAyOTU4NjMyLCJsYXN0X3ZhbHVlIjoiMjAyNS0wOS0xMSAwOTozODoyOS41MDg2NDMifQ==",
+    "endCursor": "eyJsYXN0X2lkIjo2NzgwNDAyOTU4NjMyLCJsYXN0X3ZhbHVlIjoiMjAyNS0wOS0xMSAwOTozODoyOS41MDg2NDMifQ=="
+  },
+  "timestamp": "2025-10-21T03:09:27.254Z",
+  "expiresAt": "2025-10-21T15:09:27.254Z"
+}
