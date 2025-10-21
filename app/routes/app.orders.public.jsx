@@ -170,14 +170,19 @@ export default function AppOrdersPublic() {
       'Euro Pleat - Double': '韩褶-7型-2折',
       'Euro Pleat - Triple': '韩褶-7型-3折',
       'Rod Pocket': '穿杆带遮轨',
-      'Grommet Top   Black': '打孔（黑色）',
-      'Grommet Top   Silver': '打孔（银色）',
-      'Grommet Top   Bronze': '打孔（青铜色）',
-      'Grommet Top   Gold': '打孔（金色）',
+      'Grommet Top': '打孔',
       'Ripple Fold': '蛇形帘（铆钉）',
       'Ripple Fold  吊环挂钩（四合一）': '蛇形帘（挂钩）',
       'Flat Panel': '吊环挂钩（四合一）',
       'Back Tab': '背带式'
+    };
+    
+    // 打孔颜色映射表
+    const grommetColorMapping = {
+      'Black': '黑色',
+      'Silver': '银色',
+      'Bronze': '青铜色',
+      'Gold': '金色'
     };
     
     customAttributes.forEach(attr => {
@@ -187,6 +192,9 @@ export default function AppOrdersPublic() {
       if(key.includes('Header')) {
         const headerValue = value.split('(')[0].trim();
         dimensions.header = headerMapping[headerValue] || headerValue;
+      }
+      if(key.includes('GROMMET COLOR')) {
+        dimensions.grommetColor = grommetColorMapping[value] || value;
       }
       if(key.includes('Tieback')) {
         dimensions.tieback = value=='No Need'? '无': '有';
@@ -216,7 +224,13 @@ export default function AppOrdersPublic() {
     if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room) {
       const parts = [];
       parts.push(`数量: ${quantity}`);
-      if(dimensions.header) parts.push(`头部: ${dimensions.header}`);
+      if(dimensions.header) {
+        let headerText = dimensions.header;
+        if (dimensions.grommetColor) {
+          headerText += `（${dimensions.grommetColor}）`;
+        }
+        parts.push(`头部: ${headerText}`);
+      }
       if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
       if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);     
       if(dimensions.tieback) parts.push(`高温定型: ${dimensions.tieback}`);
