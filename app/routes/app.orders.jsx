@@ -435,7 +435,7 @@ export default function Orders() {
       const key = attr.key;
       const value = attr.value;
       if(key.includes('Header')) {
-        dimensions.header = value;
+        dimensions.header = value.split('(')[0];
       }
       if(key.includes('Tieback')) {
         dimensions.tieback = value=='No Need'? '无': '有';
