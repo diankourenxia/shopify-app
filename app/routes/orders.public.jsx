@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { redirect } from "@remix-run/node";
 import styles from "./_index/styles.module.css";
+import * as XLSX from 'xlsx';
 
 export const loader = async ({ request }) => {
   const url = new URL(request.url);
@@ -130,6 +131,15 @@ export default function PublicOrders() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
   const [cacheTimestamp, setCacheTimestamp] = useState(initialCacheTimestamp);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedOrders, setSelectedOrders] = useState(new Set());
+  
+  // 分页设置
+  const itemsPerPage = 20;
+  const totalPages = Math.ceil(orders.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentOrders = orders.slice(startIndex, endIndex);
 
   // 处理刷新结果
   useEffect(() => {
@@ -175,6 +185,207 @@ export default function PublicOrders() {
     formData.append("orderId", orderId);
     formData.append("status", newStatus);
     statusFetcher.submit(formData, { method: "POST" });
+  };
+
+  const handleOrderSelect = (orderId, checked) => {
+    setSelectedOrders(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(orderId);
+      } else {
+        newSet.delete(orderId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      const allOrderIds = currentOrders.map(order => order.id);
+      setSelectedOrders(new Set(allOrderIds));
+    } else {
+      setSelectedOrders(new Set());
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (selectedOrders.size === 0) {
+      alert('请先选择要导出的订单');
+      return;
+    }
+
+    const selectedOrdersData = orders.filter(order => selectedOrders.has(order.id));
+    
+    // 准备Excel数据 - 每个商品一行
+    const excelData = [];
+    
+    selectedOrdersData.forEach(order => {
+      const orderId = order.id.replace('gid://shopify/Order/', '');
+      // 交货时间 = 下单时间 + 9天
+      const orderDate = new Date(order.createdAt);
+      const deliveryDate = new Date(orderDate.getTime() + 9 * 24 * 60 * 60 * 1000);
+      const deliveryTime = deliveryDate.toLocaleDateString('zh-CN', { month: 'numeric', day: '2-digit' });
+      const orderNumber = order.name;
+      
+      // 用于跟踪当前订单的有效商品索引
+      let validItemIndex = 0;
+      
+      // 为每个商品创建一行
+      order.lineItems?.edges?.forEach(({ node: item }, index) => {
+        const dimensions = item.customAttributes 
+          ? parseDimensions(item.customAttributes, item.quantity)
+          : null;
+
+        // 解析尺寸信息
+        let fabricHeight = '';
+        let widthFromDimensions = '';
+        let headerType = '';
+        let panels = '';
+        let multiplier = '';
+        let windows = '';
+        let isShaped = '';
+        let lining = '';
+        let tiebacks = '';
+        let processing = '';
+
+        if (dimensions) {
+          // 从尺寸信息中提取数据
+          const parts = dimensions.props.children.map(child => child.props.children);
+          parts.forEach(part => {
+            if (part.includes('高:')) {
+              fabricHeight = part.replace('高:', '').replace('cm', '');
+            } else if (part.includes('宽:')) {
+              widthFromDimensions = part.replace('宽:', '').replace('cm', '');
+            } else if (part.includes('头部:')) {
+              headerType = part.replace('头部:', '').trim();
+            } else if (part.includes('高温定型:')) {
+              isShaped = part.replace('高温定型:', '').trim() === '需要' ? '是' : '否';
+            } else if (part.includes('里料:')) {
+              lining = part.replace('里料:', '');
+            } else if (part.includes('绑带:')) {
+              tiebacks = part.replace('绑带:', '');
+            }
+          });
+        }
+
+        // 计算其他字段
+        const quantity = item.quantity || 1;
+        panels = quantity.toString();
+        windows = '1';
+        processing = 'freshine';
+        
+        // 根据头部类型设置倍数
+        if (headerType.includes('韩褶-L型-2折') || headerType.includes('韩褶-7型-2折')) {
+          multiplier = '2';
+        } else if (headerType.includes('韩褶-L型-3折') || headerType.includes('韩褶-7型-3折')) {
+          multiplier = '2.5';
+        } else if (headerType.includes('穿杆带遮轨')) {
+          multiplier = '2';
+        } else if (headerType.includes('打孔')) {
+          multiplier = '2';
+        } else if (headerType.includes('背带式')) {
+          multiplier = '2.5';
+        } else if (headerType.includes('吊环挂钩')) {
+          multiplier = '2';
+        } else if (headerType.includes('蛇形帘')) {
+          multiplier = '2.5';
+        } else if (headerType.includes('韩褶+背带')) {
+          multiplier = '2';
+        } else if (headerType.includes('酒杯褶')) {
+          multiplier = '2.5';
+        } else if (headerType.includes('工字褶')) {
+          multiplier = '2.5';
+        } else {
+          multiplier = '2.5';
+        }
+
+        // 计算采购米数和墙宽
+        const height = parseFloat(fabricHeight) || 0;
+        const materialPerPiece = parseFloat(widthFromDimensions) || 0;
+        const panelsCount = quantity;
+        const windowsCount = 1;
+        const multiplierNum = parseFloat(multiplier) || 2.5;
+        
+        // 墙宽公式：每片用料/倍数*分片数
+        const wallWidth = materialPerPiece > 0 && multiplierNum > 0 
+          ? ((materialPerPiece / multiplierNum * panelsCount).toFixed(2))
+          : '';
+
+        let purchaseMeters = 0;
+        
+        if (height < 260) {
+          purchaseMeters = (materialPerPiece + 40) * panelsCount * windowsCount / 100;
+        } else if (height > 260) {
+          if (materialPerPiece < 260) {
+            purchaseMeters = (height + 40) * panelsCount * windowsCount / 100;
+          } else if (materialPerPiece >= 260 && materialPerPiece < 400) {
+            purchaseMeters = (height + 40) * (panelsCount + 1) * windowsCount / 100;
+          } else if (materialPerPiece >= 400 && materialPerPiece < 560) {
+            purchaseMeters = (height + 40) * (panelsCount + panelsCount) * windowsCount / 100;
+          } else if (materialPerPiece >= 560 && materialPerPiece < 700) {
+            purchaseMeters = (height + 40) * (panelsCount + panelsCount + 1) * windowsCount / 100;
+          } else if (materialPerPiece >= 700 && materialPerPiece < 840) {
+            purchaseMeters = (height + 40) * (panelsCount + panelsCount + panelsCount) * windowsCount / 100;
+          }
+        }
+
+        const purchaseMetersStr = purchaseMeters.toFixed(2);
+
+        // 过滤掉没有加工方式（头部类型）的商品
+        if (!headerType) {
+          return;
+        }
+
+        // 处理布料型号：去掉字母，只保留数字和符号
+        const fabricModel = item.variant?.title || 'Default Title';
+        const fabricModelFiltered = fabricModel.replace(/[a-zA-Z]/g, '');
+
+        // 如果是当前订单的第一个有效商品，显示订单信息；否则留空
+        const rowData = {
+          '交货时间': validItemIndex === 0 ? deliveryTime : '',
+          '订单编号': validItemIndex === 0 ? orderNumber : '',
+          '布料型号': fabricModelFiltered,
+          '布料采购米数': purchaseMetersStr,
+          '加工方式': headerType || '',
+          '布料高度': fabricHeight,
+          '墙宽': wallWidth,
+          '每片用料': widthFromDimensions,
+          '分片': panels,
+          '倍数': multiplier,
+          '窗户数量': windows,
+          '是否定型': isShaped,
+          '衬布': lining,
+          '绑带': tiebacks,
+          '加工': processing
+        };
+
+        excelData.push(rowData);
+        validItemIndex++;
+      });
+    });
+
+    // 创建工作簿
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '订单列表');
+
+    // 下载文件
+    const fileName = `订单列表_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   const getStatusBadge = (status) => {
@@ -313,7 +524,7 @@ export default function PublicOrders() {
       }
     });
     
-    // 如果有尺寸信息，返回格式化的字符串
+    // 如果有尺寸信息，返回格式化的React元素
     if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory) {
       const parts = [];
       parts.push(`数量: ${quantity}`);
@@ -331,7 +542,13 @@ export default function PublicOrders() {
       if(dimensions.tieback) parts.push(`绑带: ${dimensions.tieback}`);
       if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
       
-      return parts.join('\n');
+      return (
+        <div style={{ lineHeight: '1.4', maxWidth:'400px' }}>
+          {parts.map((part, index) => (
+            <div style={{ whiteSpace: 'normal' }} key={index}>{part}</div>
+          ))}
+        </div>
+      );
     }
     
     return null;
@@ -372,6 +589,43 @@ export default function PublicOrders() {
             </div>
           </div>
 
+          {/* 分页和导出控件 */}
+          {orders.length > 0 && (
+            <div className={styles.paginationTop}>
+              <div className={styles.paginationInfo}>
+                <span>当前页码: 第 {currentPage} 页 / 共 {totalPages} 页</span>
+                <span>总计 {orders.length} 个订单</span>
+              </div>
+              <div className={styles.paginationControls}>
+                <button 
+                  onClick={handlePreviousPage} 
+                  disabled={currentPage === 1}
+                  className={styles.paginationButton}
+                >
+                  上一页
+                </button>
+                <span className={styles.pageNumber}>第 {currentPage} 页</span>
+                <button 
+                  onClick={handleNextPage} 
+                  disabled={currentPage === totalPages}
+                  className={styles.paginationButton}
+                >
+                  下一页
+                </button>
+              </div>
+              <div className={styles.exportControls}>
+                <span>已选择 {selectedOrders.size} 个订单</span>
+                <button 
+                  onClick={handleExportExcel} 
+                  disabled={selectedOrders.size === 0}
+                  className={styles.exportButton}
+                >
+                  导出Excel
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* 订单列表 */}
           {isLoading ? (
             <div className={styles.loadingState}>
@@ -384,6 +638,13 @@ export default function PublicOrders() {
                 <table className={styles.ordersTable}>
                   <thead>
                     <tr>
+                      <th>
+                        <input 
+                          type="checkbox"
+                          checked={selectedOrders.size === currentOrders.length && currentOrders.length > 0}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                        />
+                      </th>
                       <th>订单号</th>                    
                       <th>商品信息</th>
                       <th>尺寸(cm)</th>
@@ -395,7 +656,7 @@ export default function PublicOrders() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.map((order) => {
+                    {currentOrders.map((order) => {
                       const orderId = order.id.replace('gid://shopify/Order/', '');
                       const currentStatus = statusMap[orderId] || '';
                       const fulfillmentStatus = getStatusBadge(order.displayFulfillmentStatus);
@@ -428,6 +689,13 @@ export default function PublicOrders() {
                       
                       return (
                         <tr key={order.id}>
+                          <td>
+                            <input 
+                              type="checkbox"
+                              checked={selectedOrders.has(order.id)}
+                              onChange={(e) => handleOrderSelect(order.id, e.target.checked)}
+                            />
+                          </td>
                           <td>{order.name}</td>
                           <td>
                             {order.lineItems?.edges?.length > 0 ? (
