@@ -579,10 +579,6 @@ export default function Orders() {
 
     return [
       order.name,
-      formatCurrency(
-        order.totalPriceSet.shopMoney.amount,
-        order.totalPriceSet.shopMoney.currencyCode
-      ),
       renderLineItems(order.lineItems),
       firstItemDimensions || '无尺寸信息',
       <div key={`custom-status-${order.id}`} style={{ minWidth: '120px' }}>
@@ -623,7 +619,6 @@ export default function Orders() {
 
   const headings = [
     '订单号',
-    '总金额',
     '商品信息',
     '尺寸(cm)',
     '订单状态',
