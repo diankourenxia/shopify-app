@@ -198,7 +198,12 @@ export const action = async ({ request }) => {
     // 构建搜索查询字符串
     let queryString = searchQuery || "";
     if (statusFilter && statusFilter !== "all") {
-      queryString += ` status:${statusFilter}`;
+      // 使用发货状态进行筛选
+      if (queryString) {
+        queryString += ` fulfillment_status:${statusFilter}`;
+      } else {
+        queryString = `fulfillment_status:${statusFilter}`;
+      }
     }
     
     // 搜索订单
