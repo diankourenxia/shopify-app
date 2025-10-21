@@ -578,7 +578,7 @@ export default function Orders() {
       if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
       
       return (
-        <div style={{ lineHeight: '1.4' }}>
+        <div style={{ lineHeight: '1.4',maxWidth:'400px' }}>
           {parts.map((part, index) => (
             <div style={{ whiteSpace: 'normal' }} key={index}>{part}</div>
           ))}
