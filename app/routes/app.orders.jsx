@@ -936,6 +936,22 @@ export default function Orders() {
 
   return (
     <Page>
+      <style dangerouslySetInnerHTML={{__html: `
+        .Polaris-DataTable--condensed {
+          max-height: 800px !important;
+          overflow-y: scroll !important;
+        }
+        .Polaris-DataTable__ScrollContainer {
+          max-height: 800px !important;
+          overflow-y: auto !important;
+        }
+        .Polaris-DataTable thead {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 10 !important;
+          background-color: #f6f6f7 !important;
+        }
+      `}} />
       <TitleBar title="订单管理" />
       
       <Layout>
