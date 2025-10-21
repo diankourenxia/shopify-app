@@ -39,7 +39,8 @@ export const loader = async ({ request }) => {
       pageInfo: cacheData.pageInfo,
       statusMap,
       fromCache: true,
-      publicAccess: true
+      publicAccess: true,
+      cacheTimestamp: cacheData.timestamp || new Date().toISOString()
     };
   }
 
@@ -78,7 +79,8 @@ export const action = async ({ request }) => {
         orders: cacheData.orders,
         pageInfo: cacheData.pageInfo,
         statusMap,
-        fromCache: true
+        fromCache: true,
+        cacheTimestamp: cacheData.timestamp || new Date().toISOString()
       };
     }
   }
@@ -87,7 +89,7 @@ export const action = async ({ request }) => {
 };
 
 export default function AppOrdersPublic() {
-  const { orders: initialOrders, pageInfo: initialPageInfo, statusMap: initialStatusMap, noCache } = useLoaderData();
+  const { orders: initialOrders, pageInfo: initialPageInfo, statusMap: initialStatusMap, noCache, cacheTimestamp: initialCacheTimestamp } = useLoaderData();
   const fetcher = useFetcher();
   
   const [orders, setOrders] = useState(initialOrders);
@@ -96,6 +98,7 @@ export default function AppOrdersPublic() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
+  const [cacheTimestamp, setCacheTimestamp] = useState(initialCacheTimestamp);
 
   // 处理刷新结果
   useEffect(() => {
@@ -104,6 +107,9 @@ export default function AppOrdersPublic() {
       setPageInfo(fetcher.data.pageInfo);
       if (fetcher.data.statusMap) {
         setStatusMap(fetcher.data.statusMap);
+      }
+      if (fetcher.data.cacheTimestamp) {
+        setCacheTimestamp(fetcher.data.cacheTimestamp);
       }
       setIsLoading(false);
     }
@@ -149,6 +155,67 @@ export default function AppOrdersPublic() {
     }).format(parseFloat(amount));
   };
 
+  // 解析customAttributes中的尺寸信息并转换为厘米
+  const parseDimensions = (customAttributes, quantity) => {
+    if (!customAttributes || !Array.isArray(customAttributes)) {
+      return null;
+    }
+
+    const dimensions = {};
+    
+    customAttributes.forEach(attr => {
+      const key = attr.key;
+      const value = attr.value;
+      
+      if(key.includes('Header')) {
+        dimensions.header = value.split('(')[0];
+      }
+      if(key.includes('Tieback')) {
+        dimensions.tieback = value=='No Need'? '无': '有';
+      }
+      if(key.includes('Room Name')) {
+        dimensions.room = value
+      }
+      
+      // 查找包含尺寸信息的属性
+      if (key.includes('Width') || key.includes('Length') || key.includes('Height')) {
+        // 提取数字部分 (英寸)
+        const inchMatch = value.match(/(\d+(?:\.\d+)?)/);
+        if (inchMatch) {
+          const inches = parseFloat(inchMatch[1]);
+          const centimeters = Math.round(inches * 2.54 * 100) / 100; // 转换为厘米，保留2位小数
+          
+          if (key.includes('Width')) {
+            dimensions.width = centimeters;
+          } else if (key.includes('Length') || key.includes('Height')) {
+            dimensions.length = centimeters;
+          }
+        }
+      }
+    });
+    
+    // 如果有尺寸信息，返回格式化的React元素
+    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room) {
+      const parts = [];
+      parts.push(`数量: ${quantity}`);
+      if(dimensions.header) parts.push(`头部: ${dimensions.header}`);
+      if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
+      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);     
+      if(dimensions.tieback) parts.push(`高温定型: ${dimensions.tieback}`);
+      if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
+      
+      return (
+        <div style={{ lineHeight: '1.4' }}>
+          {parts.map((part, index) => (
+            <div key={index}>{part}</div>
+          ))}
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('zh-CN', {
       year: 'numeric',
@@ -156,6 +223,18 @@ export default function AppOrdersPublic() {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+    });
+  };
+
+  const formatCacheTime = (timestamp) => {
+    if (!timestamp) return '未知';
+    return new Date(timestamp).toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
     });
   };
 
@@ -206,6 +285,11 @@ export default function AppOrdersPublic() {
     const orderId = order.id.replace('gid://shopify/Order/', '');
     const currentStatus = statusMap[orderId] || '';
     
+    // 获取第一个商品的尺寸信息
+    const firstItemDimensions = order.lineItems?.edges?.[0]?.node?.customAttributes 
+      ? parseDimensions(order.lineItems.edges[0].node.customAttributes, order.lineItems?.edges?.[0]?.node?.quantity)
+      : null;
+    
     return [
       order.name,
       order.customer?.displayName || '无客户信息',
@@ -214,6 +298,7 @@ export default function AppOrdersPublic() {
         order.totalPriceSet.shopMoney.currencyCode
       ),
       renderLineItems(order.lineItems),
+      firstItemDimensions || '无尺寸信息',
       <Badge key={`custom-status-${order.id}`} {...getCustomStatusBadge(currentStatus)} />,
       <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
       <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
@@ -233,7 +318,8 @@ export default function AppOrdersPublic() {
     '订单号',
     '客户',
     '总金额',
-    '商品信息2',
+    '商品信息',
+    '尺寸(cm)',
     '订单状态',
     '发货状态',
     '支付状态',
@@ -260,13 +346,18 @@ export default function AppOrdersPublic() {
                 </InlineStack>
               </InlineStack>
 
-              {/* 操作按钮 */}
-              <InlineStack gap="300">
-                <Button onClick={handleRefresh} loading={isLoading}>
-                  刷新缓存数据
-                </Button>
+              {/* 操作按钮和缓存信息 */}
+              <InlineStack gap="300" align="space-between">
+                <InlineStack gap="300">
+                  <Button onClick={handleRefresh} loading={isLoading}>
+                    刷新缓存数据
+                  </Button>
+                  <Text variant="bodyMd" tone="subdued">
+                    注意：这里显示的是缓存数据，刷新会重新从缓存获取最新数据
+                  </Text>
+                </InlineStack>
                 <Text variant="bodyMd" tone="subdued">
-                  注意：这里显示的是缓存数据，刷新会重新从缓存获取最新数据
+                  缓存更新时间: {formatCacheTime(cacheTimestamp)}
                 </Text>
               </InlineStack>
 
@@ -280,7 +371,7 @@ export default function AppOrdersPublic() {
                 </Box>
               ) : orders.length > 0 ? (
                 <DataTable
-                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
+                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
                   headings={headings}
                   rows={rows}
                   hoverable
