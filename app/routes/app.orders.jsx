@@ -462,7 +462,7 @@ export default function Orders() {
 
         // 解析尺寸信息
         let fabricHeight = '';
-        let wallWidth = '';
+        let widthFromDimensions = ''; // 从尺寸信息中提取的宽度（每片用料）
         let headerType = ''; // 头部类型
         let panels = '';
         let multiplier = '';
@@ -479,7 +479,7 @@ export default function Orders() {
             if (part.includes('高:')) {
               fabricHeight = part.replace('高:', '').replace('cm', '');
             } else if (part.includes('宽:')) {
-              wallWidth = part.replace('宽:', '').replace('cm', '');
+              widthFromDimensions = part.replace('宽:', '').replace('cm', '');
             } else if (part.includes('头部:')) {
               headerType = part.replace('头部:', '').trim();
             } else if (part.includes('高温定型:')) {
@@ -496,7 +496,7 @@ export default function Orders() {
         const quantity = item.quantity || 1;
         panels = quantity.toString();
         windows = '1'; // 默认窗户数量
-        processing = headerType || 'freshine'; // 加工方式就是头部
+        processing = 'freshine'; // 默认加工方式
         
         // 根据头部类型设置倍数
         if (headerType.includes('韩褶-L型-2折') || headerType.includes('韩褶-7型-2折')) {
@@ -523,11 +523,17 @@ export default function Orders() {
           multiplier = '2.5'; // 默认倍数
         }
 
-        // 计算采购米数 - 每片用料就是宽度
+        // 计算采购米数和墙宽
         const height = parseFloat(fabricHeight) || 0;
-        const materialPerPiece = parseFloat(wallWidth) || 0; // 每片用料 = 宽度
+        const materialPerPiece = parseFloat(widthFromDimensions) || 0; // 每片用料 = 宽度
         const panelsCount = quantity;
         const windowsCount = 1; // 默认窗户数
+        const multiplierNum = parseFloat(multiplier) || 2.5;
+        
+        // 墙宽公式：每片用料/倍数*分片数
+        const wallWidth = materialPerPiece > 0 && multiplierNum > 0 
+          ? ((materialPerPiece / multiplierNum * panelsCount).toFixed(2))
+          : '';
 
         let purchaseMeters = 0;
         
@@ -562,10 +568,10 @@ export default function Orders() {
           '订单编号': index === 0 ? orderNumber : '',
           '布料型号': item.variant?.title || 'Default Title', // 使用变体名称
           '布料采购米数': purchaseMetersStr, // 根据规则计算的采购米数
-          '加工方式': item.title || '',
+          '加工方式': headerType || '',
           '布料高度': fabricHeight,
-          '墙宽': wallWidth,
-          '每片用料': wallWidth, // 每片用料 = 宽度
+          '墙宽': wallWidth, // 墙宽 = 每片用料/倍数*分片数
+          '每片用料': widthFromDimensions, // 每片用料 = 原始宽度
           '分片': panels,
           '倍数': multiplier,
           '窗户数量': windows,
