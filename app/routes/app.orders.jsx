@@ -463,6 +463,7 @@ export default function Orders() {
         // 解析尺寸信息
         let fabricHeight = '';
         let wallWidth = '';
+        let headerType = ''; // 头部类型
         let panels = '';
         let multiplier = '';
         let windows = '';
@@ -479,6 +480,8 @@ export default function Orders() {
               fabricHeight = part.replace('高:', '').replace('cm', '');
             } else if (part.includes('宽:')) {
               wallWidth = part.replace('宽:', '').replace('cm', '');
+            } else if (part.includes('头部:')) {
+              headerType = part.replace('头部:', '').trim();
             } else if (part.includes('高温定型:')) {
               isShaped = part.replace('高温定型:', '') === '需要' ? '是' : '否';
             } else if (part.includes('里料:')) {
@@ -492,9 +495,33 @@ export default function Orders() {
         // 计算其他字段
         const quantity = item.quantity || 1;
         panels = quantity.toString();
-        multiplier = '2.5'; // 默认倍数
         windows = '1'; // 默认窗户数量
         processing = 'freshine'; // 默认加工方式
+        
+        // 根据头部类型设置倍数
+        if (headerType.includes('韩褶-L型-2折') || headerType.includes('韩褶-7型-2折')) {
+          multiplier = '2'; // L型/7型 2褶 ——2倍
+        } else if (headerType.includes('韩褶-L型-3折') || headerType.includes('韩褶-7型-3折')) {
+          multiplier = '2.5'; // L型/7型 3褶 ——2.5倍
+        } else if (headerType.includes('穿杆带遮轨')) {
+          multiplier = '2'; // 穿杆带遮轨——2倍
+        } else if (headerType.includes('打孔')) {
+          multiplier = '2'; // 打孔——2倍
+        } else if (headerType.includes('背带式')) {
+          multiplier = '2.5'; // 背带式——2.5倍
+        } else if (headerType.includes('吊环挂钩')) {
+          multiplier = '2'; // 吊环挂钩——2倍
+        } else if (headerType.includes('蛇形帘')) {
+          multiplier = '2.5'; // 蛇形帘——2.5倍
+        } else if (headerType.includes('韩褶+背带')) {
+          multiplier = '2'; // 韩褶+背带——2倍
+        } else if (headerType.includes('酒杯褶')) {
+          multiplier = '2.5'; // 酒杯褶——2.5倍
+        } else if (headerType.includes('工字褶')) {
+          multiplier = '2.5'; // 工字褶——2.5倍
+        } else {
+          multiplier = '2.5'; // 默认倍数
+        }
 
         // 计算采购米数 - 每片用料就是宽度
         const height = parseFloat(fabricHeight) || 0;
