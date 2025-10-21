@@ -746,7 +746,7 @@ export default function Orders() {
                     value={statusFilter}
                     onChange={setStatusFilter}
                   />
-                  <Button onClick={handleSearch} loading={isLoading}>
+                  <Button onClick={() => handleSearch()} loading={isLoading}>
                     搜索
                   </Button>
                   <Button onClick={handleClearSearch} variant="plain">
