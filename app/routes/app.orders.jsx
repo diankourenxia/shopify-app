@@ -453,6 +453,15 @@ export default function Orders() {
       'Gold': '金色'
     };
     
+    // 里料类型映射表
+    const liningTypeMapping = {
+      'White_Shading Rate 100%': '漂白春亚纺1#',
+      '18-1  White_Shading Rate 30%': '18-1  White_Shading Rate 30%',
+      'A60-2  Beige_Shading Rate 50%': 'A60-2  Beige_Shading Rate 50%',
+      'A60-28  Black_Shading Rate 80%': 'A60-28  Black_Shading Rate 80%',
+      '2019-18  Black_Shading Rate 100%': '2019-18  Black_Shading Rate 100%'
+    };
+    
     customAttributes.forEach(attr => {
       const key = attr.key;
       const value = attr.value;
@@ -462,6 +471,9 @@ export default function Orders() {
       }
       if(key.includes('GROMMET COLOR')) {
         dimensions.grommetColor = grommetColorMapping[value] || value;
+      }
+      if(key.includes('Lining Type')) {
+        dimensions.liningType = liningTypeMapping[value] || value;
       }
       if(key.includes('Tieback')) {
         dimensions.tieback = value=='No Need'? '无': '有';
@@ -488,7 +500,7 @@ export default function Orders() {
     });
     
     // 如果有尺寸信息，返回格式化的React元素
-    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room) {
+    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType) {
       const parts = [];
       parts.push(`数量: ${quantity}`);
       if(dimensions.header) {
@@ -499,14 +511,15 @@ export default function Orders() {
         parts.push(`头部: ${headerText}`);
       }
       if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
-      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);     
+      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
+      if(dimensions.liningType) parts.push(`里料: ${dimensions.liningType}`);
       if(dimensions.tieback) parts.push(`高温定型: ${dimensions.tieback}`);
       if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
       
       return (
         <div style={{ lineHeight: '1.4' }}>
           {parts.map((part, index) => (
-            <div key={index}>{part}</div>
+            <div style={{ whiteSpace: 'normal' }} key={index}>{part}</div>
           ))}
         </div>
       );
