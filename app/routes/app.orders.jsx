@@ -486,7 +486,7 @@ export default function Orders() {
             } else if (part.includes('头部:')) {
               headerType = part.replace('头部:', '').trim();
             } else if (part.includes('高温定型:')) {
-              isShaped = part.replace('高温定型:', '') === '需要' ? '是' : '否';
+              isShaped = part.replace('高温定型:', '').trim() === '需要' ? '是' : '否';
             } else if (part.includes('里料:')) {
               lining = part.replace('里料:', '');
             } else if (part.includes('绑带:')) {
