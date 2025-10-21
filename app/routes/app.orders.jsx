@@ -188,9 +188,16 @@ export const action = async ({ request }) => {
   if (action === "search") {
     const after = formData.get("after");
     const before = formData.get("before");
+    const statusFilter = formData.get("statusFilter");
+    
+    // 构建搜索查询字符串
+    let queryString = searchQuery || "";
+    if (statusFilter && statusFilter !== "all") {
+      queryString += ` status:${statusFilter}`;
+    }
     
     // 搜索订单
-    const searchQuery = before 
+    const graphqlQuery = before 
       ? `#graphql
           query searchOrders($query: String!, $last: Int!, $before: String) {
             orders(last: $last, query: $query, before: $before, sortKey: CREATED_AT, reverse: true) {`
@@ -199,7 +206,7 @@ export const action = async ({ request }) => {
             orders(first: $first, query: $query, after: $after, sortKey: CREATED_AT, reverse: true) {`;
     
     const response = await admin.graphql(
-      searchQuery + `
+      graphqlQuery + `
             edges {
               node {
                 id
@@ -248,8 +255,8 @@ export const action = async ({ request }) => {
         }`,
       {
         variables: before 
-          ? { query: searchQuery, last: 20, before }
-          : { query: searchQuery, first: 20, ...(after && { after }) },
+          ? { query: queryString, last: 20, before }
+          : { query: queryString, first: 20, ...(after && { after }) },
       }
     );
 
