@@ -448,7 +448,10 @@ export default function Orders() {
     
     selectedOrdersData.forEach(order => {
       const orderId = order.id.replace('gid://shopify/Order/', '');
-      const deliveryTime = new Date(order.createdAt).toLocaleDateString('zh-CN', { month: 'numeric', day: '2-digit' });
+      // 交货时间 = 下单时间 + 9天
+      const orderDate = new Date(order.createdAt);
+      const deliveryDate = new Date(orderDate.getTime() + 9 * 24 * 60 * 60 * 1000);
+      const deliveryTime = deliveryDate.toLocaleDateString('zh-CN', { month: 'numeric', day: '2-digit' });
       const orderNumber = order.name;
       
       // 为每个商品创建一行
@@ -500,7 +503,7 @@ export default function Orders() {
         const rowData = {
           '交货时间': index === 0 ? deliveryTime : '',
           '订单编号': index === 0 ? orderNumber : '',
-          '布料型号': '2023-52', // 默认值，可以从商品信息中提取
+          '布料型号': item.variant?.title || 'Default Title', // 使用变体名称
           '布料采购米数': '16.2', // 默认值
           '加工方式': item.title || '',
           '布料高度': fabricHeight,

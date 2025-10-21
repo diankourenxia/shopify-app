@@ -16,7 +16,7 @@ database.sqlite
 !.env.example
 
 
-
+yarn.lock
 
 
 /extensions/*/dist
