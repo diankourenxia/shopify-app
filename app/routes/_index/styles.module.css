@@ -659,7 +659,12 @@
   }
 }
 
-.Polaris-DataTable--condensed{
-  max-height:800px!important;
-  overflow-y: scroll!important;
+:global(.Polaris-DataTable--condensed) {
+  max-height: 800px !important;
+  overflow-y: scroll !important;
+}
+
+:global(.Polaris-DataTable__ScrollContainer) {
+  max-height: 800px !important;
+  overflow-y: auto !important;
 }
