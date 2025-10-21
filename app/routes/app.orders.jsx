@@ -456,10 +456,10 @@ export default function Orders() {
     // 里料类型映射表
     const liningTypeMapping = {
       'White_Shading Rate 100%': '漂白春亚纺1#',
-      '18-1  White_Shading Rate 30%': '18-1  White_Shading Rate 30%',
-      'A60-2  Beige_Shading Rate 50%': 'A60-2  Beige_Shading Rate 50%',
-      'A60-28  Black_Shading Rate 80%': 'A60-28  Black_Shading Rate 80%',
-      '2019-18  Black_Shading Rate 100%': '2019-18  Black_Shading Rate 100%'
+      'White_Shading Rate 30%': '18-1',
+      'Beige_Shading Rate 50%': 'A60-2',
+      'Black_Shading Rate 80%': 'A60-28',
+      'Black_Shading Rate 100%': '2019-18'
     };
     
     customAttributes.forEach(attr => {
@@ -473,7 +473,8 @@ export default function Orders() {
         dimensions.grommetColor = grommetColorMapping[value] || value;
       }
       if(key.includes('Lining Type')) {
-        dimensions.liningType = liningTypeMapping[value] || value;
+        const liningValue = value.split('(')[0].trim();
+        dimensions.liningType = liningTypeMapping[liningValue] || liningValue;
       }
       if(key.includes('Tieback')) {
         dimensions.tieback = value=='No Need'? '无': '有';
