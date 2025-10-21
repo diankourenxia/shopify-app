@@ -337,6 +337,13 @@ export default function Orders() {
       if (fetcher.data.statusMap) {
         setStatusMap(fetcher.data.statusMap);
       }
+      // 更新当前的 after/before 游标
+      if (fetcher.data.currentAfter !== undefined) {
+        setCurrentPageAfter(fetcher.data.currentAfter);
+      }
+      if (fetcher.data.currentBefore !== undefined) {
+        setCurrentPageBefore(fetcher.data.currentBefore);
+      }
       setIsLoading(false);
     }
   }, [fetcher.data]);
@@ -352,15 +359,22 @@ export default function Orders() {
     }
   }, [statusFetcher.data]);
 
-  // 当loader数据更新时重置loading状态
+  // 当loader数据更新时重置loading状态（仅在初始加载和URL导航时）
   useEffect(() => {
-    setOrders(initialOrders);
-    setPageInfo(initialPageInfo);
-    setStatusMap(initialStatusMap || {});
-    setCurrentPageAfter(currentAfter);
-    setCurrentPageBefore(currentBefore);
-    setIsLoading(false);
-  }, [initialOrders, initialPageInfo, initialStatusMap, currentAfter, currentBefore]);
+    // 只有在不是通过 fetcher 更新数据时才执行
+    if (!fetcher.data) {
+      setOrders(initialOrders);
+      setPageInfo(initialPageInfo);
+      setStatusMap(initialStatusMap || {});
+      setCurrentPageAfter(currentAfter);
+      setCurrentPageBefore(currentBefore);
+      setIsLoading(false);
+      // 如果URL中没有分页参数，重置页码
+      if (!currentAfter && !currentBefore) {
+        setCurrentPage(1);
+      }
+    }
+  }, [initialOrders, initialPageInfo, initialStatusMap, currentAfter, currentBefore, fetcher.data]);
 
   const handleSearch = (pageAfter = null, pageBefore = null) => {
     setIsLoading(true);
@@ -384,6 +398,8 @@ export default function Orders() {
     setCurrentPageAfter(null);
     setCurrentPageBefore(null);
     setCurrentPage(1); // 清除搜索重置页码
+    // 导航回第一页
+    navigate('/app/orders');
   };
 
   const handleNextPage = () => {
