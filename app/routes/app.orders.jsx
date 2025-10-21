@@ -463,7 +463,7 @@ export default function Orders() {
         // 解析尺寸信息
         let fabricHeight = '';
         let wallWidth = '';
-        let materialPerPiece = '';
+        let materialPerPieceStr = '';
         let panels = '';
         let multiplier = '';
         let windows = '';
@@ -481,7 +481,7 @@ export default function Orders() {
             } else if (part.includes('宽:')) {
               wallWidth = part.replace('宽:', '').replace('cm', '');
             } else if (part.includes('数量:')) {
-              materialPerPiece = part.replace('数量:', '');
+              materialPerPieceStr = part.replace('数量:', '');
             } else if (part.includes('高温定型:')) {
               isShaped = part.replace('高温定型:', '') === '需要' ? '是' : '否';
             } else if (part.includes('里料:')) {
@@ -499,12 +499,45 @@ export default function Orders() {
         windows = '1'; // 默认窗户数量
         processing = 'freshine'; // 默认加工方式
 
+        // 计算采购米数
+        const height = parseFloat(fabricHeight) || 0;
+        const materialPerPiece = parseFloat(materialPerPieceStr) || 0;
+        const panelsCount = quantity;
+        const windowsCount = 1; // 默认窗户数
+
+        let purchaseMeters = 0;
+        
+        if (height < 260) {
+          // 当高度<260时:(每片用料+40)*分片*窗户数/100
+          purchaseMeters = (materialPerPiece + 40) * panelsCount * windowsCount / 100;
+        } else if (height > 260) {
+          if (materialPerPiece < 260) {
+            // 当高度>260且每片用料<260时(高度+40)*分片*窗户数/100
+            purchaseMeters = (height + 40) * panelsCount * windowsCount / 100;
+          } else if (materialPerPiece >= 260 && materialPerPiece < 400) {
+            // 当高度>260且260<每片用料<400时(高度+40)*(分片+1)*窗户数/100
+            purchaseMeters = (height + 40) * (panelsCount + 1) * windowsCount / 100;
+          } else if (materialPerPiece >= 400 && materialPerPiece < 560) {
+            // 当高度>260且400<每片用料<560时:(高度+40)*(分片+分片)*窗户数/100
+            purchaseMeters = (height + 40) * (panelsCount + panelsCount) * windowsCount / 100;
+          } else if (materialPerPiece >= 560 && materialPerPiece < 700) {
+            // 当高度>260且560<每片用料<700时(高度+40)*(分片+分片+1)*窗户数/100
+            purchaseMeters = (height + 40) * (panelsCount + panelsCount + 1) * windowsCount / 100;
+          } else if (materialPerPiece >= 700 && materialPerPiece < 840) {
+            // 当高度>260且700<每片用料<840时(高度+40)*(分片+分片+分片)*窗户数/100
+            purchaseMeters = (height + 40) * (panelsCount + panelsCount + panelsCount) * windowsCount / 100;
+          }
+        }
+
+        // 保留2位小数
+        const purchaseMetersStr = purchaseMeters.toFixed(2);
+
         // 如果是第一个商品，显示订单信息；否则留空
         const rowData = {
           '交货时间': index === 0 ? deliveryTime : '',
           '订单编号': index === 0 ? orderNumber : '',
           '布料型号': item.variant?.title || 'Default Title', // 使用变体名称
-          '布料采购米数': '16.2', // 默认值
+          '布料采购米数': purchaseMetersStr, // 根据规则计算的采购米数
           '加工方式': item.title || '',
           '布料高度': fabricHeight,
           '墙宽': wallWidth,
