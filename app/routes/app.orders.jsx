@@ -526,9 +526,8 @@ export default function Orders() {
 
   const headings = [
     '订单号',
-    '客户',
     '总金额',
-    '商品信息2',
+    '商品信息',
     '订单状态',
     '发货状态',
     '支付状态',
