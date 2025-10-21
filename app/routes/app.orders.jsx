@@ -424,7 +424,7 @@ export default function Orders() {
   };
 
   // 解析customAttributes中的尺寸信息并转换为厘米
-  const parseDimensions = (customAttributes,item) => {
+  const parseDimensions = (customAttributes,quantity) => {
     if (!customAttributes || !Array.isArray(customAttributes)) {
       return null;
     }
@@ -464,7 +464,7 @@ export default function Orders() {
     // 如果有尺寸信息，返回格式化的React元素
     if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room) {
       const parts = [];
-      parts.push(`数量: ${item.quantity}`);
+      parts.push(`数量: ${quantity}`);
       if(dimensions.header) parts.push(`头部: ${dimensions.header}`);
       if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
       if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);     
@@ -542,7 +542,7 @@ export default function Orders() {
     
     // 获取第一个商品的尺寸信息
     const firstItemDimensions = order.lineItems?.edges?.[0]?.node?.customAttributes 
-      ? parseDimensions(order.lineItems.edges[0].node.customAttributes,order.lineItems)
+      ? parseDimensions(order.lineItems.edges[0].node.customAttributes,order.lineItems?.edges?.[0]?.node?.quantity)
       : null;
 
     return [
