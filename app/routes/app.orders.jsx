@@ -454,6 +454,9 @@ export default function Orders() {
       const deliveryTime = deliveryDate.toLocaleDateString('zh-CN', { month: 'numeric', day: '2-digit' });
       const orderNumber = order.name;
       
+      // 用于跟踪当前订单的有效商品索引
+      let validItemIndex = 0;
+      
       // 为每个商品创建一行
       order.lineItems?.edges?.forEach(({ node: item }, index) => {
         const dimensions = item.customAttributes 
@@ -562,11 +565,20 @@ export default function Orders() {
         // 保留2位小数
         const purchaseMetersStr = purchaseMeters.toFixed(2);
 
-        // 如果是第一个商品，显示订单信息；否则留空
+        // 过滤掉没有加工方式（头部类型）的商品
+        if (!headerType) {
+          return; // 跳过没有头部类型的商品
+        }
+
+        // 处理布料型号：去掉字母，只保留数字和符号
+        const fabricModel = item.variant?.title || 'Default Title';
+        const fabricModelFiltered = fabricModel.replace(/[a-zA-Z]/g, ''); // 去掉所有字母
+
+        // 如果是当前订单的第一个有效商品，显示订单信息；否则留空
         const rowData = {
-          '交货时间': index === 0 ? deliveryTime : '',
-          '订单编号': index === 0 ? orderNumber : '',
-          '布料型号': item.variant?.title || 'Default Title', // 使用变体名称
+          '交货时间': validItemIndex === 0 ? deliveryTime : '',
+          '订单编号': validItemIndex === 0 ? orderNumber : '',
+          '布料型号': fabricModelFiltered, // 去掉字母后的布料型号
           '布料采购米数': purchaseMetersStr, // 根据规则计算的采购米数
           '加工方式': headerType || '',
           '布料高度': fabricHeight,
@@ -582,6 +594,7 @@ export default function Orders() {
         };
 
         excelData.push(rowData);
+        validItemIndex++; // 增加有效商品计数
       });
     });
 
