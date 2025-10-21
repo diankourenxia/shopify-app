@@ -496,7 +496,7 @@ export default function Orders() {
         const quantity = item.quantity || 1;
         panels = quantity.toString();
         windows = '1'; // 默认窗户数量
-        processing = 'freshine'; // 默认加工方式
+        processing = headerType || 'freshine'; // 加工方式就是头部
         
         // 根据头部类型设置倍数
         if (headerType.includes('韩褶-L型-2折') || headerType.includes('韩褶-7型-2折')) {
