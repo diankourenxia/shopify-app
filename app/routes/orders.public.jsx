@@ -135,7 +135,7 @@ export default function PublicOrders() {
   const [selectedOrders, setSelectedOrders] = useState(new Set());
   
   // 分页设置
-  const itemsPerPage = 20;
+  const itemsPerPage = 100;
   const totalPages = Math.ceil(orders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
