@@ -572,15 +572,34 @@ export default function Orders() {
     const orderId = order.id.replace('gid://shopify/Order/', '');
     const currentStatus = statusMap[orderId] || '';
     
-    // 获取第一个商品的尺寸信息
-    const firstItemDimensions = order.lineItems?.edges?.[0]?.node?.customAttributes 
-      ? parseDimensions(order.lineItems.edges[0].node.customAttributes,order.lineItems?.edges?.[0]?.node?.quantity)
-      : null;
+    // 获取所有商品的尺寸信息
+    const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
+      const dimensions = item.customAttributes 
+        ? parseDimensions(item.customAttributes, item.quantity)
+        : null;
+      
+      if (!dimensions) return null;
+      
+      return (
+        <div key={item.id} style={{ 
+          marginBottom: index < order.lineItems.edges.length - 1 ? '12px' : '0',
+          paddingBottom: index < order.lineItems.edges.length - 1 ? '12px' : '0',
+          borderBottom: index < order.lineItems.edges.length - 1 ? '1px solid #e1e3e5' : 'none'
+        }}>
+          <div style={{ fontWeight: '500', marginBottom: '4px', fontSize: '0.875rem' }}>
+            {item.title}
+          </div>
+          {dimensions}
+        </div>
+      );
+    }).filter(Boolean);
 
     return [
       order.name,
       renderLineItems(order.lineItems),
-      firstItemDimensions || '无尺寸信息',
+      allItemsDimensions && allItemsDimensions.length > 0 
+        ? <div>{allItemsDimensions}</div>
+        : '无尺寸信息',
       <div key={`custom-status-${order.id}`} style={{ minWidth: '120px' }}>
         <Select
           label=""

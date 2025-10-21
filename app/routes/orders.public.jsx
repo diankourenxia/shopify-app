@@ -366,9 +366,7 @@ export default function PublicOrders() {
                 <table className={styles.ordersTable}>
                   <thead>
                     <tr>
-                      <th>订单号</th>
-                      <th>客户</th>
-                      <th>总金额</th>
+                      <th>订单号</th>                    
                       <th>商品信息</th>
                       <th>尺寸(cm)</th>
                       <th>订单状态</th>
@@ -386,19 +384,33 @@ export default function PublicOrders() {
                       const financialStatus = getStatusBadge(order.displayFinancialStatus);
                       const customStatus = getCustomStatusBadge(currentStatus);
                       
-                      // 获取第一个商品的尺寸信息
-                      const firstItemDimensions = order.lineItems?.edges?.[0]?.node?.customAttributes 
-                        ? parseDimensions(order.lineItems.edges[0].node.customAttributes, order.lineItems?.edges?.[0]?.node?.quantity)
-                        : null;
+                      // 获取所有商品的尺寸信息
+                      const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
+                        const dimensions = item.customAttributes 
+                          ? parseDimensions(item.customAttributes, item.quantity)
+                          : null;
+                        
+                        if (!dimensions) return null;
+                        
+                        return (
+                          <div key={item.id} style={{ 
+                            marginBottom: index < order.lineItems.edges.length - 1 ? '12px' : '0',
+                            paddingBottom: index < order.lineItems.edges.length - 1 ? '12px' : '0',
+                            borderBottom: index < order.lineItems.edges.length - 1 ? '1px solid #e1e3e5' : 'none'
+                          }}>
+                            <div style={{ fontWeight: '500', marginBottom: '4px', fontSize: '0.875rem' }}>
+                              {item.title}
+                            </div>
+                            <div style={{ whiteSpace: 'pre-line' }}>
+                              {dimensions}
+                            </div>
+                          </div>
+                        );
+                      }).filter(Boolean);
                       
                       return (
                         <tr key={order.id}>
                           <td>{order.name}</td>
-                          <td>{order.customer?.displayName || '无客户信息'}</td>
-                          <td>{formatCurrency(
-                            order.totalPriceSet.shopMoney.amount,
-                            order.totalPriceSet.shopMoney.currencyCode
-                          )}</td>
                           <td>
                             {order.lineItems?.edges?.length > 0 ? (
                               <div className={styles.lineItems}>
@@ -423,9 +435,9 @@ export default function PublicOrders() {
                             )}
                           </td>
                           <td>
-                            {firstItemDimensions ? (
-                              <div className={styles.dimensions} style={{ whiteSpace: 'pre-line' }}>
-                                {firstItemDimensions}
+                            {allItemsDimensions && allItemsDimensions.length > 0 ? (
+                              <div className={styles.dimensions}>
+                                {allItemsDimensions}
                               </div>
                             ) : (
                               <span className={styles.noDimensions}>无尺寸信息</span>
