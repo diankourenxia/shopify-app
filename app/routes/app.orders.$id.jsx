@@ -195,7 +195,7 @@ export default function OrderDetail() {
   };
 
   // 解析customAttributes中的尺寸信息并转换为厘米
-  const parseDimensions = (customAttributes) => {
+  const parseDimensions = (customAttributes, item) => {
     if (!customAttributes || !Array.isArray(customAttributes)) {
       return null;
     }
@@ -205,6 +205,16 @@ export default function OrderDetail() {
     customAttributes.forEach(attr => {
       const key = attr.key;
       const value = attr.value;
+      
+      if(key.includes('Header')) {
+        dimensions.header = value;
+      }
+      if(key.includes('Tieback')) {
+        dimensions.tieback = value=='No Need'? '无': '有';
+      }
+      if(key.includes('Room Name')) {
+        dimensions.room = value
+      }
       
       // 查找包含尺寸信息的属性
       if (key.includes('Width') || key.includes('Length') || key.includes('Height')) {
@@ -223,19 +233,30 @@ export default function OrderDetail() {
       }
     });
     
-    // 如果有尺寸信息，返回格式化的字符串
-    if (dimensions.width || dimensions.length) {
+    // 如果有尺寸信息，返回格式化的React元素
+    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room) {
       const parts = [];
+      parts.push(`数量: ${item.quantity}`);
+      if(dimensions.header) parts.push(`头部: ${dimensions.header}`);
       if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
-      if (dimensions.length) parts.push(`长: ${dimensions.length}cm`);
-      return parts.join(', ');
+      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);     
+      if(dimensions.tieback) parts.push(`高温定型: ${dimensions.tieback}`);
+      if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
+      
+      return (
+        <div style={{ lineHeight: '1.4' }}>
+          {parts.map((part, index) => (
+            <div key={index}>{part}</div>
+          ))}
+        </div>
+      );
     }
     
     return null;
   };
 
   const lineItemRows = order.lineItems.edges.map(({ node: item }) => {
-    const dimensions = parseDimensions(item.customAttributes);
+    const dimensions = parseDimensions(item.customAttributes, item);
     return [
       item.title,
       item.variant?.sku || '-',

@@ -461,8 +461,8 @@ export default function Orders() {
       }
     });
     
-    // 如果有尺寸信息，返回格式化的字符串
-    if (dimensions.width || dimensions.length) {
+    // 如果有尺寸信息，返回格式化的React元素
+    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room) {
       const parts = [];
       parts.push(`数量: ${item.quantity}`);
       if(dimensions.header) parts.push(`头部: ${dimensions.header}`);
@@ -470,7 +470,14 @@ export default function Orders() {
       if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);     
       if(dimensions.tieback) parts.push(`高温定型: ${dimensions.tieback}`);
       if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
-      return parts.join('\n ');
+      
+      return (
+        <div style={{ lineHeight: '1.4' }}>
+          {parts.map((part, index) => (
+            <div key={index}>{part}</div>
+          ))}
+        </div>
+      );
     }
     
     return null;
