@@ -361,9 +361,9 @@ export default function PublicOrders() {
           '布料型号': fabricModelFiltered,
           '布料采购米数': purchaseMetersStr,
           '加工方式': headerType || '',
-          '布料高度': fabricHeight,
-          '墙宽': wallWidth,
-          '每片用料': widthFromDimensions,
+          '布料高度': fabricHeight ? Math.round(parseFloat(fabricHeight)).toString() : '', // 四舍五入取整
+          '墙宽': wallWidth ? Math.round(parseFloat(wallWidth)).toString() : '', // 四舍五入取整
+          '每片用料': widthFromDimensions ? Math.round(parseFloat(widthFromDimensions)).toString() : '', // 四舍五入取整
           '分片': panels,
           '倍数': multiplier,
           '窗户数量': windows,

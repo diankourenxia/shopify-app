@@ -581,9 +581,9 @@ export default function Orders() {
           '布料型号': fabricModelFiltered, // 去掉字母后的布料型号
           '布料采购米数': purchaseMetersStr, // 根据规则计算的采购米数
           '加工方式': headerType || '',
-          '布料高度': fabricHeight,
-          '墙宽': wallWidth, // 墙宽 = 每片用料/倍数*分片数
-          '每片用料': widthFromDimensions, // 每片用料 = 原始宽度
+          '布料高度': fabricHeight ? Math.round(parseFloat(fabricHeight)).toString() : '', // 四舍五入取整
+          '墙宽': wallWidth ? Math.round(parseFloat(wallWidth)).toString() : '', // 四舍五入取整
+          '每片用料': widthFromDimensions ? Math.round(parseFloat(widthFromDimensions)).toString() : '', // 四舍五入取整
           '分片': panels,
           '倍数': multiplier,
           '窗户数量': windows,
