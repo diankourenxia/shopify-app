@@ -463,7 +463,6 @@ export default function Orders() {
         // 解析尺寸信息
         let fabricHeight = '';
         let wallWidth = '';
-        let materialPerPieceStr = '';
         let panels = '';
         let multiplier = '';
         let windows = '';
@@ -480,8 +479,6 @@ export default function Orders() {
               fabricHeight = part.replace('高:', '').replace('cm', '');
             } else if (part.includes('宽:')) {
               wallWidth = part.replace('宽:', '').replace('cm', '');
-            } else if (part.includes('数量:')) {
-              materialPerPieceStr = part.replace('数量:', '');
             } else if (part.includes('高温定型:')) {
               isShaped = part.replace('高温定型:', '') === '需要' ? '是' : '否';
             } else if (part.includes('里料:')) {
@@ -499,9 +496,9 @@ export default function Orders() {
         windows = '1'; // 默认窗户数量
         processing = 'freshine'; // 默认加工方式
 
-        // 计算采购米数
+        // 计算采购米数 - 每片用料就是宽度
         const height = parseFloat(fabricHeight) || 0;
-        const materialPerPiece = parseFloat(materialPerPieceStr) || 0;
+        const materialPerPiece = parseFloat(wallWidth) || 0; // 每片用料 = 宽度
         const panelsCount = quantity;
         const windowsCount = 1; // 默认窗户数
 
@@ -541,7 +538,7 @@ export default function Orders() {
           '加工方式': item.title || '',
           '布料高度': fabricHeight,
           '墙宽': wallWidth,
-          '每片用料': materialPerPiece,
+          '每片用料': wallWidth, // 每片用料 = 宽度
           '分片': panels,
           '倍数': multiplier,
           '窗户数量': windows,
