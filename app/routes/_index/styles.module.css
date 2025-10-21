@@ -122,6 +122,9 @@
 .tableContainer {
   overflow-x: auto;
   margin-bottom: 1rem;
+  max-height: 70vh;
+  overflow-y: auto;
+  position: relative;
 }
 
 .ordersTable {
@@ -137,6 +140,10 @@
   font-weight: 600;
   border-bottom: 1px solid #e1e3e5;
   color: #202223;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.05);
 }
 
 .ordersTable td {
@@ -464,6 +471,159 @@
 
 .logoutButton:hover {
   background-color: #b91c1c;
+}
+
+/* 分页控件样式 */
+.paginationTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f6f6f7;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.paginationInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #454f5e;
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.paginationButton {
+  background-color: #008060;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background-color: #006f52;
+}
+
+.paginationButton:disabled {
+  background-color: #8c9196;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pageNumber {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #202223;
+  font-weight: 500;
+}
+
+.exportControls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.exportButton {
+  background-color: #1d4ed8;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.exportButton:hover:not(:disabled) {
+  background-color: #1e40af;
+}
+
+.exportButton:disabled {
+  background-color: #8c9196;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* 商品列表和尺寸信息样式 */
+.lineItems {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lineItem {
+  font-size: 0.875rem;
+}
+
+.itemTitle {
+  font-weight: 500;
+  color: #202223;
+}
+
+.variantTitle {
+  font-size: 0.75rem;
+  color: #6d7175;
+  margin-top: 0.25rem;
+}
+
+.moreItems {
+  font-size: 0.75rem;
+  color: #008060;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+.dimensions {
+  max-width: 400px;
+}
+
+.noDimensions,
+.noItems {
+  color: #8c9196;
+  font-style: italic;
+}
+
+.statusSelect {
+  padding: 0.5rem;
+  border: 1px solid #e1e3e5;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.statusSelect:focus {
+  outline: none;
+  border-color: #008060;
+  box-shadow: 0 0 0 2px rgba(0, 128, 96, 0.1);
+}
+
+.cacheInfo {
+  flex: 1;
+}
+
+.cacheTimestamp {
+  font-size: 0.875rem;
+  color: #454f5e;
+}
+
+.statusDefault {
+  background-color: #f6f6f7;
+  color: #454f5e;
 }
 
 @media only screen and (max-width: 50rem) {
