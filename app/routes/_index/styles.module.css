@@ -660,6 +660,6 @@
 }
 
 .Polaris-DataTable--condensed{
-  max-height:800px;
-  overflow-y: scroll;
+  max-height:800px!important;
+  overflow-y: scroll!important;
 }
