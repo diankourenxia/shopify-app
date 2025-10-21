@@ -125,12 +125,17 @@ export const loader = async ({ request }) => {
   const pageInfo = responseJson.data.orders.pageInfo;
 
   // 获取所有订单的自定义状态
-  const orderStatuses = await prisma.orderStatus.findMany();
-  const statusMap = {};
-  orderStatuses.forEach(status => {
-    const orderId = status.orderId;
-    statusMap[orderId] = status.status;
-  });
+  let statusMap = {};
+  try {
+    const orderStatuses = await prisma.orderStatus.findMany();
+    orderStatuses.forEach(status => {
+      const orderId = status.orderId;
+      statusMap[orderId] = status.status;
+    });
+  } catch (dbError) {
+    console.error('Database error when fetching order statuses:', dbError);
+    // 如果数据库查询失败，继续执行但使用空的 statusMap
+  }
 
   // 在后台保存数据到缓存（不影响显示）
   if (!after && !before) {
@@ -261,16 +266,32 @@ export const action = async ({ request }) => {
     );
 
     const responseJson = await response.json();
+    
+    if (responseJson.errors) {
+      console.error('GraphQL Errors in search:', responseJson.errors);
+      throw new Error(`GraphQL Error: ${responseJson.errors[0]?.message}`);
+    }
+    
+    if (!responseJson.data || !responseJson.data.orders) {
+      console.error('Missing data in search response:', responseJson);
+      throw new Error('Invalid GraphQL response structure');
+    }
+    
     const orders = responseJson.data.orders.edges.map(edge => edge.node);
     const pageInfo = responseJson.data.orders.pageInfo;
 
     // 获取订单状态
-    const prisma = (await import("../db.server")).default;
-    const orderStatuses = await prisma.orderStatus.findMany();
-    const statusMap = {};
-    orderStatuses.forEach(status => {
-      statusMap[status.orderId] = status.status;
-    });
+    let statusMap = {};
+    try {
+      const prisma = (await import("../db.server")).default;
+      const orderStatuses = await prisma.orderStatus.findMany();
+      orderStatuses.forEach(status => {
+        statusMap[status.orderId] = status.status;
+      });
+    } catch (dbError) {
+      console.error('Database error when fetching order statuses in search:', dbError);
+      // 如果数据库查询失败，继续执行但使用空的 statusMap
+    }
 
     return {
       orders,

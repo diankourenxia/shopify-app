@@ -25,21 +25,57 @@
 ## 部署步骤
 
 ### 1. 设置环境变量
+在生产服务器上创建 `.env` 文件：
 ```bash
-export DATABASE_URL="file:/var/www/shopify-app/prisma/prod.sqlite"
-export NODE_ENV="production"
+cd /var/www/shopify-app
+
+cat > .env << 'EOF'
+# Database Configuration
+DATABASE_URL="file:/var/www/shopify-app/prisma/prod.sqlite"
+
+# Node Environment
+NODE_ENV="production"
+
+# Shopify App Configuration (填写你的实际值)
+SHOPIFY_API_KEY=your_api_key
+SHOPIFY_API_SECRET=your_api_secret
+SHOPIFY_APP_URL=https://fr-manage.ecolife-us.com
+SCOPES=write_products,read_orders,read_customers
+
+# Server Configuration
+PORT=3000
+EOF
 ```
 
 ### 2. 运行数据库设置脚本
 ```bash
+cd /var/www/shopify-app
+chmod +x scripts/setup-production-db.sh
 ./scripts/setup-production-db.sh
 ```
 
-### 3. 重启应用
+### 3. 验证数据库文件
+```bash
+# 检查数据库文件是否创建
+ls -la /var/www/shopify-app/prisma/
+# 应该看到 prod.sqlite 文件
+
+# 测试数据库连接
+npx prisma studio --schema=./prisma/schema.prisma
+```
+
+### 4. 重启应用
 ```bash
 pm2 restart shopify-app
 # 或者
 systemctl restart shopify-app
+```
+
+### 5. 查看日志检查错误
+```bash
+pm2 logs shopify-app
+# 或者
+journalctl -u shopify-app -f
 ```
 
 ## 验证修复
