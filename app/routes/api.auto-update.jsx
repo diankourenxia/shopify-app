@@ -76,7 +76,7 @@ export const loader = async ({ request }) => {
         }`,
       {
         variables: {
-          first: 20,
+          first: 250,
         },
       }
     );

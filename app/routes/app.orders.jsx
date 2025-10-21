@@ -97,8 +97,8 @@ export const loader = async ({ request }) => {
       }`,
     {
       variables: before 
-        ? { last: 20, before }
-        : { first: 20, ...(after && { after }) },
+        ? { last: 250, before }
+        : { first: 250, ...(after && { after }) },
     }
   );
   
@@ -267,8 +267,8 @@ export const action = async ({ request }) => {
         }`,
       {
         variables: before 
-          ? { query: queryString, last: 20, before }
-          : { query: queryString, first: 20, ...(after && { after }) },
+          ? { query: queryString, last: 250, before }
+          : { query: queryString, first: 250, ...(after && { after }) },
       }
     );
 
