@@ -443,70 +443,80 @@ export default function Orders() {
 
     const selectedOrdersData = orders.filter(order => selectedOrders.has(order.id));
     
-    // 准备Excel数据
-    const excelData = selectedOrdersData.map(order => {
+    // 准备Excel数据 - 每个商品一行
+    const excelData = [];
+    
+    selectedOrdersData.forEach(order => {
       const orderId = order.id.replace('gid://shopify/Order/', '');
-      const firstItem = order.lineItems?.edges?.[0]?.node;
-      const dimensions = firstItem?.customAttributes 
-        ? parseDimensions(firstItem.customAttributes, firstItem.quantity)
-        : null;
+      const deliveryTime = new Date(order.createdAt).toLocaleDateString('zh-CN', { month: 'numeric', day: '2-digit' });
+      const orderNumber = order.name;
+      
+      // 为每个商品创建一行
+      order.lineItems?.edges?.forEach(({ node: item }, index) => {
+        const dimensions = item.customAttributes 
+          ? parseDimensions(item.customAttributes, item.quantity)
+          : null;
 
-      // 解析尺寸信息
-      let fabricHeight = '';
-      let wallWidth = '';
-      let materialPerPiece = '';
-      let panels = '';
-      let multiplier = '';
-      let windows = '';
-      let isShaped = '';
-      let lining = '';
-      let tiebacks = '';
-      let processing = '';
+        // 解析尺寸信息
+        let fabricHeight = '';
+        let wallWidth = '';
+        let materialPerPiece = '';
+        let panels = '';
+        let multiplier = '';
+        let windows = '';
+        let isShaped = '';
+        let lining = '';
+        let tiebacks = '';
+        let processing = '';
 
-      if (dimensions) {
-        // 从尺寸信息中提取数据
-        const parts = dimensions.props.children.map(child => child.props.children);
-        parts.forEach(part => {
-          if (part.includes('高:')) {
-            fabricHeight = part.replace('高:', '').replace('cm', '');
-          } else if (part.includes('宽:')) {
-            wallWidth = part.replace('宽:', '').replace('cm', '');
-          } else if (part.includes('数量:')) {
-            materialPerPiece = part.replace('数量:', '');
-          } else if (part.includes('高温定型:')) {
-            isShaped = part.replace('高温定型:', '') === '需要' ? '是' : '否';
-          } else if (part.includes('里料:')) {
-            lining = part.replace('里料:', '');
-          } else if (part.includes('绑带:')) {
-            tiebacks = part.replace('绑带:', '');
-          }
-        });
-      }
+        if (dimensions) {
+          // 从尺寸信息中提取数据
+          const parts = dimensions.props.children.map(child => child.props.children);
+          parts.forEach(part => {
+            if (part.includes('高:')) {
+              fabricHeight = part.replace('高:', '').replace('cm', '');
+            } else if (part.includes('宽:')) {
+              wallWidth = part.replace('宽:', '').replace('cm', '');
+            } else if (part.includes('数量:')) {
+              materialPerPiece = part.replace('数量:', '');
+            } else if (part.includes('高温定型:')) {
+              isShaped = part.replace('高温定型:', '') === '需要' ? '是' : '否';
+            } else if (part.includes('里料:')) {
+              lining = part.replace('里料:', '');
+            } else if (part.includes('绑带:')) {
+              tiebacks = part.replace('绑带:', '');
+            }
+          });
+        }
 
-      // 计算其他字段
-      const quantity = firstItem?.quantity || 1;
-      panels = quantity.toString();
-      multiplier = '2.5'; // 默认倍数
-      windows = '1'; // 默认窗户数量
-      processing = 'freshine'; // 默认加工方式
+        // 计算其他字段
+        const quantity = item.quantity || 1;
+        panels = quantity.toString();
+        multiplier = '2.5'; // 默认倍数
+        windows = '1'; // 默认窗户数量
+        processing = 'freshine'; // 默认加工方式
 
-      return {
-        '交货时间': new Date(order.createdAt).toLocaleDateString('zh-CN', { month: 'numeric', day: '2-digit' }),
-        '订单编号': order.name,
-        '布料型号': '2023-52', // 默认值，可以从商品信息中提取
-        '布料采购米数': '16.2', // 默认值
-        '加工方式': firstItem?.title || '',
-        '布料高度': fabricHeight,
-        '墙宽': wallWidth,
-        '每片用料': materialPerPiece,
-        '分片': panels,
-        '倍数': multiplier,
-        '窗户数量': windows,
-        '是否定型': isShaped,
-        '衬布': lining,
-        '绑带': tiebacks,
-        '加工': processing
-      };
+        // 如果是第一个商品，显示订单信息；否则留空
+        const rowData = {
+          '交货时间': index === 0 ? deliveryTime : '',
+          '订单编号': index === 0 ? orderNumber : '',
+          '布料型号': '2023-52', // 默认值，可以从商品信息中提取
+          '布料采购米数': '16.2', // 默认值
+          '加工方式': item.title || '',
+          '布料高度': fabricHeight,
+          '墙宽': wallWidth,
+          '每片用料': materialPerPiece,
+          '分片': panels,
+          '倍数': multiplier,
+          '窗户数量': windows,
+          '是否定型': isShaped,
+          '衬布': lining,
+          '绑带': tiebacks,
+          '加工': processing
+        };
+
+        excelData.push(rowData);
+      });
     });
 
     // 创建工作簿
