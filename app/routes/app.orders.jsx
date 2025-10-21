@@ -572,7 +572,7 @@ export default function Orders() {
 
         // 处理布料型号：去掉字母，只保留数字和符号
         const fabricModel = item.variant?.title || 'Default Title';
-        const fabricModelFiltered = fabricModel.replace(/[a-zA-Z]/g, ''); // 去掉所有字母
+        const fabricModelFiltered = fabricModel; // 去掉所有字母
 
         // 如果是当前订单的第一个有效商品，显示订单信息；否则留空
         const rowData = {
