@@ -20,8 +20,7 @@ import { TitleBar } from "@shopify/app-bridge-react";
 export const loader = async ({ request }) => {
   // 动态导入服务器端模块
   const { getOrdersFromCache } = await import("../services/cache.server");
-  const { PrismaClient } = await import("@prisma/client");
-  const prisma = new PrismaClient();
+  const prisma = (await import("../db.server")).default;
   
   // 从缓存获取数据
   const cacheData = await getOrdersFromCache();
@@ -62,8 +61,7 @@ export const action = async ({ request }) => {
   if (action === "refresh") {
     // 动态导入服务器端模块
     const { getOrdersFromCache } = await import("../services/cache.server");
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
+    const prisma = (await import("../db.server")).default;
     
     // 尝试从缓存获取最新数据
     const cacheData = await getOrdersFromCache();

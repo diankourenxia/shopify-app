@@ -31,8 +31,7 @@ export const loader = async ({ request }) => {
     
     // 动态导入服务器端模块
     const { saveOrdersToCache } = await import("../services/cache.server");
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
+    const prisma = (await import("../db.server")).default;
     
     // 直接从Shopify获取实时数据，不使用缓存显示
     const { admin } = await authenticate.admin(request);
@@ -164,8 +163,7 @@ export const action = async ({ request }) => {
 
   // 处理订单状态更新
   if (action === "updateStatus") {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
+    const prisma = (await import("../db.server")).default;
     
     const orderId = formData.get("orderId");
     const status = formData.get("status");
@@ -260,8 +258,7 @@ export const action = async ({ request }) => {
     const pageInfo = responseJson.data.orders.pageInfo;
 
     // 获取订单状态
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
+    const prisma = (await import("../db.server")).default;
     const orderStatuses = await prisma.orderStatus.findMany();
     const statusMap = {};
     orderStatuses.forEach(status => {
