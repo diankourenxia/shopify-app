@@ -63,7 +63,7 @@ export const action = async ({ request }) => {
         }`,
       {
         variables: {
-          first: 250,
+          first: 20,
         },
       }
     );
