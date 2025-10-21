@@ -286,6 +286,9 @@ export default function PublicOrders() {
         const liningValue = value.split('(')[0].trim();
         dimensions.liningType = liningTypeMapping[liningValue] || liningValue;
       }
+      if(key.includes('Body Memory Shaped')) {
+        dimensions.bodyMemory = '需要';
+      }
       if(key.includes('Tieback')) {
         dimensions.tieback = value=='No Need'? '无': '有';
       }
@@ -311,7 +314,7 @@ export default function PublicOrders() {
     });
     
     // 如果有尺寸信息，返回格式化的字符串
-    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType) {
+    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory) {
       const parts = [];
       parts.push(`数量: ${quantity}`);
       if(dimensions.header) {
@@ -324,7 +327,8 @@ export default function PublicOrders() {
       if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
       if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
       if(dimensions.liningType) parts.push(`里料: ${dimensions.liningType}`);
-      if(dimensions.tieback) parts.push(`高温定型: ${dimensions.tieback}`);
+      if(dimensions.bodyMemory) parts.push(`高温定型: ${dimensions.bodyMemory}`);
+      if(dimensions.tieback) parts.push(`绑带: ${dimensions.tieback}`);
       if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
       
       return parts.join('\n');
