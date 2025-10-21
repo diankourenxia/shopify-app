@@ -482,7 +482,6 @@ export default function Orders() {
     
     return [
       order.name,
-      order.customer?.displayName || '无客户信息',
       formatCurrency(
         order.totalPriceSet.shopMoney.amount,
         order.totalPriceSet.shopMoney.currencyCode
