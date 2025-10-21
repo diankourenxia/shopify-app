@@ -17,7 +17,9 @@ import {
   Spinner,
   Box,
   ButtonGroup,
+  Checkbox,
 } from "@shopify/polaris";
+import * as XLSX from 'xlsx';
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 
@@ -333,6 +335,7 @@ export default function Orders() {
   const [currentPageAfter, setCurrentPageAfter] = useState(currentAfter);
   const [currentPageBefore, setCurrentPageBefore] = useState(currentBefore);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedOrders, setSelectedOrders] = useState(new Set());
 
   // 处理搜索结果和页面数据更新
   useEffect(() => {
@@ -403,8 +406,117 @@ export default function Orders() {
     setCurrentPageAfter(null);
     setCurrentPageBefore(null);
     setCurrentPage(1); // 清除搜索重置页码
+    setSelectedOrders(new Set()); // 清除选中状态
     // 导航回第一页
     navigate('/app/orders');
+  };
+
+  // 处理订单勾选
+  const handleOrderSelect = (orderId, checked) => {
+    setSelectedOrders(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(orderId);
+      } else {
+        newSet.delete(orderId);
+      }
+      return newSet;
+    });
+  };
+
+  // 全选/取消全选
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      const allOrderIds = orders.map(order => order.id);
+      setSelectedOrders(new Set(allOrderIds));
+    } else {
+      setSelectedOrders(new Set());
+    }
+  };
+
+  // 导出Excel
+  const handleExportExcel = () => {
+    if (selectedOrders.size === 0) {
+      alert('请先选择要导出的订单');
+      return;
+    }
+
+    const selectedOrdersData = orders.filter(order => selectedOrders.has(order.id));
+    
+    // 准备Excel数据
+    const excelData = selectedOrdersData.map(order => {
+      const orderId = order.id.replace('gid://shopify/Order/', '');
+      const firstItem = order.lineItems?.edges?.[0]?.node;
+      const dimensions = firstItem?.customAttributes 
+        ? parseDimensions(firstItem.customAttributes, firstItem.quantity)
+        : null;
+
+      // 解析尺寸信息
+      let fabricHeight = '';
+      let wallWidth = '';
+      let materialPerPiece = '';
+      let panels = '';
+      let multiplier = '';
+      let windows = '';
+      let isShaped = '';
+      let lining = '';
+      let tiebacks = '';
+      let processing = '';
+
+      if (dimensions) {
+        // 从尺寸信息中提取数据
+        const parts = dimensions.props.children.map(child => child.props.children);
+        parts.forEach(part => {
+          if (part.includes('高:')) {
+            fabricHeight = part.replace('高:', '').replace('cm', '');
+          } else if (part.includes('宽:')) {
+            wallWidth = part.replace('宽:', '').replace('cm', '');
+          } else if (part.includes('数量:')) {
+            materialPerPiece = part.replace('数量:', '');
+          } else if (part.includes('高温定型:')) {
+            isShaped = part.replace('高温定型:', '') === '需要' ? '是' : '否';
+          } else if (part.includes('里料:')) {
+            lining = part.replace('里料:', '');
+          } else if (part.includes('绑带:')) {
+            tiebacks = part.replace('绑带:', '');
+          }
+        });
+      }
+
+      // 计算其他字段
+      const quantity = firstItem?.quantity || 1;
+      panels = quantity.toString();
+      multiplier = '2.5'; // 默认倍数
+      windows = '1'; // 默认窗户数量
+      processing = 'freshine'; // 默认加工方式
+
+      return {
+        '交货时间': new Date(order.createdAt).toLocaleDateString('zh-CN', { month: 'numeric', day: '2-digit' }),
+        '订单编号': order.name,
+        '布料型号': '2023-52', // 默认值，可以从商品信息中提取
+        '布料采购米数': '16.2', // 默认值
+        '加工方式': firstItem?.title || '',
+        '布料高度': fabricHeight,
+        '墙宽': wallWidth,
+        '每片用料': materialPerPiece,
+        '分片': panels,
+        '倍数': multiplier,
+        '窗户数量': windows,
+        '是否定型': isShaped,
+        '衬布': lining,
+        '绑带': tiebacks,
+        '加工': processing
+      };
+    });
+
+    // 创建工作簿
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '订单列表');
+
+    // 下载文件
+    const fileName = `订单列表_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   const handleNextPage = () => {
@@ -669,6 +781,12 @@ export default function Orders() {
     }).filter(Boolean);
 
     return [
+      <Checkbox
+        key={`checkbox-${order.id}`}
+        checked={selectedOrders.has(order.id)}
+        onChange={(checked) => handleOrderSelect(order.id, checked)}
+        label=""
+      />,
       order.name,
       renderLineItems(order.lineItems),
       allItemsDimensions && allItemsDimensions.length > 0 
@@ -711,6 +829,12 @@ export default function Orders() {
   });
 
   const headings = [
+    <Checkbox
+      key="select-all"
+      checked={selectedOrders.size === orders.length && orders.length > 0}
+      onChange={handleSelectAll}
+      label=""
+    />,
     '订单号',
     '商品信息',
     '尺寸(cm)',
@@ -774,6 +898,18 @@ export default function Orders() {
                     清除
                   </Button>
                 </InlineStack>
+                <InlineStack gap="300">
+                  <Text variant="bodyMd" tone="subdued">
+                    已选择 {selectedOrders.size} 个订单
+                  </Text>
+                  <Button 
+                    onClick={handleExportExcel} 
+                    disabled={selectedOrders.size === 0}
+                    variant="primary"
+                  >
+                    导出Excel
+                  </Button>
+                </InlineStack>
               </InlineStack>
 
               {/* 订单列表 */}
@@ -786,7 +922,7 @@ export default function Orders() {
                 </Box>
               ) : orders.length > 0 ? (
                 <DataTable
-                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
+                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
                   headings={headings}
                   rows={rows}
                   hoverable
