@@ -660,7 +660,7 @@ export default function Orders() {
           paddingBottom: index < order.lineItems.edges.length - 1 ? '12px' : '0',
           borderBottom: index < order.lineItems.edges.length - 1 ? '1px solid #e1e3e5' : 'none'
         }}>
-          <div style={{ fontWeight: '500', marginBottom: '4px', fontSize: '0.875rem' }}>
+          <div style={{ fontWeight: '500', marginBottom: '4px', fontSize: '0.875rem','width':'400px','whiteSpace':'wrap' }}>
             {item.title}
           </div>
           {dimensions}
