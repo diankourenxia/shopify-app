@@ -556,6 +556,19 @@ export default function PublicOrders() {
 
   return (
     <div className={styles.index}>
+      <style dangerouslySetInnerHTML={{__html: `
+        .${styles.ordersTable} thead th {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 10 !important;
+          background-color: #f6f6f7 !important;
+          box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.05) !important;
+        }
+        .${styles.tableContainer} {
+          max-height: 1000px !important;
+          overflow-y: auto !important;
+        }
+      `}} />
       <div className={styles.content}>
         {/* 用户信息 */}
         {userSession && (

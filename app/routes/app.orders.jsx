@@ -938,11 +938,11 @@ export default function Orders() {
     <Page>
       <style dangerouslySetInnerHTML={{__html: `
         .Polaris-DataTable--condensed {
-          max-height: 800px !important;
+          max-height: 1000px !important;
           overflow-y: scroll !important;
         }
         .Polaris-DataTable__ScrollContainer {
-          max-height: 800px !important;
+          max-height: 1000px !important;
           overflow-y: auto !important;
         }
         .Polaris-DataTable thead {
