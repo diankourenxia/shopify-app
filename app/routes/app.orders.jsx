@@ -299,6 +299,7 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentPageAfter, setCurrentPageAfter] = useState(currentAfter);
   const [currentPageBefore, setCurrentPageBefore] = useState(currentBefore);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // 处理搜索结果和页面数据更新
   useEffect(() => {
@@ -335,6 +336,9 @@ export default function Orders() {
 
   const handleSearch = (pageAfter = null, pageBefore = null) => {
     setIsLoading(true);
+    if (!pageAfter && !pageBefore) {
+      setCurrentPage(1); // 新搜索重置页码
+    }
     const formData = new FormData();
     formData.append("action", "search");
     formData.append("searchQuery", searchQuery);
@@ -351,10 +355,12 @@ export default function Orders() {
     setPageInfo(initialPageInfo);
     setCurrentPageAfter(null);
     setCurrentPageBefore(null);
+    setCurrentPage(1); // 清除搜索重置页码
   };
 
   const handleNextPage = () => {
     if (pageInfo.hasNextPage && pageInfo.endCursor) {
+      setCurrentPage(prev => prev + 1);
       if (searchQuery) {
         // 如果有搜索条件，使用 fetcher 提交搜索请求
         handleSearch(pageInfo.endCursor, null);
@@ -369,6 +375,7 @@ export default function Orders() {
 
   const handlePreviousPage = () => {
     if (pageInfo.hasPreviousPage && pageInfo.startCursor) {
+      setCurrentPage(prev => prev > 1 ? prev - 1 : 1);
       if (searchQuery) {
         // 如果有搜索条件，使用 fetcher 提交搜索请求
         handleSearch(null, pageInfo.startCursor);
@@ -673,6 +680,22 @@ export default function Orders() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
+              {/* 分页 */}
+              {pageInfo && (pageInfo.hasNextPage || pageInfo.hasPreviousPage) && (
+                <InlineStack gap="400" align="space-between">
+                  <Text variant="bodyMd" tone="subdued">
+                    当前页码: 第 {currentPage} 页
+                  </Text>
+                  <Pagination
+                    hasPrevious={pageInfo.hasPreviousPage}
+                    onPrevious={handlePreviousPage}
+                    hasNext={pageInfo.hasNextPage}
+                    onNext={handleNextPage}
+                    label={`第 ${currentPage} 页`}
+                  />
+                </InlineStack>
+              )}
+
               {/* 搜索和筛选 */}
               <InlineStack gap="300" align="space-between">
                 <InlineStack gap="300">
@@ -726,20 +749,6 @@ export default function Orders() {
                 >
                   <p>尝试调整搜索条件或筛选器</p>
                 </EmptyState>
-              )}
-
-              {/* 分页 */}
-              {pageInfo && (pageInfo.hasNextPage || pageInfo.hasPreviousPage) && (
-                <Box padding="400">
-                  <InlineStack align="center">
-                    <Pagination
-                      hasPrevious={pageInfo.hasPreviousPage}
-                      onPrevious={handlePreviousPage}
-                      hasNext={pageInfo.hasNextPage}
-                      onNext={handleNextPage}
-                    />
-                  </InlineStack>
-                </Box>
               )}
               
             </BlockStack>
