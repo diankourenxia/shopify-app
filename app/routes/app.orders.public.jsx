@@ -163,12 +163,30 @@ export default function AppOrdersPublic() {
 
     const dimensions = {};
     
+    // 头部名称映射表
+    const headerMapping = {
+      'Pinch Pleat - Double': '韩褶-L型-2折',
+      'Pinch Pleat - Triple': '韩褶-L型-3折',
+      'Euro Pleat - Double': '韩褶-7型-2折',
+      'Euro Pleat - Triple': '韩褶-7型-3折',
+      'Rod Pocket': '穿杆带遮轨',
+      'Grommet Top   Black': '打孔（黑色）',
+      'Grommet Top   Silver': '打孔（银色）',
+      'Grommet Top   Bronze': '打孔（青铜色）',
+      'Grommet Top   Gold': '打孔（金色）',
+      'Ripple Fold': '蛇形帘（铆钉）',
+      'Ripple Fold  吊环挂钩（四合一）': '蛇形帘（挂钩）',
+      'Flat Panel': '吊环挂钩（四合一）',
+      'Back Tab': '背带式'
+    };
+    
     customAttributes.forEach(attr => {
       const key = attr.key;
       const value = attr.value;
       
       if(key.includes('Header')) {
-        dimensions.header = value.split('(')[0];
+        const headerValue = value.split('(')[0].trim();
+        dimensions.header = headerMapping[headerValue] || headerValue;
       }
       if(key.includes('Tieback')) {
         dimensions.tieback = value=='No Need'? '无': '有';

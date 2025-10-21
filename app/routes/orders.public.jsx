@@ -240,12 +240,30 @@ export default function PublicOrders() {
 
     const dimensions = {};
     
+    // 头部名称映射表
+    const headerMapping = {
+      'Pinch Pleat - Double': '韩褶-L型-2折',
+      'Pinch Pleat - Triple': '韩褶-L型-3折',
+      'Euro Pleat - Double': '韩褶-7型-2折',
+      'Euro Pleat - Triple': '韩褶-7型-3折',
+      'Rod Pocket': '穿杆带遮轨',
+      'Grommet Top   Black': '打孔（黑色）',
+      'Grommet Top   Silver': '打孔（银色）',
+      'Grommet Top   Bronze': '打孔（青铜色）',
+      'Grommet Top   Gold': '打孔（金色）',
+      'Ripple Fold': '蛇形帘（铆钉）',
+      'Ripple Fold  吊环挂钩（四合一）': '蛇形帘（挂钩）',
+      'Flat Panel': '吊环挂钩（四合一）',
+      'Back Tab': '背带式'
+    };
+    
     customAttributes.forEach(attr => {
       const key = attr.key;
       const value = attr.value;
       
       if(key.includes('Header')) {
-        dimensions.header = value.split('(')[0];
+        const headerValue = value.split('(')[0].trim();
+        dimensions.header = headerMapping[headerValue] || headerValue;
       }
       if(key.includes('Tieback')) {
         dimensions.tieback = value=='No Need'? '无': '有';
@@ -315,21 +333,9 @@ export default function PublicOrders() {
 
           {/* 操作按钮和缓存信息 */}
           <div className={styles.actionsSection}>
-            <div className={styles.actionsRow}>
-              <button 
-                className={styles.refreshButton} 
-                onClick={handleRefresh} 
-                disabled={isLoading}
-              >
-                {isLoading ? '正在刷新...' : '刷新数据'}
-              </button>
-              <p className={styles.note}>
-                注意：这是公开访问页面，只能查看缓存数据。如需更新数据，请联系管理员。
-              </p>
-            </div>
             <div className={styles.cacheInfo}>
               <span className={styles.cacheTimestamp}>
-                缓存更新时间: {formatCacheTime(cacheTimestamp)}
+                订单数据更新时间: {formatCacheTime(cacheTimestamp)}
               </span>
             </div>
           </div>
@@ -355,7 +361,7 @@ export default function PublicOrders() {
                       <th>发货状态</th>
                       <th>支付状态</th>
                       <th>创建时间</th>
-                      <th>操作</th>
+                      {/* <th>操作</th> */}
                     </tr>
                   </thead>
                   <tbody>
@@ -435,14 +441,14 @@ export default function PublicOrders() {
                             </span>
                           </td>
                           <td>{formatDate(order.createdAt)}</td>
-                          <td>
+                          {/* <td>
                             <a 
                               href={`/orders/public/${orderId}`}
                               className={styles.linkButton}
                             >
                               查看详情
                             </a>
-                          </td>
+                          </td> */}
                         </tr>
                       );
                     })}
