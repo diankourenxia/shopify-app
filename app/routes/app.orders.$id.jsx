@@ -194,23 +194,67 @@ export default function OrderDetail() {
     });
   };
 
-  const lineItemRows = order.lineItems.edges.map(({ node: item }) => [
-    item.title,
-    item.variant?.sku || '-',
-    item.quantity,
-    formatCurrency(
-      item.originalUnitPriceSet.shopMoney.amount,
-      item.originalUnitPriceSet.shopMoney.currencyCode
-    ),
-    formatCurrency(
-      item.discountedUnitPriceSet.shopMoney.amount,
-      item.discountedUnitPriceSet.shopMoney.currencyCode
-    ),
-    formatCurrency(
-      parseFloat(item.discountedUnitPriceSet.shopMoney.amount) * item.quantity,
-      item.discountedUnitPriceSet.shopMoney.currencyCode
-    ),
-  ]);
+  // 解析customAttributes中的尺寸信息并转换为厘米
+  const parseDimensions = (customAttributes) => {
+    if (!customAttributes || !Array.isArray(customAttributes)) {
+      return null;
+    }
+
+    const dimensions = {};
+    
+    customAttributes.forEach(attr => {
+      const key = attr.key;
+      const value = attr.value;
+      
+      // 查找包含尺寸信息的属性
+      if (key.includes('Width') || key.includes('Length') || key.includes('Height')) {
+        // 提取数字部分 (英寸)
+        const inchMatch = value.match(/(\d+(?:\.\d+)?)/);
+        if (inchMatch) {
+          const inches = parseFloat(inchMatch[1]);
+          const centimeters = Math.round(inches * 2.54 * 100) / 100; // 转换为厘米，保留2位小数
+          
+          if (key.includes('Width')) {
+            dimensions.width = centimeters;
+          } else if (key.includes('Length') || key.includes('Height')) {
+            dimensions.length = centimeters;
+          }
+        }
+      }
+    });
+    
+    // 如果有尺寸信息，返回格式化的字符串
+    if (dimensions.width || dimensions.length) {
+      const parts = [];
+      if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
+      if (dimensions.length) parts.push(`长: ${dimensions.length}cm`);
+      return parts.join(', ');
+    }
+    
+    return null;
+  };
+
+  const lineItemRows = order.lineItems.edges.map(({ node: item }) => {
+    const dimensions = parseDimensions(item.customAttributes);
+    return [
+      item.title,
+      item.variant?.sku || '-',
+      item.quantity,
+      dimensions || '无尺寸信息',
+      formatCurrency(
+        item.originalUnitPriceSet.shopMoney.amount,
+        item.originalUnitPriceSet.shopMoney.currencyCode
+      ),
+      formatCurrency(
+        item.discountedUnitPriceSet.shopMoney.amount,
+        item.discountedUnitPriceSet.shopMoney.currencyCode
+      ),
+      formatCurrency(
+        parseFloat(item.discountedUnitPriceSet.shopMoney.amount) * item.quantity,
+        item.discountedUnitPriceSet.shopMoney.currencyCode
+      ),
+    ];
+  });
 
   return (
     <Page>
@@ -320,8 +364,8 @@ export default function OrderDetail() {
                   订单商品
                 </Text>
                 <DataTable
-                  columnContentTypes={['text', 'text', 'numeric', 'text', 'text', 'text']}
-                  headings={['商品名称', 'SKU', '数量', '原价', '售价', '小计']}
+                  columnContentTypes={['text', 'text', 'numeric', 'text', 'text', 'text', 'text']}
+                  headings={['商品名称', 'SKU', '数量', '尺寸(cm)', '原价', '售价', '小计']}
                   rows={lineItemRows}
                 />
               </BlockStack>

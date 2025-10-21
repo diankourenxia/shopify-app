@@ -423,6 +423,46 @@ export default function Orders() {
     }).format(parseFloat(amount));
   };
 
+  // 解析customAttributes中的尺寸信息并转换为厘米
+  const parseDimensions = (customAttributes) => {
+    if (!customAttributes || !Array.isArray(customAttributes)) {
+      return null;
+    }
+
+    const dimensions = {};
+    
+    customAttributes.forEach(attr => {
+      const key = attr.key;
+      const value = attr.value;
+      
+      // 查找包含尺寸信息的属性
+      if (key.includes('Width') || key.includes('Length') || key.includes('Height')) {
+        // 提取数字部分 (英寸)
+        const inchMatch = value.match(/(\d+(?:\.\d+)?)/);
+        if (inchMatch) {
+          const inches = parseFloat(inchMatch[1]);
+          const centimeters = Math.round(inches * 2.54 * 100) / 100; // 转换为厘米，保留2位小数
+          
+          if (key.includes('Width')) {
+            dimensions.width = centimeters;
+          } else if (key.includes('Length') || key.includes('Height')) {
+            dimensions.length = centimeters;
+          }
+        }
+      }
+    });
+    
+    // 如果有尺寸信息，返回格式化的字符串
+    if (dimensions.width || dimensions.length) {
+      const parts = [];
+      if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
+      if (dimensions.length) parts.push(`长: ${dimensions.length}cm`);
+      return parts.join(', ');
+    }
+    
+    return null;
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('zh-CN', {
       year: 'numeric',
@@ -480,6 +520,11 @@ export default function Orders() {
     const orderId = order.id.replace('gid://shopify/Order/', '');
     const currentStatus = statusMap[orderId] || '';
     
+    // 获取第一个商品的尺寸信息
+    const firstItemDimensions = order.lineItems?.edges?.[0]?.node?.customAttributes 
+      ? parseDimensions(order.lineItems.edges[0].node.customAttributes)
+      : null;
+
     return [
       order.name,
       formatCurrency(
@@ -487,6 +532,7 @@ export default function Orders() {
         order.totalPriceSet.shopMoney.currencyCode
       ),
       renderLineItems(order.lineItems),
+      firstItemDimensions || '无尺寸信息',
       <div key={`custom-status-${order.id}`} style={{ minWidth: '120px' }}>
         <Select
           label=""
@@ -527,6 +573,7 @@ export default function Orders() {
     '订单号',
     '总金额',
     '商品信息',
+    '尺寸(cm)',
     '订单状态',
     '发货状态',
     '支付状态',
