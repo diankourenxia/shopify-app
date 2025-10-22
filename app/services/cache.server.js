@@ -76,3 +76,54 @@ export async function isCacheValid() {
     return false;
   }
 }
+
+// 合并新订单到现有缓存（增量更新）
+export async function mergeOrdersToCache(newOrders) {
+  try {
+    await ensureCacheDir();
+    
+    let existingOrders = [];
+    
+    // 尝试读取现有缓存
+    try {
+      const data = await fs.readFile(ORDERS_CACHE_FILE, 'utf-8');
+      const cacheData = JSON.parse(data);
+      existingOrders = cacheData.orders || [];
+    } catch {
+      // 如果没有缓存，existingOrders 保持为空数组
+    }
+    
+    // 创建订单ID的Set用于去重
+    const existingIds = new Set(existingOrders.map(order => order.id));
+    
+    // 只添加新订单（不存在于现有缓存中的）
+    const uniqueNewOrders = newOrders.filter(order => !existingIds.has(order.id));
+    
+    // 合并订单：新订单在前，旧订单在后
+    const mergedOrders = [...uniqueNewOrders, ...existingOrders];
+    
+    // 保存合并后的订单
+    const cacheData = {
+      orders: mergedOrders,
+      pageInfo: {
+        hasNextPage: false,
+        hasPreviousPage: false,
+        startCursor: null,
+        endCursor: null,
+      },
+      timestamp: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
+    };
+    
+    await fs.writeFile(ORDERS_CACHE_FILE, JSON.stringify(cacheData, null, 2));
+    console.log(`订单数据已合并：新增 ${uniqueNewOrders.length} 个订单，总计 ${mergedOrders.length} 个订单`);
+    
+    return {
+      addedCount: uniqueNewOrders.length,
+      totalCount: mergedOrders.length
+    };
+  } catch (error) {
+    console.error('合并缓存失败:', error);
+    throw error;
+  }
+}

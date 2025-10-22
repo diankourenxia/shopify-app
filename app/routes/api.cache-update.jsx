@@ -5,10 +5,7 @@ export const action = async ({ request }) => {
   
   try {
     // 动态导入服务器端模块
-    const { saveOrdersToCache, clearOrdersCache } = await import("../services/cache.server");
-    
-    // 清除旧缓存
-    await clearOrdersCache();
+    const { mergeOrdersToCache } = await import("../services/cache.server");
     
     // 循环获取所有订单
     let allOrders = [];
@@ -87,20 +84,14 @@ export const action = async ({ request }) => {
       }
     }
 
-    // 保存所有订单到缓存
-    const finalPageInfo = {
-      hasNextPage: false,
-      hasPreviousPage: false,
-      startCursor: null,
-      endCursor: null,
-    };
-    
-    await saveOrdersToCache(allOrders, finalPageInfo);
+    // 合并新订单到现有缓存（增量更新）
+    const mergeResult = await mergeOrdersToCache(allOrders);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: '缓存更新成功',
-      ordersCount: allOrders.length 
+      message: `缓存更新成功：新增 ${mergeResult.addedCount} 个订单`,
+      addedCount: mergeResult.addedCount,
+      totalCount: mergeResult.totalCount
     }), {
       status: 200,
       headers: {
