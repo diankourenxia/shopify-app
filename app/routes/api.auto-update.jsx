@@ -24,74 +24,97 @@ export const loader = async ({ request }) => {
     // 缓存无效，尝试更新
     const { admin } = await authenticate.admin(request);
     
-    const response = await admin.graphql(
-      `#graphql
-        query getOrders($first: Int!) {
-          orders(first: $first, sortKey: CREATED_AT, reverse: true) {
-            edges {
-              node {
+    // 循环获取所有订单
+    let allOrders = [];
+    let hasNextPage = true;
+    let afterCursor = null;
+    
+    const orderQuery = `#graphql
+      query getOrders($first: Int!, $after: String) {
+        orders(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
+          edges {
+            node {
+              id
+              name
+              createdAt
+              updatedAt
+              totalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              displayFulfillmentStatus
+              displayFinancialStatus
+              customer {
                 id
-                name
-                createdAt
-                updatedAt
-                totalPriceSet {
-                  shopMoney {
-                    amount
-                    currencyCode
-                  }
-                }
-                displayFulfillmentStatus
-                displayFinancialStatus
-                customer {
-                  id
-                  displayName
-                }
-                lineItems(first: 5) {
-                  edges {
-                    node {
+                displayName
+              }
+              lineItems(first: 5) {
+                edges {
+                  node {
+                    id
+                    title
+                    quantity
+                    customAttributes {
+                      key
+                      value
+                    }
+                    variant {
                       id
                       title
-                      quantity
-                      customAttributes {
-                        key
-                        value
-                      }
-                      variant {
-                        id
-                        title
-                        price
-                      }
+                      price
                     }
                   }
                 }
               }
             }
-            pageInfo {
-              hasNextPage
-              hasPreviousPage
-              startCursor
-              endCursor
-            }
           }
-        }`,
-      {
+          pageInfo {
+            hasNextPage
+            hasPreviousPage
+            startCursor
+            endCursor
+          }
+        }
+      }`;
+    
+    while (hasNextPage) {
+      const response = await admin.graphql(orderQuery, {
         variables: {
-          first: 20,
+          first: 50,
+          ...(afterCursor && { after: afterCursor }),
         },
+      });
+
+      const responseJson = await response.json();
+      const orders = responseJson.data.orders.edges.map(edge => edge.node);
+      const pageInfo = responseJson.data.orders.pageInfo;
+      
+      allOrders = allOrders.concat(orders);
+      hasNextPage = pageInfo.hasNextPage;
+      afterCursor = pageInfo.endCursor;
+      
+      // 安全措施：最多获取500个订单，避免无限循环
+      if (allOrders.length >= 500) {
+        break;
       }
-    );
+    }
 
-    const responseJson = await response.json();
-    const orders = responseJson.data.orders.edges.map(edge => edge.node);
-    const pageInfo = responseJson.data.orders.pageInfo;
-
-    // 保存到缓存
-    await saveOrdersToCache(orders, pageInfo);
+    // 保存所有订单到缓存
+    const finalPageInfo = {
+      hasNextPage: false,
+      hasPreviousPage: false,
+      startCursor: null,
+      endCursor: null,
+    };
+    
+    await saveOrdersToCache(allOrders, finalPageInfo);
 
     return new Response(JSON.stringify({ 
       success: true, 
       message: '缓存自动更新成功',
-      ordersCount: orders.length,
+      ordersCount: allOrders.length,
       cacheValid: false
     }), {
       status: 200,
