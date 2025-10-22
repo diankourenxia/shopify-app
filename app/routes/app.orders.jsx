@@ -168,6 +168,101 @@ export const action = async ({ request }) => {
   const action = formData.get("action");
   const searchQuery = formData.get("searchQuery");
 
+  // 处理缓存刷新
+  if (action === "refreshCache") {
+    try {
+      const { mergeOrdersToCache } = await import("../services/cache.server");
+      
+      // 循环获取所有订单
+      let allOrders = [];
+      let hasNextPage = true;
+      let afterCursor = null;
+      
+      const orderQuery = `#graphql
+        query getOrders($first: Int!, $after: String) {
+          orders(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
+            edges {
+              node {
+                id
+                name
+                createdAt
+                updatedAt
+                totalPriceSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
+                }
+                displayFulfillmentStatus
+                displayFinancialStatus
+                customer {
+                  id
+                  displayName
+                }
+                lineItems(first: 5) {
+                  edges {
+                    node {
+                      id
+                      title
+                      quantity
+                      customAttributes {
+                        key
+                        value
+                      }
+                      variant {
+                        id
+                        title
+                        price
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            pageInfo {
+              hasNextPage
+              hasPreviousPage
+              startCursor
+              endCursor
+            }
+          }
+        }`;
+      
+      while (hasNextPage) {
+        const response = await admin.graphql(orderQuery, {
+          variables: {
+            first: 50,
+            ...(afterCursor && { after: afterCursor }),
+          },
+        });
+
+        const responseJson = await response.json();
+        const orders = responseJson.data.orders.edges.map(edge => edge.node);
+        const pageInfo = responseJson.data.orders.pageInfo;
+        
+        allOrders = allOrders.concat(orders);
+        hasNextPage = pageInfo.hasNextPage;
+        afterCursor = pageInfo.endCursor;
+        
+        if (allOrders.length >= 500) {
+          break;
+        }
+      }
+
+      const mergeResult = await mergeOrdersToCache(allOrders);
+      
+      return { 
+        success: true, 
+        message: `缓存已更新：新增 ${mergeResult.addedCount} 个订单，总计 ${mergeResult.totalCount} 个`,
+        addedCount: mergeResult.addedCount,
+        totalCount: mergeResult.totalCount
+      };
+    } catch (error) {
+      console.error('刷新缓存失败:', error);
+      return { error: "刷新缓存失败: " + error.message };
+    }
+  }
+
   // 处理订单状态更新
   if (action === "updateStatus") {
     const prisma = (await import("../db.server")).default;
@@ -324,6 +419,7 @@ export default function Orders() {
   } = useLoaderData();
   const fetcher = useFetcher();
   const statusFetcher = useFetcher();
+  const cacheFetcher = useFetcher();
   const navigate = useNavigate();
   
   const [orders, setOrders] = useState(initialOrders);
@@ -366,6 +462,15 @@ export default function Orders() {
       }));
     }
   }, [statusFetcher.data]);
+
+  // 处理缓存刷新结果
+  useEffect(() => {
+    if (cacheFetcher.data?.success) {
+      shopify.toast.show(cacheFetcher.data.message, { duration: 3000 });
+    } else if (cacheFetcher.data?.error) {
+      shopify.toast.show(cacheFetcher.data.error, { duration: 3000, isError: true });
+    }
+  }, [cacheFetcher.data]);
 
   // 当loader数据更新时重置loading状态（仅在初始加载和URL导航时）
   useEffect(() => {
@@ -977,6 +1082,17 @@ export default function Orders() {
               {/* 搜索和筛选 */}
               <InlineStack gap="300" align="space-between">
                 <InlineStack gap="300">
+                  <Button
+                    onClick={() => {
+                      const formData = new FormData();
+                      formData.append("action", "refreshCache");
+                      cacheFetcher.submit(formData, { method: "POST" });
+                    }}
+                    loading={cacheFetcher.state === "submitting"}
+                    tone="success"
+                  >
+                    刷新缓存
+                  </Button>
                   <TextField
                     label="搜索订单"
                     value={searchQuery}
