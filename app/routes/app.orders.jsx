@@ -67,7 +67,7 @@ export const loader = async ({ request }) => {
                 id
                 displayName
               }
-              lineItems(first: 5) {
+              lineItems(first: 20) {
                 edges {
                   node {
                     id
