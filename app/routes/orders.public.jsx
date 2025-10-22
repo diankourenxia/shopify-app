@@ -30,6 +30,13 @@ export const loader = async ({ request }) => {
   // 从缓存获取数据
   const cacheData = await getOrdersFromCache();
   
+  // 调试信息
+  console.log('🔍 Public页面读取缓存:', {
+    有缓存: !!cacheData,
+    订单数量: cacheData?.orders?.length || 0,
+    时间戳: cacheData?.timestamp
+  });
+  
   // 获取所有订单的自定义状态
   const orderStatuses = await prisma.orderStatus.findMany();
   const statusMap = {};

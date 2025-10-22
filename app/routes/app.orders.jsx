@@ -251,6 +251,13 @@ export const action = async ({ request }) => {
 
       const mergeResult = await mergeOrdersToCache(allOrders);
       
+      console.log('✅ 缓存更新成功:', {
+        获取订单数: allOrders.length,
+        新增订单: mergeResult.addedCount,
+        总计订单: mergeResult.totalCount,
+        缓存路径: process.cwd() + '/cache/orders.json'
+      });
+      
       return { 
         success: true, 
         message: `缓存已更新：新增 ${mergeResult.addedCount} 个订单，总计 ${mergeResult.totalCount} 个`,
