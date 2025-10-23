@@ -498,6 +498,13 @@ export default function Orders() {
     }
   }, [commentFetcher.data]);
 
+  // 处理评论查询状态
+  useEffect(() => {
+    if (commentFetcher.state === 'idle' && commentFetcher.data === undefined) {
+      setCommentsLoading(false);
+    }
+  }, [commentFetcher.state]);
+
   // 当loader数据更新时重置loading状态（仅在初始加载和URL导航时）
   useEffect(() => {
     // 只有在不是通过 fetcher 更新数据时才执行
@@ -786,7 +793,7 @@ export default function Orders() {
     setComments([]);
     
     // 使用 fetcher 加载评论
-    commentFetcher.load(`/app/api/comments?orderId=${orderId}`);
+    commentFetcher.load(`/api/comments?orderId=${orderId}`);
   };
 
   const getStatusBadge = (status) => {
