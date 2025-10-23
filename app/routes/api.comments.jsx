@@ -18,7 +18,7 @@ export const loader = async ({ request }) => {
       `#graphql
         query getOrderComments($id: ID!) {
           order(id: $id) {
-            events(first: 50, types: [COMMENT_EVENT]) {
+            events(first: 50) {
               edges {
                 node {
                   ... on CommentEvent {
@@ -54,7 +54,10 @@ export const loader = async ({ request }) => {
       });
     }
 
-    const comments = responseJson.data?.order?.events?.edges?.map(edge => edge.node) || [];
+    const allEvents = responseJson.data?.order?.events?.edges?.map(edge => edge.node) || [];
+    
+    // 过滤出 CommentEvent 类型的事件
+    const comments = allEvents.filter(event => event.id && event.message);
     
     return new Response(JSON.stringify({ comments }), {
       status: 200,
