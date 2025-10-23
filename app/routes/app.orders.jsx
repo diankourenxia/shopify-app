@@ -417,58 +417,6 @@ export const action = async ({ request }) => {
   return null;
 };
 
-export const commentLoader = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
-  const url = new URL(request.url);
-  const orderId = url.searchParams.get("orderId");
-  
-  if (!orderId) {
-    return { comments: [] };
-  }
-
-  try {
-    // 查询订单的评论事件
-    const response = await admin.graphql(
-      `#graphql
-        query getOrderComments($id: ID!) {
-          events(first: 50, subjectId: $id, types: [COMMENT_EVENT]) {
-            edges {
-              node {
-                ... on CommentEvent {
-                  id
-                  message
-                  createdAt
-                  author {
-                    name
-                  }
-                }
-              }
-            }
-          }
-        }`,
-      {
-        variables: {
-          id: orderId,
-        },
-      }
-    );
-
-    const responseJson = await response.json();
-    
-    if (responseJson.errors) {
-      console.error('GraphQL Errors:', responseJson.errors);
-      return { comments: [], error: responseJson.errors[0]?.message };
-    }
-
-    const comments = responseJson.data?.events?.edges?.map(edge => edge.node) || [];
-    
-    return { comments };
-  } catch (error) {
-    console.error('Error fetching comments:', error);
-    return { comments: [], error: error.message };
-  }
-};
-
 export default function Orders() {
   const { 
     orders: initialOrders, 
@@ -838,7 +786,7 @@ export default function Orders() {
     setComments([]);
     
     // 使用 fetcher 加载评论
-    commentFetcher.load(`/app/orders?orderId=${orderId}`);
+    commentFetcher.load(`/app/api/comments?orderId=${orderId}`);
   };
 
   const getStatusBadge = (status) => {
