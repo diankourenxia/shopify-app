@@ -18,6 +18,7 @@ import {
   Box,
   ButtonGroup,
   Checkbox,
+  Modal,
 } from "@shopify/polaris";
 import * as XLSX from 'xlsx';
 import { TitleBar } from "@shopify/app-bridge-react";
@@ -416,6 +417,58 @@ export const action = async ({ request }) => {
   return null;
 };
 
+export const commentLoader = async ({ request }) => {
+  const { admin } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const orderId = url.searchParams.get("orderId");
+  
+  if (!orderId) {
+    return { comments: [] };
+  }
+
+  try {
+    // 查询订单的评论事件
+    const response = await admin.graphql(
+      `#graphql
+        query getOrderComments($id: ID!) {
+          events(first: 50, subjectId: $id, types: [COMMENT_EVENT]) {
+            edges {
+              node {
+                ... on CommentEvent {
+                  id
+                  message
+                  createdAt
+                  author {
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }`,
+      {
+        variables: {
+          id: orderId,
+        },
+      }
+    );
+
+    const responseJson = await response.json();
+    
+    if (responseJson.errors) {
+      console.error('GraphQL Errors:', responseJson.errors);
+      return { comments: [], error: responseJson.errors[0]?.message };
+    }
+
+    const comments = responseJson.data?.events?.edges?.map(edge => edge.node) || [];
+    
+    return { comments };
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    return { comments: [], error: error.message };
+  }
+};
+
 export default function Orders() {
   const { 
     orders: initialOrders, 
@@ -428,6 +481,7 @@ export default function Orders() {
   const fetcher = useFetcher();
   const statusFetcher = useFetcher();
   const cacheFetcher = useFetcher();
+  const commentFetcher = useFetcher();
   const navigate = useNavigate();
   
   const [orders, setOrders] = useState(initialOrders);
@@ -440,6 +494,10 @@ export default function Orders() {
   const [currentPageBefore, setCurrentPageBefore] = useState(currentBefore);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrders, setSelectedOrders] = useState(new Set());
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [commentsOrderId, setCommentsOrderId] = useState(null);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [comments, setComments] = useState([]);
 
   // 处理搜索结果和页面数据更新
   useEffect(() => {
@@ -479,6 +537,18 @@ export default function Orders() {
       shopify.toast.show(cacheFetcher.data.error, { duration: 3000, isError: true });
     }
   }, [cacheFetcher.data]);
+
+  // 处理评论查询结果
+  useEffect(() => {
+    if (commentFetcher.data?.comments) {
+      setComments(commentFetcher.data.comments);
+      setCommentsLoading(false);
+    } else if (commentFetcher.data?.error) {
+      console.error('Error loading comments:', commentFetcher.data.error);
+      setComments([]);
+      setCommentsLoading(false);
+    }
+  }, [commentFetcher.data]);
 
   // 当loader数据更新时重置loading状态（仅在初始加载和URL导航时）
   useEffect(() => {
@@ -761,6 +831,16 @@ export default function Orders() {
     statusFetcher.submit(formData, { method: "POST" });
   };
 
+  const handleViewComments = (orderId) => {
+    setCommentsOrderId(orderId);
+    setShowCommentsModal(true);
+    setCommentsLoading(true);
+    setComments([]);
+    
+    // 使用 fetcher 加载评论
+    commentFetcher.load(`/app/orders?orderId=${orderId}`);
+  };
+
   const getStatusBadge = (status) => {
     const badgeMap = {
       'FULFILLED': { status: 'success', children: '已发货' },
@@ -1024,6 +1104,12 @@ export default function Orders() {
         </Button>
         <Button
           size="slim"
+          onClick={() => handleViewComments(order.id)}
+        >
+          查询评论
+        </Button>
+        <Button
+          size="slim"
           url={`shopify:admin/orders/${orderId}`}
           target="_blank"
           variant="secondary"
@@ -1174,6 +1260,53 @@ export default function Orders() {
           </Card>
         </Layout.Section>
       </Layout>
+
+      {/* 评论查询 Modal */}
+      <Modal
+        open={showCommentsModal}
+        onClose={() => setShowCommentsModal(false)}
+        title="订单评论"
+        primaryAction={{
+          content: '关闭',
+          onAction: () => setShowCommentsModal(false),
+        }}
+      >
+        <Modal.Section>
+          {commentsLoading ? (
+            <Box padding="400">
+              <InlineStack align="center">
+                <Spinner size="small" />
+                <Text variant="bodyMd">正在加载评论...</Text>
+              </InlineStack>
+            </Box>
+          ) : comments.length > 0 ? (
+            <BlockStack gap="400">
+              {comments.map((comment) => (
+                <Card key={comment.id}>
+                  <BlockStack gap="200">
+                    <InlineStack align="space-between">
+                      <Text variant="bodyMd" fontWeight="semibold">
+                        {comment.author?.name || '未知用户'}
+                      </Text>
+                      <Text variant="bodyMd" tone="subdued">
+                        {formatDate(comment.createdAt)}
+                      </Text>
+                    </InlineStack>
+                    <Text variant="bodyMd">{comment.message}</Text>
+                  </BlockStack>
+                </Card>
+              ))}
+            </BlockStack>
+          ) : (
+            <EmptyState
+              heading="暂无评论"
+              image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+            >
+              <p>该订单目前没有任何评论</p>
+            </EmptyState>
+          )}
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }
