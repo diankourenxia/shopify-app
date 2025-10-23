@@ -64,6 +64,8 @@ export const loader = async ({ request }) => {
               displayFulfillmentStatus
               displayFinancialStatus
               note
+              customerNote
+              tags
               customer {
                 id
                 displayName
@@ -196,6 +198,9 @@ export const action = async ({ request }) => {
                 }
                 displayFulfillmentStatus
                 displayFinancialStatus
+                note
+                customerNote
+                tags
                 customer {
                   id
                   displayName
@@ -336,6 +341,9 @@ export const action = async ({ request }) => {
                 }
                 displayFulfillmentStatus
                 displayFinancialStatus
+                note
+                customerNote
+                tags
                 customer {
                   id
                   displayName
@@ -691,7 +699,7 @@ export default function Orders() {
         const rowData = {
           '交货时间': validItemIndex === 0 ? deliveryTime : '',
           '订单编号': validItemIndex === 0 ? orderNumber : '',
-          'Comments': validItemIndex === 0 ? (order.note || '') : '',
+          'Comments': validItemIndex === 0 ? (order.customerNote || order.note || '') : '',
           '布料型号': fabricModelFiltered, // 去掉字母后的布料型号
           '布料采购米数': purchaseMetersStr, // 根据规则计算的采购米数
           '加工方式': headerType || '',
@@ -1012,7 +1020,7 @@ export default function Orders() {
       <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
       <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
       <div style={{ maxWidth: '200px', wordWrap: 'break-word' }}>
-        {order.note || '-'}
+        {order.customerNote || order.note || '-'}
       </div>,
       formatDate(order.createdAt),
       <ButtonGroup key={`actions-${order.id}`}>
