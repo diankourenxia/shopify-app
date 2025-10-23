@@ -573,13 +573,28 @@ export default function Orders() {
   };
 
   // 导出Excel
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (selectedOrders.size === 0) {
       alert('请先选择要导出的订单');
       return;
     }
 
     const selectedOrdersData = orders.filter(order => selectedOrders.has(order.id));
+    
+    // 查询所有订单的评论
+    const commentsMap = {};
+    await Promise.all(selectedOrdersData.map(async (order) => {
+      try {
+        const response = await fetch(`/api/comments?orderId=${order.id}`);
+        const data = await response.json();
+        if (data.comments && data.comments.length > 0) {
+          // 合并所有评论，用换行符分隔
+          commentsMap[order.id] = data.comments.map(c => c.message).join('\n');
+        }
+      } catch (error) {
+        console.error(`Error fetching comments for order ${order.id}:`, error);
+      }
+    }));
     
     // 准备Excel数据 - 每个商品一行
     const excelData = [];
@@ -717,6 +732,7 @@ export default function Orders() {
           '交货时间': validItemIndex === 0 ? deliveryTime : '',
           '订单编号': validItemIndex === 0 ? orderNumber : '',
           '备注': validItemIndex === 0 ? (order.note || '') : '',
+          '评论': validItemIndex === 0 ? (commentsMap[order.id] || '') : '',
           '布料型号': fabricModelFiltered, // 去掉字母后的布料型号
           '布料采购米数': purchaseMetersStr, // 根据规则计算的采购米数
           '加工方式': headerType || '',
