@@ -365,6 +365,7 @@ export default function PublicOrders() {
         const rowData = {
           '交货时间': validItemIndex === 0 ? deliveryTime : '',
           '订单编号': validItemIndex === 0 ? orderNumber : '',
+          'Comments': validItemIndex === 0 ? (order.note || '') : '',
           '布料型号': fabricModelFiltered,
           '布料采购米数': purchaseMetersStr,
           '加工方式': headerType || '',
@@ -671,6 +672,7 @@ export default function PublicOrders() {
                       <th>订单状态</th>
                       <th>发货状态</th>
                       <th>支付状态</th>
+                      <th>Comments</th>
                       <th>创建时间</th>
                       {/* <th>操作</th> */}
                     </tr>
@@ -771,6 +773,9 @@ export default function PublicOrders() {
                             <span className={`${styles.statusBadge} ${styles[financialStatus.className]}`}>
                               {financialStatus.text}
                             </span>
+                          </td>
+                          <td style={{ maxWidth: '200px', wordWrap: 'break-word' }}>
+                            {order.note || '-'}
                           </td>
                           <td>{formatDate(order.createdAt)}</td>
                           {/* <td>
