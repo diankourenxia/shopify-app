@@ -691,7 +691,7 @@ export default function Orders() {
         const rowData = {
           '交货时间': validItemIndex === 0 ? deliveryTime : '',
           '订单编号': validItemIndex === 0 ? orderNumber : '',
-          'Comments': validItemIndex === 0 ? (order.note || '') : '',
+          '备注': validItemIndex === 0 ? (order.note || '') : '',
           '布料型号': fabricModelFiltered, // 去掉字母后的布料型号
           '布料采购米数': purchaseMetersStr, // 根据规则计算的采购米数
           '加工方式': headerType || '',
@@ -1047,7 +1047,7 @@ export default function Orders() {
     '订单状态',
     '发货状态',
     '支付状态',
-    'Comments',
+    '备注',
     '创建时间',
     '操作',
   ];
