@@ -25,9 +25,6 @@ export const loader = async ({ request }) => {
                     id
                     message
                     createdAt
-                    author {
-                      name
-                    }
                   }
                 }
               }

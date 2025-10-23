@@ -1241,7 +1241,7 @@ export default function Orders() {
                   <BlockStack gap="200">
                     <InlineStack align="space-between">
                       <Text variant="bodyMd" fontWeight="semibold">
-                        {comment.author?.name || '未知用户'}
+                        评论 #{comment.id.split('/').pop()}
                       </Text>
                       <Text variant="bodyMd" tone="subdued">
                         {formatDate(comment.createdAt)}
