@@ -17,15 +17,17 @@ export const loader = async ({ request }) => {
     const response = await admin.graphql(
       `#graphql
         query getOrderComments($id: ID!) {
-          events(first: 50, subjectId: $id, types: [COMMENT_EVENT]) {
-            edges {
-              node {
-                ... on CommentEvent {
-                  id
-                  message
-                  createdAt
-                  author {
-                    name
+          order(id: $id) {
+            events(first: 50, types: [COMMENT_EVENT]) {
+              edges {
+                node {
+                  ... on CommentEvent {
+                    id
+                    message
+                    createdAt
+                    author {
+                      name
+                    }
                   }
                 }
               }
@@ -52,7 +54,7 @@ export const loader = async ({ request }) => {
       });
     }
 
-    const comments = responseJson.data?.events?.edges?.map(edge => edge.node) || [];
+    const comments = responseJson.data?.order?.events?.edges?.map(edge => edge.node) || [];
     
     return new Response(JSON.stringify({ comments }), {
       status: 200,
