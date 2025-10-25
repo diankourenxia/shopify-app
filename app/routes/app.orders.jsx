@@ -899,7 +899,9 @@ export default function Orders() {
         dimensions.liningType = liningTypeMapping[liningValue] || liningValue;
       }
       if(key.includes('Body Memory Shaped')) {
-        dimensions.bodyMemory = '需要';
+        if(!value.includes('No')){
+          dimensions.bodyMemory = '需要';
+        }
       }
       if(key.includes('Tieback')) {
         dimensions.tieback = value=='No Need'? '无': '有';
