@@ -1036,7 +1036,6 @@ export default function Orders() {
 
   const rows = orders.map((order) => {
     const orderId = order.id.replace('gid://shopify/Order/', '');
-    const currentStatus = statusMap[orderId] || '';
     
     // 获取所有商品的尺寸信息
     const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
@@ -1056,6 +1055,20 @@ export default function Orders() {
             {item.title}
           </div>
           {dimensions}
+          <div style={{ marginTop: '8px', maxWidth: '220px' }}>
+            <Select
+              label=""
+              options={[
+                { label: '未设置', value: '' },
+                { label: '待生产', value: '待生产' },
+                { label: '生产中', value: '生产中' },
+                { label: '待发货', value: '待发货' },
+                { label: '已发货', value: '已发货' },
+              ]}
+              value={statusMap[`${orderId}:${item.id}`] || ''}
+              onChange={(value) => handleStatusChange(`${orderId}:${item.id}`, value)}
+            />
+          </div>
         </div>
       );
     }).filter(Boolean);
@@ -1072,20 +1085,7 @@ export default function Orders() {
       allItemsDimensions && allItemsDimensions.length > 0 
         ? <div>{allItemsDimensions}</div>
         : '无尺寸信息',
-      <div key={`custom-status-${order.id}`} style={{ minWidth: '120px' }}>
-        <Select
-          label=""
-          options={[
-            { label: '未设置', value: '' },
-            { label: '待生产', value: '待生产' },
-            { label: '生产中', value: '生产中' },
-            { label: '待发货', value: '待发货' },
-            { label: '已发货', value: '已发货' },
-          ]}
-          value={currentStatus}
-          onChange={(value) => handleStatusChange(orderId, value)}
-        />
-      </div>,
+      <div key={`custom-status-${order.id}`} style={{ minWidth: '120px' }}>—</div>,
       <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
       <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
       <div style={{ maxWidth: '200px', wordWrap: 'break-word' }}>
