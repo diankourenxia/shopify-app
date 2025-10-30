@@ -347,7 +347,7 @@ export default function PublicOrders() {
 
   const handleSelectAll = (checked) => {
     if (checked) {
-      const allOrderIds = currentOrdersWithDimensions.map(order => order.id);
+      const allOrderIds = currentOrders.map(order => order.id);
       setSelectedOrders(new Set(allOrderIds));
     } else {
       setSelectedOrders(new Set());
@@ -725,7 +725,7 @@ export default function PublicOrders() {
                       <th>
                         <input 
                           type="checkbox"
-                          checked={selectedOrders.size === currentOrdersWithDimensions.length && currentOrdersWithDimensions.length > 0}
+                          checked={selectedOrders.size === currentOrders.length && currentOrders.length > 0}
                           onChange={(e) => handleSelectAll(e.target.checked)}
                         />
                       </th>
@@ -741,7 +741,7 @@ export default function PublicOrders() {
                     </tr>
                   </thead>
                   <tbody>
-                    {currentOrdersWithDimensions.map((order) => {
+                    {currentOrders.map((order) => {
                       const orderId = order.id.replace('gid://shopify/Order/', '');
                       const currentStatus = statusMap[orderId] || '';
                       const fulfillmentStatus = getStatusBadge(order.displayFulfillmentStatus);
