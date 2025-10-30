@@ -90,14 +90,23 @@ export async function mergeOrdersToCache(newOrders) {
       // 如果没有缓存，existingOrders 保持为空数组
     }
     
-    // 创建订单ID的Set用于去重
-    const existingIds = new Set(existingOrders.map(order => order.id));
+    // 创建订单ID到订单的映射
+    const orderMap = new Map();
     
-    // 只添加新订单（不存在于现有缓存中的）
-    const uniqueNewOrders = newOrders.filter(order => !existingIds.has(order.id));
+    // 先将现有订单放入映射
+    existingOrders.forEach(order => {
+      orderMap.set(order.id, order);
+    });
     
-    // 合并订单：新订单在前，旧订单在后
-    const mergedOrders = [...uniqueNewOrders, ...existingOrders];
+    // 用新订单覆盖现有订单
+    newOrders.forEach(order => {
+      orderMap.set(order.id, order);
+    });
+    
+    // 转换为数组，按创建时间倒序排序（新订单在前）
+    const mergedOrders = Array.from(orderMap.values()).sort((a, b) => {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
     
     // 保存合并后的订单
     const cacheData = {
@@ -113,10 +122,17 @@ export async function mergeOrdersToCache(newOrders) {
     };
     
     await fs.writeFile(ORDERS_CACHE_FILE, JSON.stringify(cacheData, null, 2));
-    console.log(`订单数据已合并：新增 ${uniqueNewOrders.length} 个订单，总计 ${mergedOrders.length} 个订单`);
+    
+    // 计算新增和更新的订单数
+    const existingIds = new Set(existingOrders.map(order => order.id));
+    const addedCount = newOrders.filter(order => !existingIds.has(order.id)).length;
+    const updatedCount = newOrders.filter(order => existingIds.has(order.id)).length;
+    
+    console.log(`订单数据已合并：新增 ${addedCount} 个订单，更新 ${updatedCount} 个订单，总计 ${mergedOrders.length} 个订单`);
     
     return {
-      addedCount: uniqueNewOrders.length,
+      addedCount,
+      updatedCount,
       totalCount: mergedOrders.length
     };
   } catch (error) {
