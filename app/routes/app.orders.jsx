@@ -87,6 +87,17 @@ export const loader = async ({ request }) => {
                   }
                 }
               }
+              events(first: 50) {
+                edges {
+                  node {
+                    ... on CommentEvent {
+                      id
+                      message
+                      createdAt
+                    }
+                  }
+                }
+              }
             }
           }
           pageInfo {
@@ -216,6 +227,17 @@ export const action = async ({ request }) => {
                         id
                         title
                         price
+                      }
+                    }
+                  }
+                }
+                events(first: 50) {
+                  edges {
+                    node {
+                      ... on CommentEvent {
+                        id
+                        message
+                        createdAt
                       }
                     }
                   }
