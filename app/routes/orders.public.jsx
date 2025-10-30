@@ -130,6 +130,7 @@ export default function PublicOrders() {
   const { orders: initialOrders, pageInfo: initialPageInfo, noCache, userSession, statusMap: initialStatusMap, cacheTimestamp: initialCacheTimestamp } = useLoaderData();
   const fetcher = useFetcher();
   const statusFetcher = useFetcher();
+  const commentFetcher = useFetcher();
   
   const [orders, setOrders] = useState(initialOrders);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
@@ -140,6 +141,10 @@ export default function PublicOrders() {
   const [cacheTimestamp, setCacheTimestamp] = useState(initialCacheTimestamp);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrders, setSelectedOrders] = useState(new Set());
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [commentsOrderId, setCommentsOrderId] = useState(null);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [comments, setComments] = useState([]);
   
   // 分页设置
   const itemsPerPage = 100;
@@ -174,6 +179,25 @@ export default function PublicOrders() {
     }
   }, [statusFetcher.data]);
 
+  // 处理评论查询结果
+  useEffect(() => {
+    if (commentFetcher.data?.comments) {
+      setComments(commentFetcher.data.comments);
+      setCommentsLoading(false);
+    } else if (commentFetcher.data?.error) {
+      console.error('Error loading comments:', commentFetcher.data.error);
+      setComments([]);
+      setCommentsLoading(false);
+    }
+  }, [commentFetcher.data]);
+
+  // 处理评论查询状态
+  useEffect(() => {
+    if (commentFetcher.state === 'idle' && commentFetcher.data === undefined) {
+      setCommentsLoading(false);
+    }
+  }, [commentFetcher.state]);
+
   const handleRefresh = () => {
     setIsLoading(true);
     const formData = new FormData();
@@ -192,6 +216,16 @@ export default function PublicOrders() {
     formData.append("orderId", orderId);
     formData.append("status", newStatus);
     statusFetcher.submit(formData, { method: "POST" });
+  };
+
+  const handleViewComments = (orderId) => {
+    setCommentsOrderId(orderId);
+    setShowCommentsModal(true);
+    setCommentsLoading(true);
+    setComments([]);
+    
+    // 使用 fetcher 加载评论
+    commentFetcher.load(`/api/comments?orderId=${orderId}`);
   };
 
   const handleOrderSelect = (orderId, checked) => {
@@ -676,7 +710,7 @@ export default function PublicOrders() {
                       <th>支付状态</th>
                       <th>备注</th>
                       <th>创建时间</th>
-                      {/* <th>操作</th> */}
+                      <th>操作</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -780,14 +814,14 @@ export default function PublicOrders() {
                             {order.note || '-'}
                           </td>
                           <td>{formatDate(order.createdAt)}</td>
-                          {/* <td>
-                            <a 
-                              href={`/orders/public/${orderId}`}
+                          <td>
+                            <button 
+                              onClick={() => handleViewComments(order.id)}
                               className={styles.linkButton}
                             >
-                              查看详情
-                            </a>
-                          </td> */}
+                              查询评论
+                            </button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -808,6 +842,91 @@ export default function PublicOrders() {
           )}
         </div>
       </div>
+
+      {/* 评论查询 Modal */}
+      {showCommentsModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setShowCommentsModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '600px',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              width: '90%'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: '16px' }}>订单评论</h2>
+            
+            {commentsLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div className={styles.spinner}></div>
+                <p>正在加载评论...</p>
+              </div>
+            ) : comments.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {comments.map((comment) => (
+                  <div 
+                    key={comment.id}
+                    style={{
+                      padding: '16px',
+                      backgroundColor: '#f6f6f7',
+                      borderRadius: '4px',
+                      border: '1px solid #e1e3e5'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <strong style={{ fontSize: '0.875rem' }}>
+                        评论 #{comment.id.split('/').pop()}
+                      </strong>
+                      <span style={{ fontSize: '0.875rem', color: '#6d7175' }}>
+                        {formatDate(comment.createdAt)}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.875rem' }}>{comment.message}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <p>该订单目前没有任何评论</p>
+              </div>
+            )}
+            
+            <div style={{ marginTop: '24px', textAlign: 'right' }}>
+              <button 
+                onClick={() => setShowCommentsModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#008060',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
