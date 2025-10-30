@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { redirect } from "@remix-run/node";
 import styles from "./_index/styles.module.css";
@@ -148,10 +148,115 @@ export default function PublicOrders() {
   
   // 分页设置
   const itemsPerPage = 100;
-  const totalPages = Math.ceil(orders.length / itemsPerPage);
+  
+  // 解析customAttributes中的尺寸信息的辅助函数
+  const parseDimensions = (customAttributes, quantity) => {
+    if (!customAttributes || !Array.isArray(customAttributes)) return null;
+    const dimensions = {};
+    
+    const headerMapping = {
+      'Pinch Pleat - Double': '韩褶-L型-2折',
+      'Pinch Pleat - Triple': '韩褶-L型-3折',
+      'Euro Pleat - Double': '韩褶-7型-2折',
+      'Euro Pleat - Triple': '韩褶-7型-3折',
+      'Rod Pocket': '穿杆带遮轨',
+      'Grommet Top': '打孔',
+      'Ripple Fold': '蛇形帘（铆钉）',
+      'Ripple Fold  吊环挂钩（四合一）': '蛇形帘（挂钩）',
+      'Flat Panel': '吊环挂钩（四合一）',
+      'Back Tab': '背带式'
+    };
+    
+    const grommetColorMapping = {
+      'Black': '黑色',
+      'Silver': '银色',
+      'Bronze': '青铜色',
+      'Gold': '金色'
+    };
+    
+    const liningTypeMapping = {
+      'White_Shading Rate 100%': '漂白春亚纺1#',
+      'White_Shading Rate 30%': '18-1',
+      'Beige_Shading Rate 50%': 'A60-2',
+      'Black_Shading Rate 80%': 'A60-28',
+      'Black_Shading Rate 100%': '2019-18'
+    };
+    
+    customAttributes.forEach(attr => {
+      const key = attr.key;
+      const value = attr.value;
+      
+      if(key.includes('Header')) {
+        const headerValue = value.split('(')[0].trim();
+        dimensions.header = headerMapping[headerValue] || headerValue;
+      }
+      if(key.includes('GROMMET COLOR')) {
+        dimensions.grommetColor = grommetColorMapping[value] || value;
+      }
+      if(key.includes('Lining Type')) {
+        const liningValue = value.split('(')[0].trim();
+        dimensions.liningType = liningTypeMapping[liningValue] || liningValue;
+      }
+      if(key.includes('Body Memory Shaped')) {
+        if(!value.includes('No')){
+          dimensions.bodyMemory = '需要';
+        }
+      }
+      if(key.includes('Tieback')) {
+        dimensions.tieback = value=='No Need'? '无': '有';
+      }
+      if(key.includes('Room Name')) {
+        dimensions.room = value
+      }
+      
+      if (key.includes('Width') || key.includes('Length') || key.includes('Height')) {
+        const inchMatch = value.match(/(\d+(?:\.\d+)?)/);
+        if (inchMatch) {
+          const inches = parseFloat(inchMatch[1]);
+          const centimeters = Math.round(inches * 2.54 * 100) / 100;
+          
+          if (key.includes('Width')) {
+            dimensions.width = centimeters;
+          } else if (key.includes('Length') || key.includes('Height')) {
+            dimensions.length = centimeters;
+          }
+        }
+      }
+    });
+    
+    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory) {
+      return dimensions;
+    }
+    
+    return null;
+  };
+  
+  // 检查订单是否有尺寸信息
+  const orderHasDimensions = (order) => {
+    if (!order.lineItems?.edges) return false;
+    
+    for (const { node: item } of order.lineItems.edges) {
+      const dimensions = item.customAttributes 
+        ? parseDimensions(item.customAttributes, item.quantity)
+        : null;
+      
+      if (dimensions) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+  
+  // 使用 useMemo 过滤有尺寸信息的订单
+  const ordersWithDimensions = useMemo(() => {
+    return orders.filter(order => orderHasDimensions(order));
+  }, [orders]);
+  
+  const totalPages = Math.ceil(ordersWithDimensions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentOrders = orders.slice(startIndex, endIndex);
+  const currentOrders = ordersWithDimensions.slice(startIndex, endIndex);
 
   // 处理刷新结果
   useEffect(() => {
@@ -242,7 +347,7 @@ export default function PublicOrders() {
 
   const handleSelectAll = (checked) => {
     if (checked) {
-      const allOrderIds = currentOrders.map(order => order.id);
+      const allOrderIds = currentOrdersWithDimensions.map(order => order.id);
       setSelectedOrders(new Set(allOrderIds));
     } else {
       setSelectedOrders(new Set());
@@ -250,7 +355,7 @@ export default function PublicOrders() {
   };
 
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
+    if (currentPage < totalPagesWithDimensions) {
       setCurrentPage(prev => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -485,117 +590,39 @@ export default function PublicOrders() {
     });
   };
 
-  // 解析customAttributes中的尺寸信息并转换为厘米
-  const parseDimensions = (customAttributes, quantity) => {
-    if (!customAttributes || !Array.isArray(customAttributes)) {
-      return null;
+  // 渲染尺寸信息的函数
+  const renderDimensions = (dimensions, quantity) => {
+    if (!dimensions) return null;
+    
+    const parts = [];
+    parts.push(`数量: ${quantity}`);
+    if(dimensions.header) {
+      let headerText = dimensions.header;
+      if (dimensions.grommetColor) {
+        headerText += `（${dimensions.grommetColor}）`;
+      }
+      parts.push(`头部: ${headerText}`);
     }
+    if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
+    if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
+    if(dimensions.liningType) parts.push(`里料: ${dimensions.liningType}`);
+    if(dimensions.bodyMemory) parts.push(`高温定型: ${dimensions.bodyMemory}`);
+    if(dimensions.tieback) parts.push(`绑带: ${dimensions.tieback}`);
+    if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
+    
+    return (
+      <div style={{ lineHeight: '1.4', maxWidth:'400px' }}>
+        {parts.map((part, index) => (
+          <div style={{ whiteSpace: 'normal' }} key={index}>{part}</div>
+        ))}
+      </div>
+    );
+  };
 
-    const dimensions = {};
-    
-    // 头部名称映射表
-    const headerMapping = {
-      'Pinch Pleat - Double': '韩褶-L型-2折',
-      'Pinch Pleat - Triple': '韩褶-L型-3折',
-      'Euro Pleat - Double': '韩褶-7型-2折',
-      'Euro Pleat - Triple': '韩褶-7型-3折',
-      'Rod Pocket': '穿杆带遮轨',
-      'Grommet Top': '打孔',
-      'Ripple Fold': '蛇形帘（铆钉）',
-      'Ripple Fold  吊环挂钩（四合一）': '蛇形帘（挂钩）',
-      'Flat Panel': '吊环挂钩（四合一）',
-      'Back Tab': '背带式'
-    };
-    
-    // 打孔颜色映射表
-    const grommetColorMapping = {
-      'Black': '黑色',
-      'Silver': '银色',
-      'Bronze': '青铜色',
-      'Gold': '金色'
-    };
-    
-    // 里料类型映射表
-    const liningTypeMapping = {
-      'White_Shading Rate 100%': '漂白春亚纺1#',
-      'White_Shading Rate 30%': '18-1',
-      'Beige_Shading Rate 50%': 'A60-2',
-      'Black_Shading Rate 80%': 'A60-28',
-      'Black_Shading Rate 100%': '2019-18'
-    };
-    
-    customAttributes.forEach(attr => {
-      const key = attr.key;
-      const value = attr.value;
-      
-      if(key.includes('Header')) {
-        const headerValue = value.split('(')[0].trim();
-        dimensions.header = headerMapping[headerValue] || headerValue;
-      }
-      if(key.includes('GROMMET COLOR')) {
-        dimensions.grommetColor = grommetColorMapping[value] || value;
-      }
-      if(key.includes('Lining Type')) {
-        const liningValue = value.split('(')[0].trim();
-        dimensions.liningType = liningTypeMapping[liningValue] || liningValue;
-      }
-      if(key.includes('Body Memory Shaped')) {
-        if(!value.includes('No')){
-          dimensions.bodyMemory = '需要';
-        }
-      }
-      if(key.includes('Tieback')) {
-        dimensions.tieback = value=='No Need'? '无': '有';
-      }
-      if(key.includes('Room Name')) {
-        dimensions.room = value
-      }
-      
-      // 查找包含尺寸信息的属性
-      if (key.includes('Width') || key.includes('Length') || key.includes('Height')) {
-        // 提取数字部分 (英寸)
-        const inchMatch = value.match(/(\d+(?:\.\d+)?)/);
-        if (inchMatch) {
-          const inches = parseFloat(inchMatch[1]);
-          const centimeters = Math.round(inches * 2.54 * 100) / 100; // 转换为厘米，保留2位小数
-          
-          if (key.includes('Width')) {
-            dimensions.width = centimeters;
-          } else if (key.includes('Length') || key.includes('Height')) {
-            dimensions.length = centimeters;
-          }
-        }
-      }
-    });
-    
-    // 如果有尺寸信息，返回格式化的React元素
-    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory) {
-      const parts = [];
-      parts.push(`数量: ${quantity}`);
-      if(dimensions.header) {
-        let headerText = dimensions.header;
-        if (dimensions.grommetColor) {
-          headerText += `（${dimensions.grommetColor}）`;
-        }
-        parts.push(`头部: ${headerText}`);
-      }
-      if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
-      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
-      if(dimensions.liningType) parts.push(`里料: ${dimensions.liningType}`);
-      if(dimensions.bodyMemory) parts.push(`高温定型: ${dimensions.bodyMemory}`);
-      if(dimensions.tieback) parts.push(`绑带: ${dimensions.tieback}`);
-      if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
-      
-      return (
-        <div style={{ lineHeight: '1.4', maxWidth:'400px' }}>
-          {parts.map((part, index) => (
-            <div style={{ whiteSpace: 'normal' }} key={index}>{part}</div>
-          ))}
-        </div>
-      );
-    }
-    
-    return null;
+  // 解析并渲染尺寸信息的完整函数（供表格使用）
+  const parseAndRenderDimensions = (customAttributes, quantity) => {
+    const dimensions = parseDimensions(customAttributes, quantity);
+    return renderDimensions(dimensions, quantity);
   };
 
   return (
@@ -647,11 +674,11 @@ export default function PublicOrders() {
           </div>
 
           {/* 分页和导出控件 */}
-          {orders.length > 0 && (
+          {ordersWithDimensions.length > 0 && (
             <div className={styles.paginationTop}>
               <div className={styles.paginationInfo}>
-                <span>当前页码: 第 {currentPage} 页 / 共 {totalPages} 页</span>
-                <span>总计 {orders.length} 个订单</span>
+                <span>当前页码: 第 {currentPage} 页 / 共 {totalPagesWithDimensions} 页</span>
+                <span>总计 {ordersWithDimensions.length} 个订单</span>
               </div>
               <div className={styles.paginationControls}>
                 <button 
@@ -664,7 +691,7 @@ export default function PublicOrders() {
                 <span className={styles.pageNumber}>第 {currentPage} 页</span>
                 <button 
                   onClick={handleNextPage} 
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPagesWithDimensions}
                   className={styles.paginationButton}
                 >
                   下一页
@@ -689,7 +716,7 @@ export default function PublicOrders() {
               <div className={styles.spinner}></div>
               <p>正在刷新数据...</p>
             </div>
-          ) : orders.length > 0 ? (
+          ) : ordersWithDimensions.length > 0 ? (
             <>
               <div className={styles.tableContainer}>
                 <table className={styles.ordersTable}>
@@ -698,7 +725,7 @@ export default function PublicOrders() {
                       <th>
                         <input 
                           type="checkbox"
-                          checked={selectedOrders.size === currentOrders.length && currentOrders.length > 0}
+                          checked={selectedOrders.size === currentOrdersWithDimensions.length && currentOrdersWithDimensions.length > 0}
                           onChange={(e) => handleSelectAll(e.target.checked)}
                         />
                       </th>
@@ -714,7 +741,7 @@ export default function PublicOrders() {
                     </tr>
                   </thead>
                   <tbody>
-                    {currentOrders.map((order) => {
+                    {currentOrdersWithDimensions.map((order) => {
                       const orderId = order.id.replace('gid://shopify/Order/', '');
                       const currentStatus = statusMap[orderId] || '';
                       const fulfillmentStatus = getStatusBadge(order.displayFulfillmentStatus);
@@ -724,7 +751,7 @@ export default function PublicOrders() {
                       // 获取所有商品的尺寸信息
                       const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
                         const dimensions = item.customAttributes 
-                          ? parseDimensions(item.customAttributes, item.quantity)
+                          ? parseAndRenderDimensions(item.customAttributes, item.quantity)
                           : null;
                         
                         if (!dimensions) return null;
