@@ -17,14 +17,11 @@ async function ensureCacheDir() {
 export async function saveOrdersToCache(orders, pageInfo) {
   try {
     await ensureCacheDir();
-    const cacheData = {
-      orders,
-      pageInfo,
-      timestamp: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString() // 12小时过期
-    };
-    await fs.writeFile(ORDERS_CACHE_FILE, JSON.stringify(cacheData, null, 2));
-    console.log('订单数据已缓存');
+    
+    // 使用 mergeOrdersToCache 来避免覆盖完整的缓存
+    const mergeResult = await mergeOrdersToCache(orders);
+    console.log('订单数据已缓存，使用增量更新');
+    console.log(`新增 ${mergeResult.addedCount} 个订单，总计 ${mergeResult.totalCount} 个`);
   } catch (error) {
     console.error('保存缓存失败:', error);
   }
