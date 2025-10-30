@@ -355,7 +355,7 @@ export default function PublicOrders() {
   };
 
   const handleNextPage = () => {
-    if (currentPage < totalPagesWithDimensions) {
+    if (currentPage < totalPages) {
       setCurrentPage(prev => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -677,7 +677,7 @@ export default function PublicOrders() {
           {ordersWithDimensions.length > 0 && (
             <div className={styles.paginationTop}>
               <div className={styles.paginationInfo}>
-                <span>当前页码: 第 {currentPage} 页 / 共 {totalPagesWithDimensions} 页</span>
+                <span>当前页码: 第 {currentPage} 页 / 共 {totalPages} 页</span>
                 <span>总计 {ordersWithDimensions.length} 个订单</span>
               </div>
               <div className={styles.paginationControls}>
@@ -691,7 +691,7 @@ export default function PublicOrders() {
                 <span className={styles.pageNumber}>第 {currentPage} 页</span>
                 <button 
                   onClick={handleNextPage} 
-                  disabled={currentPage === totalPagesWithDimensions}
+                  disabled={currentPage === totalPages}
                   className={styles.paginationButton}
                 >
                   下一页
