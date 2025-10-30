@@ -197,6 +197,7 @@ export const action = async ({ request }) => {
                 }
                 displayFulfillmentStatus
                 displayFinancialStatus
+                note
                 customer {
                   id
                   displayName
@@ -337,6 +338,7 @@ export const action = async ({ request }) => {
                 }
                 displayFulfillmentStatus
                 displayFinancialStatus
+                note
                 customer {
                   id
                   displayName
