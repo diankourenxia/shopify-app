@@ -27,4 +27,4 @@ yarn.lock
 
 # Ignore editor history files
 .history/
-build.zip
+build.zip*.xlsx

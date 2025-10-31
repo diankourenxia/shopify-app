@@ -144,8 +144,9 @@ export const loader = async ({ request }) => {
   try {
     const orderStatuses = await prisma.orderStatus.findMany();
     orderStatuses.forEach(status => {
-      const orderId = status.orderId;
-      statusMap[orderId] = status.status;
+      // 支持按 lineItem 级别的状态：key = "orderId:lineItemId"，若无 lineItemId 则 fallback 到 orderId
+      const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
+      statusMap[key] = status.status;
     });
   } catch (dbError) {
     console.error('Database error when fetching order statuses:', dbError);
@@ -298,20 +299,42 @@ export const action = async ({ request }) => {
   // 处理订单状态更新
   if (action === "updateStatus") {
     const prisma = (await import("../db.server")).default;
-    
-    const orderId = formData.get("orderId");
+
+    const orderKey = formData.get("orderId");
     const status = formData.get("status");
 
-    if (!orderId || !status) {
+    if (!orderKey || !status) {
       return { error: "缺少必要参数" };
     }
 
+    // orderKey 可能为 "<orderId>:<lineItemId>" 或仅为订单 id
+    let orderId = orderKey;
+    let lineItemId = null;
+    if (orderKey.includes(':')) {
+      const parts = orderKey.split(':');
+      orderId = parts[0];
+      // 允许 lineItemId 包含 ':' 的情况，取剩余部分
+      lineItemId = parts.slice(1).join(':');
+    }
+
     try {
-      const orderStatus = await prisma.orderStatus.upsert({
-        where: { orderId },
-        update: { status },
-        create: { orderId, status },
+      // 先尝试查找已有记录（orderId + lineItemId）
+      const existing = await prisma.orderStatus.findFirst({
+        where: { orderId, lineItemId }
       });
+
+      let orderStatus;
+      if (existing) {
+        orderStatus = await prisma.orderStatus.update({
+          where: { id: existing.id },
+          data: { status }
+        });
+      } else {
+        orderStatus = await prisma.orderStatus.create({
+          data: { orderId, lineItemId, status }
+        });
+      }
+
       return { success: true, orderStatus };
     } catch (error) {
       console.error("更新订单状态失败:", error);
@@ -421,7 +444,8 @@ export const action = async ({ request }) => {
       const prisma = (await import("../db.server")).default;
       const orderStatuses = await prisma.orderStatus.findMany();
       orderStatuses.forEach(status => {
-        statusMap[status.orderId] = status.status;
+        const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
+        statusMap[key] = status.status;
       });
     } catch (dbError) {
       console.error('Database error when fetching order statuses in search:', dbError);
@@ -494,9 +518,11 @@ export default function Orders() {
   useEffect(() => {
     if (statusFetcher.data?.success) {
       const { orderStatus } = statusFetcher.data;
+      // 使用 lineItemId（若有）构造 key，兼容只按订单记录的旧数据
+      const key = orderStatus.lineItemId ? `${orderStatus.orderId}:${orderStatus.lineItemId}` : orderStatus.orderId;
       setStatusMap(prev => ({
         ...prev,
-        [orderStatus.orderId]: orderStatus.status
+        [key]: orderStatus.status
       }));
     }
   }, [statusFetcher.data]);

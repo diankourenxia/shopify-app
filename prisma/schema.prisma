@@ -33,8 +33,10 @@ model Session {
 
 model OrderStatus {
   id          String   @id @default(uuid())
-  orderId     String   @unique
-  status      String   // 
+  // 支持按 line item 记录状态：lineItemId 可为空
+  orderId     String
+  lineItemId  String?  
+  status      String   // 自定义状态，例如: 待生产、生产中、待发货、已发货
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 }
