@@ -725,7 +725,7 @@ export default function PublicOrders() {
                       const financialStatus = getStatusBadge(order.displayFinancialStatus);
                       const customStatus = getCustomStatusBadge(currentStatus);
                       
-                      // 获取所有商品的尺寸信息
+                      // 获取所有商品的尺寸信息和状态选择器
                       const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
                         const dimensions = item.customAttributes 
                           ? parseAndRenderDimensions(item.customAttributes, item.quantity)
@@ -744,6 +744,20 @@ export default function PublicOrders() {
                             </div>
                             <div style={{ whiteSpace: 'pre-line' }}>
                               {dimensions}
+                            </div>
+                            <div style={{ marginTop: '8px', maxWidth: '220px' }}>
+                              <select 
+                                value={statusMap[`${orderId}:${item.id}`] || ''}
+                                onChange={(e) => handleStatusChange(`${orderId}:${item.id}`, e.target.value)}
+                                className={styles.statusSelect}
+                                style={{ width: '100%', padding: '4px' }}
+                              >
+                                <option value="">未设置</option>
+                                <option value="待生产">待生产</option>
+                                <option value="生产中">生产中</option>
+                                <option value="待发货">待发货</option>
+                                <option value="已发货">已发货</option>
+                              </select>
                             </div>
                           </div>
                         );
@@ -792,17 +806,7 @@ export default function PublicOrders() {
                             )}
                           </td>
                           <td>
-                            <select 
-                              value={currentStatus} 
-                              onChange={(e) => handleStatusChange(orderId, e.target.value)}
-                              className={styles.statusSelect}
-                            >
-                              <option value="">未设置</option>
-                              <option value="待生产">待生产</option>
-                              <option value="生产中">生产中</option>
-                              <option value="待发货">待发货</option>
-                              <option value="已发货">已发货</option>
-                            </select>
+                            <div style={{ minWidth: '120px' }}>—</div>
                           </td>
                           <td>
                             <span className={`${styles.statusBadge} ${styles[fulfillmentStatus.className]}`}>
