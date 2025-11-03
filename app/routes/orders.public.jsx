@@ -725,6 +725,9 @@ export default function PublicOrders() {
                       const financialStatus = getStatusBadge(order.displayFinancialStatus);
                       const customStatus = getCustomStatusBadge(currentStatus);
                       
+                      // 如果Shopify发货状态是已发货，则默认状态为已发货
+                      const defaultStatus = order.displayFulfillmentStatus === 'FULFILLED' ? '已发货' : '';
+                      
                       // 获取所有商品的尺寸信息和状态选择器
                       const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
                         const dimensions = item.customAttributes 
@@ -732,6 +735,9 @@ export default function PublicOrders() {
                           : null;
                         
                         if (!dimensions) return null;
+                        
+                        // 状态优先使用数据库中存储的，如果为空则使用默认值
+                        const itemStatus = statusMap[`${orderId}:${item.id}`] || defaultStatus;
                         
                         return (
                           <div key={item.id} style={{ 
@@ -747,7 +753,7 @@ export default function PublicOrders() {
                             </div>
                             <div style={{ marginTop: '8px', maxWidth: '220px' }}>
                               <select 
-                                value={statusMap[`${orderId}:${item.id}`] || ''}
+                                value={itemStatus}
                                 onChange={(e) => handleStatusChange(`${orderId}:${item.id}`, e.target.value)}
                                 className={styles.statusSelect}
                                 style={{ width: '100%', padding: '4px' }}

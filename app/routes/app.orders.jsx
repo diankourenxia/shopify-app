@@ -1063,6 +1063,9 @@ export default function Orders() {
   const rows = orders.map((order) => {
     const orderId = order.id.replace('gid://shopify/Order/', '');
     
+    // 如果Shopify发货状态是已发货，则默认状态为已发货
+    const defaultStatus = order.displayFulfillmentStatus === 'FULFILLED' ? '已发货' : '';
+    
     // 获取所有商品的尺寸信息
     const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
       const dimensions = item.customAttributes 
@@ -1070,6 +1073,9 @@ export default function Orders() {
         : null;
       
       if (!dimensions) return null;
+      
+      // 状态优先使用数据库中存储的，如果为空则使用默认值
+      const currentStatus = statusMap[`${orderId}:${item.id}`] || defaultStatus;
       
       return (
         <div key={item.id} style={{ 
@@ -1091,7 +1097,7 @@ export default function Orders() {
                 { label: '待发货', value: '待发货' },
                 { label: '已发货', value: '已发货' },
               ]}
-              value={statusMap[`${orderId}:${item.id}`] || ''}
+              value={currentStatus}
               onChange={(value) => handleStatusChange(`${orderId}:${item.id}`, value)}
             />
           </div>
