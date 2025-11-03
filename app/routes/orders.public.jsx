@@ -193,6 +193,10 @@ export default function PublicOrders() {
       'Black_Shading Rate 100%': '2019-18'
     };
     
+    // 临时存储 fraction 值
+    let widthFraction = 0;
+    let heightFraction = 0;
+    
     customAttributes.forEach(attr => {
       const key = attr.key;
       const value = attr.value;
@@ -233,20 +237,44 @@ export default function PublicOrders() {
         dimensions.room = value;
       }
       
+      // 查找 Width Fraction 和 Height Fraction
+      if (key.includes('Width Fraction')) {
+        const fractionMatch = value.match(/(\d+)\/(\d+)/);
+        if (fractionMatch) {
+          widthFraction = parseFloat(fractionMatch[1]) / parseFloat(fractionMatch[2]);
+        }
+      }
+      if (key.includes('Height Fraction')) {
+        const fractionMatch = value.match(/(\d+)\/(\d+)/);
+        if (fractionMatch) {
+          heightFraction = parseFloat(fractionMatch[1]) / parseFloat(fractionMatch[2]);
+        }
+      }
+      
       if (key.includes('Width') || key.includes('Length') || key.includes('Height')) {
         const inchMatch = value.match(/(\d+(?:\.\d+)?)/);
         if (inchMatch) {
           const inches = parseFloat(inchMatch[1]);
           const centimeters = Math.round(inches * 2.54 * 100) / 100;
           
-          if (key.includes('Width')) {
+          if (key.includes('Width') && !key.includes('Fraction')) {
             dimensions.width = centimeters;
-          } else if (key.includes('Length') || key.includes('Height')) {
+          } else if ((key.includes('Length') || key.includes('Height')) && !key.includes('Fraction')) {
             dimensions.length = centimeters;
           }
         }
       }
     });
+    
+    // 将 fraction 转换为厘米并添加到主尺寸
+    if (widthFraction > 0 && dimensions.width) {
+      const fractionInCm = Math.round(widthFraction * 2.54 * 100) / 100;
+      dimensions.width = Math.round((dimensions.width + fractionInCm) * 100) / 100;
+    }
+    if (heightFraction > 0 && dimensions.length) {
+      const fractionInCm = Math.round(heightFraction * 2.54 * 100) / 100;
+      dimensions.length = Math.round((dimensions.length + fractionInCm) * 100) / 100;
+    }
     
     if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory || dimensions.mountType || dimensions.liftStyle || dimensions.cordPosition) {
       return { dimensions, isRomanShade };
