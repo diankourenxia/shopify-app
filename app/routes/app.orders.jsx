@@ -902,6 +902,7 @@ export default function Orders() {
     }
 
     const dimensions = {};
+    let isRomanShade = false; // 标记是否为罗马帘
     
     // 头部名称映射表
     const headerMapping = {
@@ -937,6 +938,23 @@ export default function Orders() {
     customAttributes.forEach(attr => {
       const key = attr.key;
       const value = attr.value;
+      
+      // 检测罗马帘相关字段
+      if(key.includes('Mount Type')) {
+        isRomanShade = true;
+        dimensions.mountType = value.includes('Outside') ? '外装' : '内装';
+      }
+      if(key.includes('Lift Styles')) {
+        isRomanShade = true;
+        const liftValue = value.split('(')[0].trim();
+        dimensions.liftStyle = liftValue;
+      }
+      if(key.includes('Cord Position')) {
+        isRomanShade = true;
+        dimensions.cordPosition = value === 'Right' ? '右侧' : value === 'Left' ? '左侧' : value;
+      }
+      
+      // 窗帘相关字段
       if(key.includes('Header')) {
         const headerValue = value.split('(')[0].trim();
         dimensions.header = headerMapping[headerValue] || headerValue;
@@ -956,8 +974,8 @@ export default function Orders() {
       if(key.includes('Tieback')) {
         dimensions.tieback = value=='No Need'? '无': '有';
       }
-      if(key.includes('Room Name')) {
-        dimensions.room = value
+      if(key.includes('Room')) {
+        dimensions.room = value;
       }
 
       // 查找包含尺寸信息的属性
@@ -978,9 +996,19 @@ export default function Orders() {
     });
     
     // 如果有尺寸信息，返回格式化的React元素
-    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory) {
+    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory || isRomanShade) {
       const parts = [];
       parts.push(`数量: ${quantity}`);
+      
+      // 罗马帘特有信息
+      if(isRomanShade) {
+        parts.push(`类型: 罗马帘`);
+        if(dimensions.mountType) parts.push(`安装方式: ${dimensions.mountType}`);
+        if(dimensions.liftStyle) parts.push(`升降方式: ${dimensions.liftStyle}`);
+        if(dimensions.cordPosition) parts.push(`绳位: ${dimensions.cordPosition}`);
+      }
+      
+      // 窗帘头部信息
       if(dimensions.header) {
         let headerText = dimensions.header;
         if (dimensions.grommetColor) {
@@ -988,8 +1016,12 @@ export default function Orders() {
         }
         parts.push(`头部: ${headerText}`);
       }
+      
+      // 尺寸信息
       if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
       if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
+      
+      // 其他信息
       if(dimensions.liningType) parts.push(`里料: ${dimensions.liningType}`);
       if(dimensions.bodyMemory) parts.push(`高温定型: ${dimensions.bodyMemory}`);
       if(dimensions.tieback) parts.push(`绑带: ${dimensions.tieback}`);

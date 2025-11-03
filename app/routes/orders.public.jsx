@@ -158,6 +158,7 @@ export default function PublicOrders() {
   const parseDimensions = (customAttributes, quantity) => {
     if (!customAttributes || !Array.isArray(customAttributes)) return null;
     const dimensions = {};
+    let isRomanShade = false; // 标记是否为罗马帘
     
     const headerMapping = {
       'Pinch Pleat - Double': '韩褶-L型-2折',
@@ -191,6 +192,22 @@ export default function PublicOrders() {
       const key = attr.key;
       const value = attr.value;
       
+      // 检测罗马帘相关字段
+      if(key.includes('Mount Type')) {
+        isRomanShade = true;
+        dimensions.mountType = value.includes('Outside') ? '外装' : '内装';
+      }
+      if(key.includes('Lift Styles')) {
+        isRomanShade = true;
+        const liftValue = value.split('(')[0].trim();
+        dimensions.liftStyle = liftValue;
+      }
+      if(key.includes('Cord Position')) {
+        isRomanShade = true;
+        dimensions.cordPosition = value === 'Right' ? '右侧' : value === 'Left' ? '左侧' : value;
+      }
+      
+      // 窗帘相关字段
       if(key.includes('Header')) {
         const headerValue = value.split('(')[0].trim();
         dimensions.header = headerMapping[headerValue] || headerValue;
@@ -210,8 +227,8 @@ export default function PublicOrders() {
       if(key.includes('Tieback')) {
         dimensions.tieback = value=='No Need'? '无': '有';
       }
-      if(key.includes('Room Name')) {
-        dimensions.room = value
+      if(key.includes('Room')) {
+        dimensions.room = value;
       }
       
       if (key.includes('Width') || key.includes('Length') || key.includes('Height')) {
@@ -573,18 +590,31 @@ export default function PublicOrders() {
     
     const parts = [];
     parts.push(`数量: ${quantity}`);
-    if(dimensions.header) {
-      let headerText = dimensions.header;
-      if (dimensions.grommetColor) {
-        headerText += `（${dimensions.grommetColor}）`;
+    
+    // 罗马帘特定字段
+    if (dimensions.mountType || dimensions.liftStyle || dimensions.cordPosition) {
+      parts.push(`类型: 罗马帘`);
+      if (dimensions.mountType) parts.push(`安装方式: ${dimensions.mountType}`);
+      if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
+      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
+      if (dimensions.liftStyle) parts.push(`升降方式: ${dimensions.liftStyle}`);
+      if (dimensions.cordPosition) parts.push(`绳位: ${dimensions.cordPosition}`);
+    } else {
+      // 窗帘特定字段
+      if(dimensions.header) {
+        let headerText = dimensions.header;
+        if (dimensions.grommetColor) {
+          headerText += `（${dimensions.grommetColor}）`;
+        }
+        parts.push(`头部: ${headerText}`);
       }
-      parts.push(`头部: ${headerText}`);
+      if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
+      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
+      if(dimensions.liningType) parts.push(`里料: ${dimensions.liningType}`);
+      if(dimensions.bodyMemory) parts.push(`高温定型: ${dimensions.bodyMemory}`);
+      if(dimensions.tieback) parts.push(`绑带: ${dimensions.tieback}`);
     }
-    if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
-    if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
-    if(dimensions.liningType) parts.push(`里料: ${dimensions.liningType}`);
-    if(dimensions.bodyMemory) parts.push(`高温定型: ${dimensions.bodyMemory}`);
-    if(dimensions.tieback) parts.push(`绑带: ${dimensions.tieback}`);
+    
     if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
     
     return (
