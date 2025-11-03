@@ -663,7 +663,7 @@ export default function Orders() {
       // 为每个商品创建一行
       order.lineItems?.edges?.forEach(({ node: item }, index) => {
         const dimensions = item.customAttributes 
-          ? parseDimensions(item.customAttributes, item.quantity)
+          ? parseDimensions(item.customAttributes, item.quantity, item.title)
           : null;
 
         // 解析尺寸信息
@@ -896,13 +896,18 @@ export default function Orders() {
   };
 
   // 解析customAttributes中的尺寸信息并转换为厘米
-  const parseDimensions = (customAttributes,quantity) => {
+  const parseDimensions = (customAttributes, quantity, title) => {
     if (!customAttributes || !Array.isArray(customAttributes)) {
       return null;
     }
 
     const dimensions = {};
     let isRomanShade = false; // 标记是否为罗马帘
+    
+    // 检查标题中是否包含Roman
+    if (title && title.toLowerCase().includes('roman')) {
+      isRomanShade = true;
+    }
     
     // 头部名称映射表
     const headerMapping = {
@@ -939,18 +944,15 @@ export default function Orders() {
       const key = attr.key;
       const value = attr.value;
       
-      // 检测罗马帘相关字段
+      // 检测罗马帘相关字段（仅当标题包含Roman时才处理）
       if(key.includes('Mount Type')) {
-        isRomanShade = true;
         dimensions.mountType = value.includes('Outside') ? '外装' : '内装';
       }
       if(key.includes('Lift Styles')) {
-        isRomanShade = true;
         const liftValue = value.split('(')[0].trim();
         dimensions.liftStyle = liftValue;
       }
       if(key.includes('Cord Position')) {
-        isRomanShade = true;
         dimensions.cordPosition = value === 'Right' ? '右侧' : value === 'Left' ? '左侧' : value;
       }
       
@@ -1101,7 +1103,7 @@ export default function Orders() {
     // 获取所有商品的尺寸信息
     const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
       const dimensions = item.customAttributes 
-        ? parseDimensions(item.customAttributes, item.quantity)
+        ? parseDimensions(item.customAttributes, item.quantity, item.title)
         : null;
       
       if (!dimensions) return null;

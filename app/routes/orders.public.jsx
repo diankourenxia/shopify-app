@@ -155,10 +155,15 @@ export default function PublicOrders() {
   const itemsPerPage = 100;
   
   // 解析customAttributes中的尺寸信息的辅助函数
-  const parseDimensions = (customAttributes, quantity) => {
+  const parseDimensions = (customAttributes, quantity, title) => {
     if (!customAttributes || !Array.isArray(customAttributes)) return null;
     const dimensions = {};
     let isRomanShade = false; // 标记是否为罗马帘
+    
+    // 检查标题中是否包含Roman
+    if (title && title.toLowerCase().includes('roman')) {
+      isRomanShade = true;
+    }
     
     const headerMapping = {
       'Pinch Pleat - Double': '韩褶-L型-2折',
@@ -192,18 +197,15 @@ export default function PublicOrders() {
       const key = attr.key;
       const value = attr.value;
       
-      // 检测罗马帘相关字段
+      // 检测罗马帘相关字段（仅当标题包含Roman时才处理）
       if(key.includes('Mount Type')) {
-        isRomanShade = true;
         dimensions.mountType = value.includes('Outside') ? '外装' : '内装';
       }
       if(key.includes('Lift Styles')) {
-        isRomanShade = true;
         const liftValue = value.split('(')[0].trim();
         dimensions.liftStyle = liftValue;
       }
       if(key.includes('Cord Position')) {
-        isRomanShade = true;
         dimensions.cordPosition = value === 'Right' ? '右侧' : value === 'Left' ? '左侧' : value;
       }
       
@@ -246,8 +248,8 @@ export default function PublicOrders() {
       }
     });
     
-    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory) {
-      return dimensions;
+    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory || dimensions.mountType || dimensions.liftStyle || dimensions.cordPosition) {
+      return { dimensions, isRomanShade };
     }
     
     return null;
@@ -258,9 +260,11 @@ export default function PublicOrders() {
     if (!order.lineItems?.edges) return false;
     
     for (const { node: item } of order.lineItems.edges) {
-      const dimensions = item.customAttributes 
-        ? parseDimensions(item.customAttributes, item.quantity)
+      const result = item.customAttributes 
+        ? parseDimensions(item.customAttributes, item.quantity, item.title)
         : null;
+      
+      const dimensions = result?.dimensions;
       
       if (dimensions) {
         return true;
@@ -585,14 +589,14 @@ export default function PublicOrders() {
   };
 
   // 渲染尺寸信息的函数
-  const renderDimensions = (dimensions, quantity) => {
+  const renderDimensions = (dimensions, quantity, isRomanShade) => {
     if (!dimensions) return null;
     
     const parts = [];
     parts.push(`数量: ${quantity}`);
     
     // 罗马帘特定字段
-    if (dimensions.mountType || dimensions.liftStyle || dimensions.cordPosition) {
+    if (isRomanShade) {
       parts.push(`类型: 罗马帘`);
       if (dimensions.mountType) parts.push(`安装方式: ${dimensions.mountType}`);
       if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
@@ -627,9 +631,10 @@ export default function PublicOrders() {
   };
 
   // 解析并渲染尺寸信息的完整函数（供表格使用）
-  const parseAndRenderDimensions = (customAttributes, quantity) => {
-    const dimensions = parseDimensions(customAttributes, quantity);
-    return renderDimensions(dimensions, quantity);
+  const parseAndRenderDimensions = (customAttributes, quantity, title) => {
+    const result = parseDimensions(customAttributes, quantity, title);
+    if (!result) return null;
+    return renderDimensions(result.dimensions, quantity, result.isRomanShade);
   };
 
   return (
@@ -761,7 +766,7 @@ export default function PublicOrders() {
                       // 获取所有商品的尺寸信息和状态选择器
                       const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
                         const dimensions = item.customAttributes 
-                          ? parseAndRenderDimensions(item.customAttributes, item.quantity)
+                          ? parseAndRenderDimensions(item.customAttributes, item.quantity, item.title)
                           : null;
                         
                         if (!dimensions) return null;
