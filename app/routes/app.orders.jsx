@@ -1247,6 +1247,7 @@ export default function Orders() {
               onBlur={() => handleNoteBlur(itemKey)}
               placeholder="添加备注..."
               autoComplete="off"
+              multiline={3}
             />
           </div>
         </div>

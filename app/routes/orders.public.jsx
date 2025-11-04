@@ -902,13 +902,21 @@ export default function PublicOrders() {
                               </select>
                             </div>
                             <div style={{ marginTop: '8px', maxWidth: '220px' }}>
-                              <input
-                                type="text"
+                              <textarea
                                 value={itemNote}
                                 onChange={(e) => handleNoteChange(itemKey, e.target.value)}
                                 onBlur={() => handleNoteBlur(itemKey)}
                                 placeholder="添加备注..."
-                                style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '4px' }}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '4px', 
+                                  border: '1px solid #ccc', 
+                                  borderRadius: '4px',
+                                  minHeight: '60px',
+                                  resize: 'vertical',
+                                  fontFamily: 'inherit',
+                                  fontSize: 'inherit'
+                                }}
                               />
                             </div>
                           </div>
