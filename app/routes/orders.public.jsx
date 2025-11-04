@@ -942,7 +942,7 @@ export default function PublicOrders() {
                               )}
                             </div>
                           </td>
-                          <td>
+                          <td style={{ maxWidth: '200px' }}>
                             {order.lineItems?.edges?.length > 0 ? (
                               <div className={styles.lineItems}>
                                 {order.lineItems.edges.slice(0, 2).map(({ node: item }, index) => (
