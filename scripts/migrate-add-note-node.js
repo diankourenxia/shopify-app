@@ -44,7 +44,7 @@ async function main() {
     console.log('🔧 步骤 2: 添加 note 字段...');
     
     const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient.PrismaClient();
+    const prisma = new PrismaClient();
     
     try {
       // 检查字段是否已存在
