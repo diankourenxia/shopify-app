@@ -15,21 +15,33 @@ The database schema is not empty. Read more about how to baseline an existing pr
 
 我们提供了两种迁移方法：
 
-### 方法 1: 使用自动化脚本（推荐）
+### 方法 1: 使用 Node.js 脚本（推荐，不需要 sqlite3）
 
-在服务器上运行预制的迁移脚本：
+在服务器上运行 Node.js 迁移脚本：
 
 ```bash
 cd /var/www/shopify-app
-./scripts/migrate-add-note.sh
+node scripts/migrate-add-note-node.js
 ```
 
 该脚本会自动完成：
 1. ✅ 备份数据库
 2. ✅ 检查 note 字段是否已存在
-3. ✅ 使用 ALTER TABLE 添加字段
+3. ✅ 使用 Prisma 执行 ALTER TABLE 添加字段
 4. ✅ 验证迁移结果
 5. ✅ 标记 Prisma 迁移为已应用
+6. ✅ 重新生成 Prisma Client
+
+**优点**: 不依赖 sqlite3 命令行工具，使用 Prisma 直接操作数据库
+
+### 方法 1-B: 使用 Shell 脚本（需要 sqlite3）
+
+如果服务器上已安装 sqlite3 命令行工具：
+
+```bash
+cd /var/www/shopify-app
+./scripts/migrate-add-note.sh
+```
 
 ### 方法 2: 手动迁移
 
@@ -86,10 +98,20 @@ npx prisma migrate status
 
 ```bash
 cd /var/www/shopify-app
-git pull                    # 如果还没拉取最新代码
-npm run build               # 重新构建前端
-pm2 restart shopify-order-app  # 重启应用
+git pull                        # 如果还没拉取最新代码
+npm run build                   # 重新构建前端
+pm2 restart shopify-order-app   # 重启应用
 ```
+
+### 如果遇到 sqlite3 命令未找到的错误
+
+原来的 Shell 脚本依赖 `sqlite3` 命令行工具。如果服务器上没有安装，请使用 Node.js 版本的脚本：
+
+```bash
+node scripts/migrate-add-note-node.js
+```
+
+这个脚本使用 Prisma 直接操作数据库，不需要额外的命令行工具。
 
 ## 验证功能
 
