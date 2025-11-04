@@ -163,6 +163,7 @@ export default function PublicOrders() {
   const [noteMap, setNoteMap] = useState(initialNoteMap || {});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
   const [cacheTimestamp, setCacheTimestamp] = useState(initialCacheTimestamp);
   const [currentPage, setCurrentPage] = useState(1);
@@ -319,10 +320,19 @@ export default function PublicOrders() {
     return false;
   };
   
-  // 使用 useMemo 过滤有尺寸信息的订单
+  // 使用 useMemo 过滤有尺寸信息的订单，并添加发货状态筛选
   const ordersWithDimensions = useMemo(() => {
-    return orders.filter(order => orderHasDimensions(order));
-  }, [orders]);
+    let filteredOrders = orders.filter(order => orderHasDimensions(order));
+    
+    // 应用发货状态筛选
+    if (fulfillmentFilter !== "all") {
+      filteredOrders = filteredOrders.filter(order => 
+        order.displayFulfillmentStatus === fulfillmentFilter
+      );
+    }
+    
+    return filteredOrders;
+  }, [orders, fulfillmentFilter]);
   
   const totalPages = Math.ceil(ordersWithDimensions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -781,6 +791,59 @@ export default function PublicOrders() {
                 订单数据更新时间: {formatCacheTime(cacheTimestamp)}
               </span>
             </div>
+          </div>
+
+          {/* 筛选控件 */}
+          <div className={styles.filtersSection} style={{ 
+            marginBottom: '20px', 
+            padding: '16px', 
+            backgroundColor: '#f6f6f7', 
+            borderRadius: '8px',
+            display: 'flex',
+            gap: '16px',
+            alignItems: 'center'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label htmlFor="fulfillmentFilter" style={{ fontWeight: '500' }}>发货状态：</label>
+              <select 
+                id="fulfillmentFilter"
+                value={fulfillmentFilter}
+                onChange={(e) => {
+                  setFulfillmentFilter(e.target.value);
+                  setCurrentPage(1); // 重置到第一页
+                }}
+                style={{ 
+                  padding: '6px 12px', 
+                  borderRadius: '4px', 
+                  border: '1px solid #c4cdd5',
+                  fontSize: '14px',
+                  minWidth: '150px'
+                }}
+              >
+                <option value="all">全部</option>
+                <option value="FULFILLED">已发货</option>
+                <option value="UNFULFILLED">未发货</option>
+                <option value="PARTIALLY_FULFILLED">部分发货</option>
+              </select>
+            </div>
+            {fulfillmentFilter !== "all" && (
+              <button 
+                onClick={() => {
+                  setFulfillmentFilter("all");
+                  setCurrentPage(1);
+                }}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#fff',
+                  border: '1px solid #c4cdd5',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                清除筛选
+              </button>
+            )}
           </div>
 
           {/* 分页和导出控件 */}

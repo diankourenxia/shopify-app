@@ -6440,7 +6440,7 @@ pkg-types@^2.2.0, pkg-types@^2.3.0:
     exsolve "^1.0.7"
     pathe "^2.0.3"
 
-"pos-ui-order-details@file:/Users/yaohui/order-prodcut/extensions/pos-ui-order-details":
+"pos-ui-order-details@file:/Users/macpassword0000/shopify-app/extensions/pos-ui-order-details":
   version "1.0.0"
   resolved "file:extensions/pos-ui-order-details"
   dependencies:
