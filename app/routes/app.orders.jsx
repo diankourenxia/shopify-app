@@ -956,6 +956,18 @@ export default function Orders() {
     }).format(parseFloat(amount));
   };
 
+  // 检测是否为小样订单（所有商品价格都是$1.99）
+  const isSampleOrder = (lineItems) => {
+    if (!lineItems?.edges || lineItems.edges.length === 0) {
+      return false;
+    }
+    
+    return lineItems.edges.every(({ node: item }) => {
+      const price = parseFloat(item.variant?.price || '0');
+      return price === 1.99;
+    });
+  };
+
   // 解析customAttributes中的尺寸信息并转换为厘米
   const parseDimensions = (customAttributes, quantity, title) => {
     if (!customAttributes || !Array.isArray(customAttributes)) {
@@ -1248,7 +1260,12 @@ export default function Orders() {
         onChange={(checked) => handleOrderSelect(order.id, checked)}
         label=""
       />,
-      order.name,
+      <div key={`order-name-${order.id}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span>{order.name}</span>
+        {isSampleOrder(order.lineItems) && (
+          <Badge tone="info">小样订单</Badge>
+        )}
+      </div>,
       renderLineItems(order.lineItems),
       allItemsDimensions && allItemsDimensions.length > 0 
         ? <div>{allItemsDimensions}</div>

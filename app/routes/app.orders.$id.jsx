@@ -194,6 +194,22 @@ export default function OrderDetail() {
     });
   };
 
+  // 检测是否为小样订单（所有商品价格都是$1.99）
+  const isSampleOrder = (lineItems) => {
+    if (!lineItems?.edges || lineItems.edges.length === 0) {
+      return false;
+    }
+    
+    return lineItems.edges.every(({ node: item }) => {
+      const price = parseFloat(
+        item.discountedUnitPriceSet?.shopMoney?.amount || 
+        item.originalUnitPriceSet?.shopMoney?.amount || 
+        '0'
+      );
+      return price === 1.99;
+    });
+  };
+
   // 解析customAttributes中的尺寸信息并转换为厘米
   const parseDimensions = (customAttributes, item) => {
     if (!customAttributes || !Array.isArray(customAttributes)) {
@@ -350,6 +366,11 @@ export default function OrderDetail() {
                   <BlockStack gap="200">
                     <Text variant="bodyMd">
                       <strong>订单号:</strong> {order.name}
+                      {isSampleOrder(order.lineItems) && (
+                        <span style={{ marginLeft: '8px' }}>
+                          <Badge tone="info">小样订单</Badge>
+                        </span>
+                      )}
                     </Text>
                     <Text variant="bodyMd">
                       <strong>创建时间:</strong> {formatDate(order.createdAt)}

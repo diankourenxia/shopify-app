@@ -662,6 +662,18 @@ export default function PublicOrders() {
     });
   };
 
+  // 检测是否为小样订单（所有商品价格都是$1.99）
+  const isSampleOrder = (lineItems) => {
+    if (!lineItems?.edges || lineItems.edges.length === 0) {
+      return false;
+    }
+    
+    return lineItems.edges.every(({ node: item }) => {
+      const price = parseFloat(item.variant?.price || '0');
+      return price === 1.99;
+    });
+  };
+
   const formatCacheTime = (timestamp) => {
     if (!timestamp) return '未知';
     return new Date(timestamp).toLocaleString('zh-CN', {
@@ -912,7 +924,16 @@ export default function PublicOrders() {
                               onChange={(e) => handleOrderSelect(order.id, e.target.checked)}
                             />
                           </td>
-                          <td>{order.name}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span>{order.name}</span>
+                              {isSampleOrder(order.lineItems) && (
+                                <span className={`${styles.statusBadge} ${styles['status-info']}`}>
+                                  小样订单
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td>
                             {order.lineItems?.edges?.length > 0 ? (
                               <div className={styles.lineItems}>

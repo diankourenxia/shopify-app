@@ -94,6 +94,18 @@ export default function PublicOrderDetail() {
     });
   };
 
+  // 检测是否为小样订单（所有商品价格都是$1.99）
+  const isSampleOrder = (lineItems) => {
+    if (!lineItems?.edges || lineItems.edges.length === 0) {
+      return false;
+    }
+    
+    return lineItems.edges.every(({ node: item }) => {
+      const price = parseFloat(item.variant?.price || '0');
+      return price === 1.99;
+    });
+  };
+
   if (notFound || !order) {
     return (
       <div className={styles.index}>
@@ -142,7 +154,14 @@ export default function PublicOrderDetail() {
             <h2>订单信息</h2>
             <div className={styles.infoGrid}>
               <div className={styles.infoColumn}>
-                <p><strong>订单号:</strong> {order.name}</p>
+                <p>
+                  <strong>订单号:</strong> {order.name}
+                  {isSampleOrder(order.lineItems) && (
+                    <span className={`${styles.statusBadge} ${styles['status-info']}`} style={{ marginLeft: '8px' }}>
+                      小样订单
+                    </span>
+                  )}
+                </p>
                 <p><strong>客户:</strong> {order.customer?.displayName || '无客户信息'}</p>
                 <p><strong>创建时间:</strong> {formatDate(order.createdAt)}</p>
                 <p><strong>更新时间:</strong> {formatDate(order.updatedAt)}</p>
