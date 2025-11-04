@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
+import { json } from "@remix-run/node";
 import {
   Page,
   Layout,
@@ -163,7 +164,7 @@ export const loader = async ({ request }) => {
     });
   }
 
-    return {
+    return json({
       orders,
       pageInfo,
       statusMap,
@@ -171,7 +172,7 @@ export const loader = async ({ request }) => {
       fromCache: false,
       currentAfter: after,
       currentBefore: before,
-    };
+    });
   } catch (error) {
     console.error('Loader error:', error);
     console.error('Error stack:', error.stack);
@@ -339,7 +340,7 @@ export const action = async ({ request }) => {
         });
       }
 
-      return { success: true, orderStatus };
+      return json({ success: true, orderStatus });
     } catch (error) {
       console.error("更新订单状态失败:", error);
       console.error("错误详情:", error.message);
@@ -347,11 +348,11 @@ export const action = async ({ request }) => {
       console.error("参数:", { orderId, lineItemId, status, note });
       
       // 返回更详细的错误信息
-      return { 
+      return json({ 
         error: "更新失败", 
         details: error.message,
         needsMigration: error.message?.includes('no such column') || error.message?.includes('note')
-      };
+      }, { status: 500 });
     }
   }
 
@@ -467,7 +468,7 @@ export const action = async ({ request }) => {
       // 如果数据库查询失败，继续执行但使用空的 statusMap
     }
 
-    return {
+    return json({
       orders,
       pageInfo,
       statusMap,
@@ -475,10 +476,10 @@ export const action = async ({ request }) => {
       searchQuery,
       currentAfter: after,
       currentBefore: before,
-    };
+    });
   }
 
-  return null;
+  return json({ error: "未知操作" }, { status: 400 });
 };
 
 export default function Orders() {

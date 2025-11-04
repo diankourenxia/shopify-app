@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import { redirect } from "@remix-run/node";
+import { redirect, json } from "@remix-run/node";
 import styles from "./_index/styles.module.css";
 import * as XLSX from 'xlsx';
 
@@ -94,14 +94,14 @@ export const action = async ({ request }) => {
     });
     
     if (cacheData) {
-      return {
+      return json({
         orders: cacheData.orders,
         pageInfo: cacheData.pageInfo,
         statusMap,
         noteMap,
         fromCache: true,
         cacheTimestamp: cacheData.timestamp || new Date().toISOString()
-      };
+      });
     }
   }
 
@@ -113,7 +113,7 @@ export const action = async ({ request }) => {
     const note = formData.get("note") || null;
 
     if (!orderKey || !status) {
-      return { error: "缺少必要参数" };
+      return json({ error: "缺少必要参数" }, { status: 400 });
     }
 
     let orderId = orderKey;
@@ -133,7 +133,7 @@ export const action = async ({ request }) => {
         orderStatus = await prisma.orderStatus.create({ data: { orderId, lineItemId, status, note } });
       }
 
-      return { success: true, orderStatus };
+      return json({ success: true, orderStatus });
     } catch (error) {
       console.error("更新订单状态失败:", error);
       console.error("错误详情:", error.message);
@@ -141,15 +141,15 @@ export const action = async ({ request }) => {
       console.error("参数:", { orderId, lineItemId, status, note });
       
       // 返回更详细的错误信息
-      return { 
+      return json({ 
         error: "更新失败", 
         details: error.message,
         needsMigration: error.message?.includes('no such column') || error.message?.includes('note')
-      };
+      }, { status: 500 });
     }
   }
 
-  return null;
+  return json({ error: "未知操作" }, { status: 400 });
 };
 
 export default function PublicOrders() {
