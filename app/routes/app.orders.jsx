@@ -342,7 +342,16 @@ export const action = async ({ request }) => {
       return { success: true, orderStatus };
     } catch (error) {
       console.error("更新订单状态失败:", error);
-      return { error: "更新失败" };
+      console.error("错误详情:", error.message);
+      console.error("错误代码:", error.code);
+      console.error("参数:", { orderId, lineItemId, status, note });
+      
+      // 返回更详细的错误信息
+      return { 
+        error: "更新失败", 
+        details: error.message,
+        needsMigration: error.message?.includes('no such column') || error.message?.includes('note')
+      };
     }
   }
 
@@ -540,6 +549,14 @@ export default function Orders() {
         ...prev,
         [key]: orderStatus.note || ''
       }));
+    } else if (statusFetcher.data?.error) {
+      // 显示错误信息
+      const errorMsg = statusFetcher.data.needsMigration 
+        ? '数据库需要迁移：请运行 node scripts/migrate-add-note-node.js'
+        : `更新失败: ${statusFetcher.data.details || statusFetcher.data.error}`;
+      
+      shopify.toast.show(errorMsg, { duration: 5000, isError: true });
+      console.error('状态更新失败:', statusFetcher.data);
     }
   }, [statusFetcher.data]);
 
