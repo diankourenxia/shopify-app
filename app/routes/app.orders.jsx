@@ -139,14 +139,16 @@ export const loader = async ({ request }) => {
   const orders = responseJson.data.orders.edges.map(edge => edge.node);
   const pageInfo = responseJson.data.orders.pageInfo;
 
-  // 获取所有订单的自定义状态
+  // 获取所有订单的自定义状态和备注
   let statusMap = {};
+  let noteMap = {};
   try {
     const orderStatuses = await prisma.orderStatus.findMany();
     orderStatuses.forEach(status => {
       // 支持按 lineItem 级别的状态：key = "orderId:lineItemId"，若无 lineItemId 则 fallback 到 orderId
       const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
       statusMap[key] = status.status;
+      noteMap[key] = status.note || '';
     });
   } catch (dbError) {
     console.error('Database error when fetching order statuses:', dbError);
@@ -165,6 +167,7 @@ export const loader = async ({ request }) => {
       orders,
       pageInfo,
       statusMap,
+      noteMap,
       fromCache: false,
       currentAfter: after,
       currentBefore: before,
@@ -302,6 +305,7 @@ export const action = async ({ request }) => {
 
     const orderKey = formData.get("orderId");
     const status = formData.get("status");
+    const note = formData.get("note") || null;
 
     if (!orderKey || !status) {
       return { error: "缺少必要参数" };
@@ -327,11 +331,11 @@ export const action = async ({ request }) => {
       if (existing) {
         orderStatus = await prisma.orderStatus.update({
           where: { id: existing.id },
-          data: { status }
+          data: { status, note }
         });
       } else {
         orderStatus = await prisma.orderStatus.create({
-          data: { orderId, lineItemId, status }
+          data: { orderId, lineItemId, status, note }
         });
       }
 
@@ -438,14 +442,16 @@ export const action = async ({ request }) => {
     const orders = responseJson.data.orders.edges.map(edge => edge.node);
     const pageInfo = responseJson.data.orders.pageInfo;
 
-    // 获取订单状态
+    // 获取订单状态和备注
     let statusMap = {};
+    let noteMap = {};
     try {
       const prisma = (await import("../db.server")).default;
       const orderStatuses = await prisma.orderStatus.findMany();
       orderStatuses.forEach(status => {
         const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
         statusMap[key] = status.status;
+        noteMap[key] = status.note || '';
       });
     } catch (dbError) {
       console.error('Database error when fetching order statuses in search:', dbError);
@@ -456,6 +462,7 @@ export const action = async ({ request }) => {
       orders,
       pageInfo,
       statusMap,
+      noteMap,
       searchQuery,
       currentAfter: after,
       currentBefore: before,
@@ -470,6 +477,7 @@ export default function Orders() {
     orders: initialOrders, 
     pageInfo: initialPageInfo, 
     statusMap: initialStatusMap,
+    noteMap: initialNoteMap,
     fromCache: initialFromCache,
     currentAfter,
     currentBefore 
@@ -483,6 +491,7 @@ export default function Orders() {
   const [orders, setOrders] = useState(initialOrders);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
   const [statusMap, setStatusMap] = useState(initialStatusMap || {});
+  const [noteMap, setNoteMap] = useState(initialNoteMap || {});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
@@ -502,6 +511,9 @@ export default function Orders() {
       setPageInfo(fetcher.data.pageInfo);
       if (fetcher.data.statusMap) {
         setStatusMap(fetcher.data.statusMap);
+      }
+      if (fetcher.data.noteMap) {
+        setNoteMap(fetcher.data.noteMap);
       }
       // 更新当前的 after/before 游标
       if (fetcher.data.currentAfter !== undefined) {
@@ -523,6 +535,10 @@ export default function Orders() {
       setStatusMap(prev => ({
         ...prev,
         [key]: orderStatus.status
+      }));
+      setNoteMap(prev => ({
+        ...prev,
+        [key]: orderStatus.note || ''
       }));
     }
   }, [statusFetcher.data]);
@@ -845,10 +861,37 @@ export default function Orders() {
 
 
   const handleStatusChange = (orderId, newStatus) => {
+    const currentNote = noteMap[orderId] || '';
     const formData = new FormData();
     formData.append("action", "updateStatus");
     formData.append("orderId", orderId);
     formData.append("status", newStatus);
+    formData.append("note", currentNote);
+    statusFetcher.submit(formData, { method: "POST" });
+  };
+
+  const handleNoteChange = (orderId, newNote) => {
+    // 立即更新本地状态
+    setNoteMap(prev => ({
+      ...prev,
+      [orderId]: newNote
+    }));
+  };
+
+  const handleNoteBlur = (orderId) => {
+    // 当失去焦点时保存到服务器
+    const currentStatus = statusMap[orderId] || '';
+    const currentNote = noteMap[orderId] || '';
+    
+    if (!currentStatus) {
+      return; // 如果没有设置状态，不保存备注
+    }
+    
+    const formData = new FormData();
+    formData.append("action", "updateStatus");
+    formData.append("orderId", orderId);
+    formData.append("status", currentStatus);
+    formData.append("note", currentNote);
     statusFetcher.submit(formData, { method: "POST" });
   };
 
@@ -881,8 +924,9 @@ export default function Orders() {
     const badgeMap = {
       '待生产': { status: 'info', children: '待生产' },
       '生产中': { status: 'warning', children: '生产中' },
+      '暂停生产': { status: 'critical', children: '暂停生产' },
       '待发货': { status: 'success', children: '待发货' },
-      '发货': { status: 'success', children: '发货' },
+      '已发货': { status: 'success', children: '已发货' },
     };
     
     return badgeMap[status] || { status: 'default', children: status || '未设置' };
@@ -1137,7 +1181,9 @@ export default function Orders() {
       if (!dimensions) return null;
       
       // 状态优先使用数据库中存储的，如果为空则使用默认值
-      const currentStatus = statusMap[`${orderId}:${item.id}`] || defaultStatus;
+      const itemKey = `${orderId}:${item.id}`;
+      const currentStatus = statusMap[itemKey] || defaultStatus;
+      const currentNote = noteMap[itemKey] || '';
       
       return (
         <div key={item.id} style={{ 
@@ -1156,11 +1202,22 @@ export default function Orders() {
                 { label: '未设置', value: '' },
                 { label: '待生产', value: '待生产' },
                 { label: '生产中', value: '生产中' },
+                { label: '暂停生产', value: '暂停生产' },
                 { label: '待发货', value: '待发货' },
                 { label: '已发货', value: '已发货' },
               ]}
               value={currentStatus}
-              onChange={(value) => handleStatusChange(`${orderId}:${item.id}`, value)}
+              onChange={(value) => handleStatusChange(itemKey, value)}
+            />
+          </div>
+          <div style={{ marginTop: '8px', maxWidth: '220px' }}>
+            <TextField
+              label=""
+              value={currentNote}
+              onChange={(value) => handleNoteChange(itemKey, value)}
+              onBlur={() => handleNoteBlur(itemKey)}
+              placeholder="添加备注..."
+              autoComplete="off"
             />
           </div>
         </div>

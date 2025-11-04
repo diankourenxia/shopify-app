@@ -36,7 +36,8 @@ model OrderStatus {
   // 支持按 line item 记录状态：lineItemId 可为空
   orderId     String
   lineItemId  String?  
-  status      String   // 自定义状态，例如: 待生产、生产中、待发货、已发货
+  status      String   // 自定义状态，例如: 待生产、生产中、暂停生产、待发货、已发货
+  note        String?  // 备注信息
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 }

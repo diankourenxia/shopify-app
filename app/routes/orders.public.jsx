@@ -37,12 +37,14 @@ export const loader = async ({ request }) => {
     时间戳: cacheData?.timestamp
   });
   
-  // 获取所有订单的自定义状态
+  // 获取所有订单的自定义状态和备注
   const orderStatuses = await prisma.orderStatus.findMany();
   const statusMap = {};
+  const noteMap = {};
   orderStatuses.forEach(status => {
     const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
     statusMap[key] = status.status;
+    noteMap[key] = status.note || '';
   });
   
   if (cacheData) {
@@ -50,6 +52,7 @@ export const loader = async ({ request }) => {
       orders: cacheData.orders,
       pageInfo: cacheData.pageInfo,
       statusMap,
+      noteMap,
       fromCache: true,
       publicAccess: true,
       userSession,
@@ -80,12 +83,14 @@ export const action = async ({ request }) => {
     // 尝试从缓存获取最新数据
     const cacheData = await getOrdersFromCache();
     
-    // 获取所有订单的自定义状态
+    // 获取所有订单的自定义状态和备注
     const orderStatuses = await prisma.orderStatus.findMany();
     const statusMap = {};
+    const noteMap = {};
     orderStatuses.forEach(status => {
       const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
       statusMap[key] = status.status;
+      noteMap[key] = status.note || '';
     });
     
     if (cacheData) {
@@ -93,6 +98,7 @@ export const action = async ({ request }) => {
         orders: cacheData.orders,
         pageInfo: cacheData.pageInfo,
         statusMap,
+        noteMap,
         fromCache: true,
         cacheTimestamp: cacheData.timestamp || new Date().toISOString()
       };
@@ -104,6 +110,7 @@ export const action = async ({ request }) => {
     
     const orderKey = formData.get("orderId");
     const status = formData.get("status");
+    const note = formData.get("note") || null;
 
     if (!orderKey || !status) {
       return { error: "缺少必要参数" };
@@ -121,9 +128,9 @@ export const action = async ({ request }) => {
       const existing = await prisma.orderStatus.findFirst({ where: { orderId, lineItemId } });
       let orderStatus;
       if (existing) {
-        orderStatus = await prisma.orderStatus.update({ where: { id: existing.id }, data: { status } });
+        orderStatus = await prisma.orderStatus.update({ where: { id: existing.id }, data: { status, note } });
       } else {
-        orderStatus = await prisma.orderStatus.create({ data: { orderId, lineItemId, status } });
+        orderStatus = await prisma.orderStatus.create({ data: { orderId, lineItemId, status, note } });
       }
 
       return { success: true, orderStatus };
@@ -137,13 +144,14 @@ export const action = async ({ request }) => {
 };
 
 export default function PublicOrders() {
-  const { orders: initialOrders, pageInfo: initialPageInfo, noCache, userSession, statusMap: initialStatusMap, cacheTimestamp: initialCacheTimestamp } = useLoaderData();
+  const { orders: initialOrders, pageInfo: initialPageInfo, noCache, userSession, statusMap: initialStatusMap, noteMap: initialNoteMap, cacheTimestamp: initialCacheTimestamp } = useLoaderData();
   const fetcher = useFetcher();
   const statusFetcher = useFetcher();
   
   const [orders, setOrders] = useState(initialOrders);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
   const [statusMap, setStatusMap] = useState(initialStatusMap || {});
+  const [noteMap, setNoteMap] = useState(initialNoteMap || {});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
@@ -320,6 +328,9 @@ export default function PublicOrders() {
       if (fetcher.data.statusMap) {
         setStatusMap(fetcher.data.statusMap);
       }
+      if (fetcher.data.noteMap) {
+        setNoteMap(fetcher.data.noteMap);
+      }
       if (fetcher.data.cacheTimestamp) {
         setCacheTimestamp(fetcher.data.cacheTimestamp);
       }
@@ -335,6 +346,10 @@ export default function PublicOrders() {
       setStatusMap(prev => ({
         ...prev,
         [key]: orderStatus.status
+      }));
+      setNoteMap(prev => ({
+        ...prev,
+        [key]: orderStatus.note || ''
       }));
     }
   }, [statusFetcher.data]);
@@ -352,10 +367,35 @@ export default function PublicOrders() {
   };
 
   const handleStatusChange = (orderId, newStatus) => {
+    const currentNote = noteMap[orderId] || '';
     const formData = new FormData();
     formData.append("action", "updateStatus");
     formData.append("orderId", orderId);
     formData.append("status", newStatus);
+    formData.append("note", currentNote);
+    statusFetcher.submit(formData, { method: "POST" });
+  };
+
+  const handleNoteChange = (orderId, newNote) => {
+    setNoteMap(prev => ({
+      ...prev,
+      [orderId]: newNote
+    }));
+  };
+
+  const handleNoteBlur = (orderId) => {
+    const currentStatus = statusMap[orderId] || '';
+    const currentNote = noteMap[orderId] || '';
+    
+    if (!currentStatus) {
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append("action", "updateStatus");
+    formData.append("orderId", orderId);
+    formData.append("status", currentStatus);
+    formData.append("note", currentNote);
     statusFetcher.submit(formData, { method: "POST" });
   };
 
@@ -580,6 +620,7 @@ export default function PublicOrders() {
     const badgeMap = {
       '待生产': { className: 'status-info', text: '待生产' },
       '生产中': { className: 'status-warning', text: '生产中' },
+      '暂停生产': { className: 'status-critical', text: '暂停生产' },
       '待发货': { className: 'status-success', text: '待发货' },
       '已发货': { className: 'status-success', text: '已发货' },
     };
@@ -800,7 +841,9 @@ export default function PublicOrders() {
                         if (!dimensions) return null;
                         
                         // 状态优先使用数据库中存储的，如果为空则使用默认值
-                        const itemStatus = statusMap[`${orderId}:${item.id}`] || defaultStatus;
+                        const itemKey = `${orderId}:${item.id}`;
+                        const itemStatus = statusMap[itemKey] || defaultStatus;
+                        const itemNote = noteMap[itemKey] || '';
                         
                         return (
                           <div key={item.id} style={{ 
@@ -817,16 +860,27 @@ export default function PublicOrders() {
                             <div style={{ marginTop: '8px', maxWidth: '220px' }}>
                               <select 
                                 value={itemStatus}
-                                onChange={(e) => handleStatusChange(`${orderId}:${item.id}`, e.target.value)}
+                                onChange={(e) => handleStatusChange(itemKey, e.target.value)}
                                 className={styles.statusSelect}
                                 style={{ width: '100%', padding: '4px' }}
                               >
                                 <option value="">未设置</option>
                                 <option value="待生产">待生产</option>
                                 <option value="生产中">生产中</option>
+                                <option value="暂停生产">暂停生产</option>
                                 <option value="待发货">待发货</option>
                                 <option value="已发货">已发货</option>
                               </select>
+                            </div>
+                            <div style={{ marginTop: '8px', maxWidth: '220px' }}>
+                              <input
+                                type="text"
+                                value={itemNote}
+                                onChange={(e) => handleNoteChange(itemKey, e.target.value)}
+                                onBlur={() => handleNoteBlur(itemKey)}
+                                placeholder="添加备注..."
+                                style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '4px' }}
+                              />
                             </div>
                           </div>
                         );
