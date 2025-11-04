@@ -4,7 +4,7 @@
  * 检查数据库状态和 note 字段
  */
 
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 
 async function diagnose() {
   const prisma = new PrismaClient();

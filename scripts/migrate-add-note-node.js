@@ -5,9 +5,14 @@
  * 不依赖 sqlite3 命令行工具
  */
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 console.log('==========================================');
 console.log('添加 note 字段到 OrderStatus 表');
@@ -38,8 +43,8 @@ async function main() {
     // 步骤 2: 使用 Prisma 执行原始 SQL
     console.log('🔧 步骤 2: 添加 note 字段...');
     
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient.PrismaClient();
     
     try {
       // 检查字段是否已存在
