@@ -47,12 +47,33 @@ export const loader = async ({ request }) => {
     noteMap[key] = status.note || '';
   });
   
+  // 获取所有标签
+  const allTags = await prisma.tag.findMany({
+    orderBy: { name: 'asc' }
+  });
+  
+  // 获取订单标签关联
+  const orderTags = await prisma.orderTag.findMany({
+    include: { tag: true }
+  });
+  
+  // 构建订单ID到标签的映射
+  const orderTagsMap = {};
+  orderTags.forEach(ot => {
+    if (!orderTagsMap[ot.orderId]) {
+      orderTagsMap[ot.orderId] = [];
+    }
+    orderTagsMap[ot.orderId].push(ot.tag);
+  });
+  
   if (cacheData) {
     return {
       orders: cacheData.orders,
       pageInfo: cacheData.pageInfo,
       statusMap,
       noteMap,
+      allTags,
+      orderTagsMap,
       fromCache: true,
       publicAccess: true,
       userSession,
@@ -64,6 +85,8 @@ export const loader = async ({ request }) => {
   return {
     orders: [],
     pageInfo: null,
+    allTags: [],
+    orderTagsMap: {},
     fromCache: false,
     publicAccess: true,
     noCache: true,
@@ -74,6 +97,39 @@ export const loader = async ({ request }) => {
 export const action = async ({ request }) => {
   const formData = await request.formData();
   const action = formData.get("action");
+
+  // 处理标签操作
+  if (action === "addTag" || action === "removeTag") {
+    const prisma = (await import("../db.server")).default;
+    const orderId = formData.get("orderId");
+    const tagId = formData.get("tagId");
+    
+    if (!orderId || !tagId) {
+      return json({ error: "参数错误" }, { status: 400 });
+    }
+    
+    try {
+      if (action === "addTag") {
+        // 添加标签到订单
+        const orderTag = await prisma.orderTag.create({
+          data: { orderId, tagId },
+          include: { tag: true }
+        });
+        return json({ success: true, orderTag });
+      } else {
+        // 从订单移除标签
+        await prisma.orderTag.deleteMany({
+          where: { orderId, tagId }
+        });
+        return json({ success: true });
+      }
+    } catch (error) {
+      if (error.code === 'P2002') {
+        return json({ error: "该标签已添加到此订单" }, { status: 400 });
+      }
+      return json({ error: "操作失败" }, { status: 500 });
+    }
+  }
 
   if (action === "refresh") {
     // 动态导入服务器端模块
@@ -153,14 +209,17 @@ export const action = async ({ request }) => {
 };
 
 export default function PublicOrders() {
-  const { orders: initialOrders, pageInfo: initialPageInfo, noCache, userSession, statusMap: initialStatusMap, noteMap: initialNoteMap, cacheTimestamp: initialCacheTimestamp } = useLoaderData();
+  const { orders: initialOrders, pageInfo: initialPageInfo, noCache, userSession, statusMap: initialStatusMap, noteMap: initialNoteMap, allTags: initialTags, orderTagsMap: initialOrderTagsMap, cacheTimestamp: initialCacheTimestamp } = useLoaderData();
   const fetcher = useFetcher();
   const statusFetcher = useFetcher();
+  const tagFetcher = useFetcher();
   
   const [orders, setOrders] = useState(initialOrders);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
   const [statusMap, setStatusMap] = useState(initialStatusMap || {});
   const [noteMap, setNoteMap] = useState(initialNoteMap || {});
+  const [allTags, setAllTags] = useState(initialTags || []);
+  const [orderTagsMap, setOrderTagsMap] = useState(initialOrderTagsMap || {});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
@@ -391,6 +450,45 @@ export default function PublicOrders() {
   const handleLogout = () => {
     // 清除会话并重定向到登录页面
     window.location.href = "/login";
+  };
+
+  // 处理标签操作结果
+  useEffect(() => {
+    if (tagFetcher.data?.success) {
+      if (tagFetcher.data.orderTag) {
+        // 添加标签成功
+        const { orderId, tag } = tagFetcher.data.orderTag;
+        setOrderTagsMap(prev => ({
+          ...prev,
+          [orderId]: [...(prev[orderId] || []), tag]
+        }));
+      }
+      // 移除标签会在前端直接处理
+    } else if (tagFetcher.data?.error) {
+      alert(tagFetcher.data.error);
+    }
+  }, [tagFetcher.data]);
+
+  const handleAddTag = (orderId, tagId) => {
+    const formData = new FormData();
+    formData.append("action", "addTag");
+    formData.append("orderId", orderId);
+    formData.append("tagId", tagId);
+    tagFetcher.submit(formData, { method: "POST" });
+  };
+
+  const handleRemoveTag = (orderId, tagId) => {
+    const formData = new FormData();
+    formData.append("action", "removeTag");
+    formData.append("orderId", orderId);
+    formData.append("tagId", tagId);
+    tagFetcher.submit(formData, { method: "POST" });
+    
+    // 立即更新本地状态
+    setOrderTagsMap(prev => ({
+      ...prev,
+      [orderId]: (prev[orderId] || []).filter(t => t.id !== tagId)
+    }));
   };
 
   const handleStatusChange = (orderId, newStatus) => {
@@ -902,7 +1000,8 @@ export default function PublicOrders() {
                           onChange={(e) => handleSelectAll(e.target.checked)}
                         />
                       </th>
-                      <th>订单号</th>                    
+                      <th>订单号</th>
+                      <th>标签</th>
                       <th>商品信息</th>
                       <th>尺寸(cm)</th>
                       <th>订单状态</th>
@@ -916,6 +1015,7 @@ export default function PublicOrders() {
                   <tbody>
                     {currentOrders.map((order) => {
                       const orderId = order.id.replace('gid://shopify/Order/', '');
+                      const orderTags = orderTagsMap[orderId] || [];
                       const currentStatus = statusMap[orderId] || '';
                       const fulfillmentStatus = getStatusBadge(order.displayFulfillmentStatus);
                       const financialStatus = getStatusBadge(order.displayFinancialStatus);
@@ -1002,6 +1102,62 @@ export default function PublicOrders() {
                                 <span className={`${styles.statusBadge} ${styles['status-info']}`}>
                                   小样订单
                                 </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ maxWidth: '180px' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {orderTags.map(tag => (
+                                <div key={tag.id} style={{ 
+                                  display: 'inline-flex', 
+                                  alignItems: 'center', 
+                                  gap: '4px',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  backgroundColor: tag.color + '20',
+                                  border: `1px solid ${tag.color}`,
+                                  fontSize: '0.75rem'
+                                }}>
+                                  <span style={{ color: tag.color, fontWeight: '500' }}>{tag.name}</span>
+                                  <button
+                                    onClick={() => handleRemoveTag(orderId, tag.id)}
+                                    style={{ 
+                                      background: 'none', 
+                                      border: 'none', 
+                                      color: tag.color, 
+                                      cursor: 'pointer',
+                                      padding: 0,
+                                      lineHeight: 1,
+                                      fontSize: '1rem'
+                                    }}
+                                    title="移除标签"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              {allTags.length > 0 && (
+                                <select
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      handleAddTag(orderId, e.target.value);
+                                      e.target.value = '';
+                                    }
+                                  }}
+                                  style={{ 
+                                    fontSize: '0.75rem',
+                                    padding: '2px 4px',
+                                    borderRadius: '3px',
+                                    border: '1px solid #ccc',
+                                    cursor: 'pointer',
+                                    backgroundColor: '#fff'
+                                  }}
+                                >
+                                  <option value="">+ 添加标签</option>
+                                  {allTags.filter(t => !orderTags.find(ot => ot.id === t.id)).map(tag => (
+                                    <option key={tag.id} value={tag.id}>{tag.name}</option>
+                                  ))}
+                                </select>
                               )}
                             </div>
                           </td>
