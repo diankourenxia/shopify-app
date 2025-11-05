@@ -143,6 +143,9 @@ export const loader = async ({ request }) => {
   // 获取所有订单的自定义状态和备注
   let statusMap = {};
   let noteMap = {};
+  let allTags = [];
+  let orderTagsMap = {};
+  
   try {
     const orderStatuses = await prisma.orderStatus.findMany();
     orderStatuses.forEach(status => {
@@ -150,6 +153,24 @@ export const loader = async ({ request }) => {
       const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
       statusMap[key] = status.status;
       noteMap[key] = status.note || '';
+    });
+    
+    // 获取所有标签
+    allTags = await prisma.tag.findMany({
+      orderBy: { name: 'asc' }
+    });
+    
+    // 获取订单标签关联
+    const orderTags = await prisma.orderTag.findMany({
+      include: { tag: true }
+    });
+    
+    // 构建订单ID到标签的映射
+    orderTags.forEach(ot => {
+      if (!orderTagsMap[ot.orderId]) {
+        orderTagsMap[ot.orderId] = [];
+      }
+      orderTagsMap[ot.orderId].push(ot.tag);
     });
   } catch (dbError) {
     console.error('Database error when fetching order statuses:', dbError);
@@ -169,6 +190,8 @@ export const loader = async ({ request }) => {
       pageInfo,
       statusMap,
       noteMap,
+      allTags,
+      orderTagsMap,
       fromCache: false,
       currentAfter: after,
       currentBefore: before,
@@ -185,6 +208,39 @@ export const action = async ({ request }) => {
   const formData = await request.formData();
   const action = formData.get("action");
   const searchQuery = formData.get("searchQuery");
+
+  // 处理标签操作
+  if (action === "addTag" || action === "removeTag") {
+    const prisma = (await import("../db.server")).default;
+    const orderId = formData.get("orderId");
+    const tagId = formData.get("tagId");
+    
+    if (!orderId || !tagId) {
+      return json({ error: "参数错误" }, { status: 400 });
+    }
+    
+    try {
+      if (action === "addTag") {
+        // 添加标签到订单
+        const orderTag = await prisma.orderTag.create({
+          data: { orderId, tagId },
+          include: { tag: true }
+        });
+        return json({ success: true, orderTag });
+      } else {
+        // 从订单移除标签
+        await prisma.orderTag.deleteMany({
+          where: { orderId, tagId }
+        });
+        return json({ success: true });
+      }
+    } catch (error) {
+      if (error.code === 'P2002') {
+        return json({ error: "该标签已添加到此订单" }, { status: 400 });
+      }
+      return json({ error: "操作失败" }, { status: 500 });
+    }
+  }
 
   // 处理缓存刷新
   if (action === "refreshCache") {
@@ -488,6 +544,8 @@ export default function Orders() {
     pageInfo: initialPageInfo, 
     statusMap: initialStatusMap,
     noteMap: initialNoteMap,
+    allTags: initialTags,
+    orderTagsMap: initialOrderTagsMap,
     fromCache: initialFromCache,
     currentAfter,
     currentBefore 
@@ -496,12 +554,15 @@ export default function Orders() {
   const statusFetcher = useFetcher();
   const cacheFetcher = useFetcher();
   const commentFetcher = useFetcher();
+  const tagFetcher = useFetcher();
   const navigate = useNavigate();
   
   const [orders, setOrders] = useState(initialOrders);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
   const [statusMap, setStatusMap] = useState(initialStatusMap || {});
   const [noteMap, setNoteMap] = useState(initialNoteMap || {});
+  const [allTags, setAllTags] = useState(initialTags || []);
+  const [orderTagsMap, setOrderTagsMap] = useState(initialOrderTagsMap || {});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
@@ -877,6 +938,45 @@ export default function Orders() {
     }
   };
 
+
+  // 处理标签操作结果
+  useEffect(() => {
+    if (tagFetcher.data?.success) {
+      if (tagFetcher.data.orderTag) {
+        // 添加标签成功
+        const { orderId, tag } = tagFetcher.data.orderTag;
+        setOrderTagsMap(prev => ({
+          ...prev,
+          [orderId]: [...(prev[orderId] || []), tag]
+        }));
+      }
+      // 移除标签会在前端直接处理
+    } else if (tagFetcher.data?.error) {
+      alert(tagFetcher.data.error);
+    }
+  }, [tagFetcher.data]);
+
+  const handleAddTag = (orderId, tagId) => {
+    const formData = new FormData();
+    formData.append("action", "addTag");
+    formData.append("orderId", orderId);
+    formData.append("tagId", tagId);
+    tagFetcher.submit(formData, { method: "POST" });
+  };
+
+  const handleRemoveTag = (orderId, tagId) => {
+    const formData = new FormData();
+    formData.append("action", "removeTag");
+    formData.append("orderId", orderId);
+    formData.append("tagId", tagId);
+    tagFetcher.submit(formData, { method: "POST" });
+    
+    // 立即更新本地状态
+    setOrderTagsMap(prev => ({
+      ...prev,
+      [orderId]: (prev[orderId] || []).filter(t => t.id !== tagId)
+    }));
+  };
 
   const handleStatusChange = (orderId, newStatus) => {
     const currentNote = noteMap[orderId] || '';
@@ -1255,6 +1355,8 @@ export default function Orders() {
       );
     }).filter(Boolean);
 
+    const orderTags = orderTagsMap[orderId] || [];
+
     return [
       <Checkbox
         key={`checkbox-${order.id}`}
@@ -1266,6 +1368,58 @@ export default function Orders() {
         <span>{order.name}</span>
         {isSampleOrder(order.lineItems) && (
           <Badge tone="info">小样订单</Badge>
+        )}
+      </div>,
+      <div key={`tags-${order.id}`} style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '150px' }}>
+        {orderTags.map(tag => (
+          <div key={tag.id} style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '4px',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            backgroundColor: tag.color + '20',
+            border: `1px solid ${tag.color}`,
+            fontSize: '0.75rem'
+          }}>
+            <span style={{ color: tag.color, fontWeight: '500' }}>{tag.name}</span>
+            <button
+              onClick={() => handleRemoveTag(orderId, tag.id)}
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                color: tag.color, 
+                cursor: 'pointer',
+                padding: 0,
+                lineHeight: 1
+              }}
+              title="移除标签"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        {allTags.length > 0 && (
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                handleAddTag(orderId, e.target.value);
+                e.target.value = '';
+              }
+            }}
+            style={{ 
+              fontSize: '0.75rem',
+              padding: '2px 4px',
+              borderRadius: '3px',
+              border: '1px solid #ccc',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">+ 添加</option>
+            {allTags.filter(t => !orderTags.find(ot => ot.id === t.id)).map(tag => (
+              <option key={tag.id} value={tag.id}>{tag.name}</option>
+            ))}
+          </select>
         )}
       </div>,
       renderLineItems(order.lineItems),
@@ -1312,6 +1466,7 @@ export default function Orders() {
       label=""
     />,
     '订单号',
+    '标签',
     '商品信息',
     '尺寸(cm)',
     '订单状态',

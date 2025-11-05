@@ -41,3 +41,23 @@ model OrderStatus {
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 }
+
+model Tag {
+  id          String      @id @default(uuid())
+  name        String      @unique // 标签名称，唯一
+  color       String      @default("#808080") // 标签颜色，用于显示
+  description String?     // 标签描述
+  orderTags   OrderTag[]  // 关联的订单
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model OrderTag {
+  id        String   @id @default(uuid())
+  orderId   String   // Shopify订单ID
+  tagId     String   // 标签ID
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@unique([orderId, tagId]) // 同一订单不能重复添加相同标签
+}

@@ -23,6 +23,7 @@ export default function App() {
           Home
         </Link>
         <Link to="/app/orders">订单管理</Link>
+        <Link to="/app/tags">标签管理</Link>
         <Link to="/app/orders/demo">订单管理(演示)</Link>
         <Link to="/app/additional">Additional page</Link>
       </NavMenu>
