@@ -223,8 +223,8 @@ export default function PublicOrders() {
   const [tagFilter, setTagFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
-  const [financialFilter, setFinancialFilter] = useState("all");
+  const [fulfillmentFilter, setFulfillmentFilter] = useState("UNFULFILLED");
+  const [financialFilter, setFinancialFilter] = useState("PAID");
   const [isLoading, setIsLoading] = useState(false);
   const [cacheTimestamp, setCacheTimestamp] = useState(initialCacheTimestamp);
   const [currentPage, setCurrentPage] = useState(1);
