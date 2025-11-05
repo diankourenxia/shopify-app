@@ -47,9 +47,35 @@ export const loader = async ({ request }) => {
     noteMap[key] = status.note || '';
   });
   
+  // 确保预设标签存在
+  const presetTags = [
+    { name: '小样', color: '#3b82f6', description: '小样订单（价格$1.99）' },
+    { name: '罗马帘', color: '#8b5cf6', description: '包含罗马帘产品' },
+    { name: '布帘', color: '#10b981', description: '包含布帘产品' },
+    { name: '硬件', color: '#f59e0b', description: '包含硬件产品' },
+  ];
+  
+  for (const presetTag of presetTags) {
+    const existing = await prisma.tag.findUnique({
+      where: { name: presetTag.name }
+    });
+    
+    if (!existing) {
+      await prisma.tag.create({
+        data: presetTag
+      });
+    }
+  }
+  
   // 获取所有标签
   const allTags = await prisma.tag.findMany({
     orderBy: { name: 'asc' }
+  });
+  
+  // 创建标签名称到ID的映射
+  const tagNameToId = {};
+  allTags.forEach(tag => {
+    tagNameToId[tag.name] = tag.id;
   });
   
   // 获取订单标签关联
@@ -65,6 +91,96 @@ export const loader = async ({ request }) => {
     }
     orderTagsMap[ot.orderId].push(ot.tag);
   });
+  
+  // 如果有缓存数据，自动为订单打标签
+  if (cacheData && cacheData.orders) {
+    for (const order of cacheData.orders) {
+      const orderId = order.id.replace('gid://shopify/Order/', '');
+      const existingTags = orderTagsMap[orderId] || [];
+      const existingTagNames = existingTags.map(t => t.name);
+      
+      // 检测订单类型并添加标签
+      const tagsToAdd = [];
+      
+      // 检测小样订单
+      const isSampleOrder = order.lineItems?.edges?.every(({ node: item }) => {
+        const price = parseFloat(item.variant?.price || '0');
+        return price === 1.99;
+      });
+      
+      if (isSampleOrder && !existingTagNames.includes('小样')) {
+        tagsToAdd.push('小样');
+      }
+      
+      // 检测产品类型
+      let hasRomanShade = false;
+      let hasCurtain = false;
+      let hasHardware = false;
+      
+      order.lineItems?.edges?.forEach(({ node: item }) => {
+        const title = item.title?.toLowerCase() || '';
+        
+        // 检测罗马帘
+        if (title.includes('roman')) {
+          hasRomanShade = true;
+        }
+        
+        // 检测硬件（根据标题关键词）
+        if (title.includes('rod') || title.includes('bracket') || title.includes('finial') || 
+            title.includes('ring') || title.includes('clip') || title.includes('hook')) {
+          hasHardware = true;
+        }
+        
+        // 如果不是罗马帘也不是硬件，且有头部类型，则认为是布帘
+        if (!title.includes('roman') && !hasHardware) {
+          const hasHeader = item.customAttributes?.some(attr => 
+            attr.key.includes('Header') || attr.key.includes('Pleat')
+          );
+          if (hasHeader) {
+            hasCurtain = true;
+          }
+        }
+      });
+      
+      if (hasRomanShade && !existingTagNames.includes('罗马帘')) {
+        tagsToAdd.push('罗马帘');
+      }
+      
+      if (hasCurtain && !existingTagNames.includes('布帘')) {
+        tagsToAdd.push('布帘');
+      }
+      
+      if (hasHardware && !existingTagNames.includes('硬件')) {
+        tagsToAdd.push('硬件');
+      }
+      
+      // 添加新标签
+      for (const tagName of tagsToAdd) {
+        const tagId = tagNameToId[tagName];
+        if (tagId) {
+          try {
+            const newOrderTag = await prisma.orderTag.create({
+              data: {
+                orderId,
+                tagId
+              },
+              include: { tag: true }
+            });
+            
+            if (!orderTagsMap[orderId]) {
+              orderTagsMap[orderId] = [];
+            }
+            orderTagsMap[orderId].push(newOrderTag.tag);
+          } catch (error) {
+            // 如果已存在则忽略（P2002 unique constraint violation）
+            if (error.code !== 'P2002') {
+              console.error(`Error adding tag ${tagName} to order ${orderId}:`, error);
+            }
+          }
+        }
+      }
+    }
+  }
   
   if (cacheData) {
     return {
