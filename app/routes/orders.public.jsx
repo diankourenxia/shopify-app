@@ -401,7 +401,7 @@ export default function PublicOrders() {
     }
     
     return filteredOrders;
-  }, [orders, fulfillmentFilter]);
+  }, [orders, fulfillmentFilter, tagFilter, orderTagsMap]);
   
   const totalPages = Math.ceil(ordersWithDimensions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
