@@ -225,6 +225,7 @@ export default function PublicOrders() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [fulfillmentFilter, setFulfillmentFilter] = useState("UNFULFILLED");
   const [financialFilter, setFinancialFilter] = useState("PAID");
+  const [sortOrder, setSortOrder] = useState("desc"); // desc: 最新在前, asc: 最早在前
   const [isLoading, setIsLoading] = useState(false);
   const [cacheTimestamp, setCacheTimestamp] = useState(initialCacheTimestamp);
   const [currentPage, setCurrentPage] = useState(1);
@@ -408,8 +409,15 @@ export default function PublicOrders() {
       });
     }
     
+    // 按创建时间排序
+    filteredOrders.sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+    });
+    
     return filteredOrders;
-  }, [orders, fulfillmentFilter, financialFilter, tagFilter, orderTagsMap]);
+  }, [orders, fulfillmentFilter, financialFilter, tagFilter, orderTagsMap, sortOrder]);
   
   const totalPages = Math.ceil(ordersWithDimensions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -985,6 +993,24 @@ export default function PublicOrders() {
                 {allTags.map(t => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label htmlFor="sortOrder" style={{ fontWeight: '500' }}>排序：</label>
+              <select
+                id="sortOrder"
+                value={sortOrder}
+                onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #c4cdd5',
+                  fontSize: '14px',
+                  minWidth: '150px'
+                }}
+              >
+                <option value="desc">最新在前</option>
+                <option value="asc">最早在前</option>
               </select>
             </div>
             {(fulfillmentFilter !== "all" || financialFilter !== "all" || tagFilter !== 'all') && (
