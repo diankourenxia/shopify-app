@@ -565,6 +565,7 @@ export default function Orders() {
   const [orderTagsMap, setOrderTagsMap] = useState(initialOrderTagsMap || {});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
   const [currentPageAfter, setCurrentPageAfter] = useState(currentAfter);
   const [currentPageBefore, setCurrentPageBefore] = useState(currentBefore);
@@ -710,8 +711,16 @@ export default function Orders() {
   // 全选/取消全选
   const handleSelectAll = (checked) => {
     if (checked) {
-      const allOrderIds = orders.map(order => order.id);
-      setSelectedOrders(new Set(allOrderIds));
+      // 只选择当前可见（经过标签筛选）的订单
+      const visibleOrderIds = orders
+        .filter(order => {
+          if (!tagFilter || tagFilter === 'all') return true;
+          const orderId = order.id.replace('gid://shopify/Order/', '');
+          const tags = orderTagsMap[orderId] || [];
+          return tags.some(t => t.id === tagFilter);
+        })
+        .map(order => order.id);
+      setSelectedOrders(new Set(visibleOrderIds));
     } else {
       setSelectedOrders(new Set());
     }
@@ -1296,7 +1305,15 @@ export default function Orders() {
     );
   };
 
-  const rows = orders.map((order) => {
+  // 根据标签筛选（前端过滤）
+  const displayedOrders = orders.filter(order => {
+    if (!tagFilter || tagFilter === 'all') return true;
+    const orderId = order.id.replace('gid://shopify/Order/', '');
+    const tags = orderTagsMap[orderId] || [];
+    return tags.some(t => t.id === tagFilter);
+  });
+
+  const rows = displayedOrders.map((order) => {
     const orderId = order.id.replace('gid://shopify/Order/', '');
     
     // 如果Shopify发货状态是已发货，则默认状态为已发货
@@ -1357,7 +1374,7 @@ export default function Orders() {
 
     const orderTags = orderTagsMap[orderId] || [];
 
-    return [
+  return [
       <Checkbox
         key={`checkbox-${order.id}`}
         checked={selectedOrders.has(order.id)}
@@ -1461,7 +1478,7 @@ export default function Orders() {
   const headings = [
     <Checkbox
       key="select-all"
-      checked={selectedOrders.size === orders.length && orders.length > 0}
+      checked={selectedOrders.size === displayedOrders.length && displayedOrders.length > 0}
       onChange={handleSelectAll}
       label=""
     />,
@@ -1550,6 +1567,12 @@ export default function Orders() {
                     value={statusFilter}
                     onChange={setStatusFilter}
                   />
+                  <Select
+                    label="标签筛选"
+                    options={[{ label: '所有标签', value: 'all' }, ...allTags.map(t => ({ label: t.name, value: t.id }))]}
+                    value={tagFilter}
+                    onChange={setTagFilter}
+                  />
                   <Button onClick={() => handleSearch()} loading={isLoading}>
                     搜索
                   </Button>
@@ -1579,7 +1602,7 @@ export default function Orders() {
                     <Text variant="bodyMd">正在加载订单...</Text>
                   </InlineStack>
                 </Box>
-              ) : orders.length > 0 ? (
+              ) : displayedOrders.length > 0 ? (
                 <DataTable
                   columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
                   headings={headings}

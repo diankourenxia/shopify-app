@@ -220,6 +220,7 @@ export default function PublicOrders() {
   const [noteMap, setNoteMap] = useState(initialNoteMap || {});
   const [allTags, setAllTags] = useState(initialTags || []);
   const [orderTagsMap, setOrderTagsMap] = useState(initialOrderTagsMap || {});
+  const [tagFilter, setTagFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
@@ -388,6 +389,15 @@ export default function PublicOrders() {
       filteredOrders = filteredOrders.filter(order => 
         order.displayFulfillmentStatus === fulfillmentFilter
       );
+    }
+
+    // 应用标签筛选（前端）
+    if (tagFilter && tagFilter !== 'all') {
+      filteredOrders = filteredOrders.filter(order => {
+        const orderId = order.id.replace('gid://shopify/Order/', '');
+        const tags = orderTagsMap[orderId] || [];
+        return tags.some(t => t.id === tagFilter);
+      });
     }
     
     return filteredOrders;
@@ -924,6 +934,26 @@ export default function PublicOrders() {
                 <option value="PARTIALLY_FULFILLED">部分发货</option>
               </select>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label htmlFor="tagFilter" style={{ fontWeight: '500' }}>标签：</label>
+              <select
+                id="tagFilter"
+                value={tagFilter}
+                onChange={(e) => { setTagFilter(e.target.value); setCurrentPage(1); }}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #c4cdd5',
+                  fontSize: '14px',
+                  minWidth: '180px'
+                }}
+              >
+                <option value="all">所有标签</option>
+                {allTags.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
             {fulfillmentFilter !== "all" && (
               <button 
                 onClick={() => {
@@ -940,6 +970,21 @@ export default function PublicOrders() {
                 }}
               >
                 清除筛选
+              </button>
+            )}
+            {tagFilter !== 'all' && (
+              <button 
+                onClick={() => { setTagFilter('all'); setCurrentPage(1); }}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#fff',
+                  border: '1px solid #c4cdd5',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                清除标签
               </button>
             )}
           </div>
