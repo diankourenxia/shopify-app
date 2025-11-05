@@ -224,6 +224,7 @@ export default function PublicOrders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
+  const [financialFilter, setFinancialFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
   const [cacheTimestamp, setCacheTimestamp] = useState(initialCacheTimestamp);
   const [currentPage, setCurrentPage] = useState(1);
@@ -391,6 +392,13 @@ export default function PublicOrders() {
       );
     }
 
+    // 应用支付状态筛选
+    if (financialFilter !== "all") {
+      filteredOrders = filteredOrders.filter(order => 
+        order.displayFinancialStatus === financialFilter
+      );
+    }
+
     // 应用标签筛选（前端）
     if (tagFilter && tagFilter !== 'all') {
       filteredOrders = filteredOrders.filter(order => {
@@ -401,7 +409,7 @@ export default function PublicOrders() {
     }
     
     return filteredOrders;
-  }, [orders, fulfillmentFilter, tagFilter, orderTagsMap]);
+  }, [orders, fulfillmentFilter, financialFilter, tagFilter, orderTagsMap]);
   
   const totalPages = Math.ceil(ordersWithDimensions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -935,6 +943,31 @@ export default function PublicOrders() {
               </select>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label htmlFor="financialFilter" style={{ fontWeight: '500' }}>支付状态：</label>
+              <select 
+                id="financialFilter"
+                value={financialFilter}
+                onChange={(e) => {
+                  setFinancialFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                style={{ 
+                  padding: '6px 12px', 
+                  borderRadius: '4px', 
+                  border: '1px solid #c4cdd5',
+                  fontSize: '14px',
+                  minWidth: '150px'
+                }}
+              >
+                <option value="all">全部</option>
+                <option value="PAID">已支付</option>
+                <option value="PENDING">待支付</option>
+                <option value="PARTIALLY_PAID">部分支付</option>
+                <option value="REFUNDED">已退款</option>
+                <option value="VOIDED">已取消</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label htmlFor="tagFilter" style={{ fontWeight: '500' }}>标签：</label>
               <select
                 id="tagFilter"
@@ -954,10 +987,12 @@ export default function PublicOrders() {
                 ))}
               </select>
             </div>
-            {fulfillmentFilter !== "all" && (
+            {(fulfillmentFilter !== "all" || financialFilter !== "all" || tagFilter !== 'all') && (
               <button 
                 onClick={() => {
                   setFulfillmentFilter("all");
+                  setFinancialFilter("all");
+                  setTagFilter('all');
                   setCurrentPage(1);
                 }}
                 style={{
@@ -969,10 +1004,10 @@ export default function PublicOrders() {
                   fontSize: '14px'
                 }}
               >
-                清除筛选
+                清除所有筛选
               </button>
             )}
-            {tagFilter !== 'all' && (
+            {tagFilter !== 'all' && false && (
               <button 
                 onClick={() => { setTagFilter('all'); setCurrentPage(1); }}
                 style={{

@@ -566,6 +566,7 @@ export default function Orders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
+  const [financialFilter, setFinancialFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
   const [currentPageAfter, setCurrentPageAfter] = useState(currentAfter);
   const [currentPageBefore, setCurrentPageBefore] = useState(currentBefore);
@@ -685,6 +686,8 @@ export default function Orders() {
   const handleClearSearch = () => {
     setSearchQuery("");
     setStatusFilter("all");
+    setTagFilter("all");
+    setFinancialFilter("all");
     setOrders(initialOrders);
     setPageInfo(initialPageInfo);
     setCurrentPageAfter(null);
@@ -1305,12 +1308,21 @@ export default function Orders() {
     );
   };
 
-  // 根据标签筛选（前端过滤）
+  // 根据标签和支付状态筛选（前端过滤）
   const displayedOrders = orders.filter(order => {
-    if (!tagFilter || tagFilter === 'all') return true;
-    const orderId = order.id.replace('gid://shopify/Order/', '');
-    const tags = orderTagsMap[orderId] || [];
-    return tags.some(t => t.id === tagFilter);
+    // 标签筛选
+    if (tagFilter && tagFilter !== 'all') {
+      const orderId = order.id.replace('gid://shopify/Order/', '');
+      const tags = orderTagsMap[orderId] || [];
+      if (!tags.some(t => t.id === tagFilter)) return false;
+    }
+    
+    // 支付状态筛选
+    if (financialFilter && financialFilter !== 'all') {
+      if (order.displayFinancialStatus !== financialFilter) return false;
+    }
+    
+    return true;
   });
 
   const rows = displayedOrders.map((order) => {
@@ -1572,6 +1584,19 @@ export default function Orders() {
                     options={[{ label: '所有标签', value: 'all' }, ...allTags.map(t => ({ label: t.name, value: t.id }))]}
                     value={tagFilter}
                     onChange={setTagFilter}
+                  />
+                  <Select
+                    label="支付状态"
+                    options={[
+                      { label: '全部支付状态', value: 'all' },
+                      { label: '已支付', value: 'PAID' },
+                      { label: '待支付', value: 'PENDING' },
+                      { label: '部分支付', value: 'PARTIALLY_PAID' },
+                      { label: '已退款', value: 'REFUNDED' },
+                      { label: '已取消', value: 'VOIDED' },
+                    ]}
+                    value={financialFilter}
+                    onChange={setFinancialFilter}
                   />
                   <Button onClick={() => handleSearch()} loading={isLoading}>
                     搜索
