@@ -604,16 +604,117 @@ export default function PublicTestOrders() {
               <th>订单号</th>
               <th>订单金额</th>
               <th>标签</th>
-              <th>创建时间</th>
+              <th>商品信息</th>
+              <th>尺寸(cm)</th>
+              <th>订单状态</th>
               <th>发货状态</th>
               <th>支付状态</th>
-              <th>客户</th>
+              <th>备注</th>
+              <th>创建时间</th>
             </tr>
           </thead>
           <tbody>
             {currentOrders.map((order) => {
               const orderId = order.id.replace('gid://shopify/Order/', '');
               const orderTags = orderTagsMap[orderId] || [];
+              const currentStatus = statusMap[orderId] || '';
+              const fulfillmentStatus = getStatusBadge(order.displayFulfillmentStatus);
+              const financialStatus = getStatusBadge(order.displayFinancialStatus);
+              const customStatus = getCustomStatusBadge(currentStatus);
+              
+              // 如果Shopify发货状态是已发货，则默认状态为已发货
+              const defaultStatus = order.displayFulfillmentStatus === 'FULFILLED' ? '已发货' : '';
+              const currencyCode = order.totalPriceSet?.shopMoney?.currencyCode || 'USD';
+              
+              // 获取所有商品的尺寸信息和状态选择器
+              const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
+                const dimensions = item.customAttributes 
+                  ? parseAndRenderDimensions(item.customAttributes, item.quantity, item.title)
+                  : null;
+                
+                if (!dimensions) return null;
+                
+                // 状态优先使用数据库中存储的，如果为空则使用默认值
+                const itemKey = `${orderId}:${item.id}`;
+                const itemStatus = statusMap[itemKey] || defaultStatus;
+                const itemNote = noteMap[itemKey] || '';
+                
+                // 计算单个商品的总价
+                const itemPrice = parseFloat(item.variant?.price || '0');
+                const itemQuantity = item.quantity || 1;
+                const itemTotal = itemPrice * itemQuantity;
+                
+                return (
+                  <div key={item.id} style={{ 
+                    marginBottom: index < order.lineItems.edges.length - 1 ? '12px' : '0',
+                    paddingBottom: index < order.lineItems.edges.length - 1 ? '12px' : '0',
+                    borderBottom: index < order.lineItems.edges.length - 1 ? '1px solid #e1e3e5' : 'none',
+                    display: 'flex',
+                    gap: '12px'
+                  }}>
+                    {/* 商品图片 */}
+                    {item.image?.url && (
+                      <div style={{ flexShrink: 0 }}>
+                        <img 
+                          src={item.image.url} 
+                          alt={item.image.altText || item.title}
+                          style={{ 
+                            width: '80px', 
+                            height: '80px', 
+                            objectFit: 'cover',
+                            borderRadius: '4px',
+                            border: '1px solid #e1e3e5'
+                          }}
+                        />
+                      </div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '500', marginBottom: '4px', fontSize: '0.875rem' }}>
+                        {item.variant?.title ? item.variant?.title : item.title}
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: '#637381', marginBottom: '4px' }}>
+                        单价: {formatCurrency(itemPrice.toString(), currencyCode)} × {itemQuantity} = <span style={{ fontWeight: '600', color: '#2c5f2d' }}>{formatCurrency(itemTotal.toString(), currencyCode)}</span>
+                      </div>
+                      <div style={{ whiteSpace: 'pre-line' }}>
+                        {dimensions}
+                      </div>
+                      <div style={{ marginTop: '8px', maxWidth: '220px' }}>
+                        <select 
+                          value={itemStatus}
+                          onChange={(e) => handleStatusChange(itemKey, e.target.value)}
+                          className={styles.statusSelect}
+                          style={{ width: '100%', padding: '4px' }}
+                        >
+                          <option value="">未设置</option>
+                          <option value="待生产">待生产</option>
+                          <option value="生产中">生产中</option>
+                          <option value="暂停生产">暂停生产</option>
+                          <option value="待发货">待发货</option>
+                          <option value="已发货">已发货</option>
+                        </select>
+                      </div>
+                      <div style={{ marginTop: '8px', maxWidth: '220px' }}>
+                        <textarea
+                          value={itemNote}
+                          onChange={(e) => handleNoteChange(itemKey, e.target.value)}
+                          onBlur={() => handleNoteBlur(itemKey)}
+                          placeholder="添加备注..."
+                          style={{ 
+                            width: '100%', 
+                            padding: '4px', 
+                            border: '1px solid #ccc', 
+                            borderRadius: '4px',
+                            minHeight: '60px',
+                            resize: 'vertical',
+                            fontFamily: 'inherit',
+                            fontSize: 'inherit'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              }).filter(Boolean);
               
               return (
                 <tr key={order.id}>
@@ -634,10 +735,10 @@ export default function PublicTestOrders() {
                       )}
                     </div>
                   </td>
-                  <td style={{ fontWeight: '600', color: '#2c5f2d' }}>
+                  <td style={{ fontWeight: '600', color: '#2c5f2d', fontSize: '1rem' }}>
                     {formatCurrency(
                       order.totalPriceSet?.shopMoney?.amount || '0',
-                      order.totalPriceSet?.shopMoney?.currencyCode || 'USD'
+                      currencyCode
                     )}
                   </td>
                   <td style={{ maxWidth: '180px' }}>
@@ -661,7 +762,59 @@ export default function PublicTestOrders() {
                       ))}
                     </div>
                   </td>
-                  <td>{formatDate(order.createdAt)}</td>
+                  <td style={{ maxWidth: '200px' }}>
+                    {order.lineItems?.edges?.length > 0 ? (
+                      <div className={styles.lineItems}>
+                        {order.lineItems.edges.slice(0, 2).map(({ node: item }, index) => (
+                          <div key={item.id} className={styles.lineItem}>
+                            <div className={styles.itemTitle}>{item.title}</div>
+                            {item.variant?.title && item.variant.title !== 'Default Title' && (
+                              <div className={styles.variantTitle}>
+                                变体: {item.variant.title}
+                              </div>
+                            )}
+                            {index === 0 && order.lineItems.edges.length > 1 && (
+                              <div className={styles.moreItems}>
+                                +{order.lineItems.edges.length - 1} 更多商品
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className={styles.noItems}>无商品信息</span>
+                    )}
+                  </td>
+                  <td>
+                    {allItemsDimensions.length > 0 ? (
+                      <div>
+                        {allItemsDimensions}
+                      </div>
+                    ) : (
+                      <span style={{ color: '#637381', fontSize: '0.875rem' }}>无尺寸信息</span>
+                    )}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <select 
+                        value={currentStatus}
+                        onChange={(e) => handleStatusChange(orderId, e.target.value)}
+                        className={styles.statusSelect}
+                      >
+                        <option value="">未设置</option>
+                        <option value="待生产">待生产</option>
+                        <option value="生产中">生产中</option>
+                        <option value="暂停生产">暂停生产</option>
+                        <option value="待发货">待发货</option>
+                        <option value="已发货">已发货</option>
+                      </select>
+                      {customStatus && (
+                        <span className={`${styles.statusBadge} ${styles['status-' + customStatus.toLowerCase().replace(' ', '-')]}`}>
+                          {customStatus}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td>
                     <span className={`${styles.statusBadge} ${styles['status-' + order.displayFulfillmentStatus.toLowerCase()]}`}>
                       {order.displayFulfillmentStatus === 'FULFILLED' ? '已发货' :
@@ -680,7 +833,25 @@ export default function PublicTestOrders() {
                        order.displayFinancialStatus}
                     </span>
                   </td>
-                  <td>{order.customer?.displayName || '-'}</td>
+                  <td style={{ maxWidth: '220px' }}>
+                    <textarea
+                      value={noteMap[orderId] || ''}
+                      onChange={(e) => handleNoteChange(orderId, e.target.value)}
+                      onBlur={() => handleNoteBlur(orderId)}
+                      placeholder="添加订单备注..."
+                      style={{ 
+                        width: '100%', 
+                        padding: '4px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px',
+                        minHeight: '60px',
+                        resize: 'vertical',
+                        fontFamily: 'inherit',
+                        fontSize: 'inherit'
+                      }}
+                    />
+                  </td>
+                  <td>{formatDate(order.createdAt)}</td>
                 </tr>
               );
             })}
