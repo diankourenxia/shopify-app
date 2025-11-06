@@ -337,7 +337,14 @@ export default function PublicTestOrders() {
       return false;
     }
     return lineItems.edges.every(({ node: item }) => {
-      const price = parseFloat(item.variant?.price || '0');
+      let price = 0;
+      if (item.originalUnitPriceSet?.shopMoney?.amount) {
+        price = parseFloat(item.originalUnitPriceSet.shopMoney.amount);
+      } else if (item.discountedUnitPriceSet?.shopMoney?.amount) {
+        price = parseFloat(item.discountedUnitPriceSet.shopMoney.amount);
+      } else {
+        price = parseFloat(item.variant?.price || '0');
+      }
       return price === 1.99;
     });
   };
@@ -833,7 +840,15 @@ export default function PublicTestOrders() {
                 const itemNote = noteMap[itemKey] || '';
                 
                 // 计算单个商品的总价
-                const itemPrice = parseFloat(item.variant?.price || '0');
+                // 使用 originalUnitPriceSet 如果存在（包含额外选项价格），否则使用 variant.price
+                let itemPrice = 0;
+                if (item.originalUnitPriceSet?.shopMoney?.amount) {
+                  itemPrice = parseFloat(item.originalUnitPriceSet.shopMoney.amount);
+                } else if (item.discountedUnitPriceSet?.shopMoney?.amount) {
+                  itemPrice = parseFloat(item.discountedUnitPriceSet.shopMoney.amount);
+                } else {
+                  itemPrice = parseFloat(item.variant?.price || '0');
+                }
                 const itemQuantity = item.quantity || 1;
                 const itemTotal = itemPrice * itemQuantity;
                 
