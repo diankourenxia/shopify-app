@@ -951,39 +951,39 @@ export default function PublicTestOrders() {
                       {/* 小样商品不显示状态和备注 */}
                       {!isSampleItem && (
                         <>
-                          <div style={{ marginTop: '8px', maxWidth: '220px' }}>
-                            <select 
-                              value={itemStatus}
-                              onChange={(e) => handleStatusChange(itemKey, e.target.value)}
-                              className={styles.statusSelect}
-                              style={{ width: '100%', padding: '4px' }}
-                            >
-                              <option value="">未设置</option>
-                              <option value="待生产">待生产</option>
-                              <option value="生产中">生产中</option>
-                              <option value="暂停生产">暂停生产</option>
-                              <option value="待发货">待发货</option>
-                              <option value="已发货">已发货</option>
-                            </select>
-                          </div>
-                          <div style={{ marginTop: '8px', maxWidth: '220px' }}>
-                            <textarea
-                              value={itemNote}
-                              onChange={(e) => handleNoteChange(itemKey, e.target.value)}
-                              onBlur={() => handleNoteBlur(itemKey)}
-                              placeholder="添加备注..."
-                              style={{ 
-                                width: '100%', 
-                                padding: '4px', 
-                                border: '1px solid #ccc', 
+                          {/* 只读显示状态 */}
+                          {itemStatus && (
+                            <div style={{ marginTop: '8px', maxWidth: '220px' }}>
+                              <div style={{ 
+                                padding: '6px 12px',
+                                backgroundColor: '#f6f6f7',
+                                border: '1px solid #c4cdd5',
                                 borderRadius: '4px',
+                                fontSize: '14px',
+                                color: '#202223'
+                              }}>
+                                状态: {itemStatus}
+                              </div>
+                            </div>
+                          )}
+                          {/* 只读显示备注 */}
+                          {itemNote && (
+                            <div style={{ marginTop: '8px', maxWidth: '220px' }}>
+                              <div style={{ 
+                                padding: '8px',
+                                backgroundColor: '#f6f6f7',
+                                border: '1px solid #c4cdd5',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                color: '#202223',
                                 minHeight: '60px',
-                                resize: 'vertical',
-                                fontFamily: 'inherit',
-                                fontSize: 'inherit'
-                              }}
-                            />
-                          </div>
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word'
+                              }}>
+                                {itemNote}
+                              </div>
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
@@ -1070,23 +1070,21 @@ export default function PublicTestOrders() {
                     )}
                   </td>
                   <td>
+                    {/* 只读显示订单状态 */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <select 
-                        value={currentStatus}
-                        onChange={(e) => handleStatusChange(orderId, e.target.value)}
-                        className={styles.statusSelect}
-                      >
-                        <option value="">未设置</option>
-                        <option value="待生产">待生产</option>
-                        <option value="生产中">生产中</option>
-                        <option value="暂停生产">暂停生产</option>
-                        <option value="待发货">待发货</option>
-                        <option value="已发货">已发货</option>
-                      </select>
-                      {customStatus && (
-                        <span className={`${styles.statusBadge} ${styles['status-' + customStatus.toLowerCase().replace(' ', '-')]}`}>
-                          {customStatus}
-                        </span>
+                      {currentStatus ? (
+                        <div style={{ 
+                          padding: '6px 12px',
+                          backgroundColor: '#f6f6f7',
+                          border: '1px solid #c4cdd5',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          color: '#202223'
+                        }}>
+                          {currentStatus}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#919eab', fontSize: '0.875rem' }}>未设置</span>
                       )}
                     </div>
                   </td>
@@ -1109,22 +1107,25 @@ export default function PublicTestOrders() {
                     </span>
                   </td>
                   <td style={{ maxWidth: '220px' }}>
-                    <textarea
-                      value={noteMap[orderId] || ''}
-                      onChange={(e) => handleNoteChange(orderId, e.target.value)}
-                      onBlur={() => handleNoteBlur(orderId)}
-                      placeholder="添加订单备注..."
-                      style={{ 
-                        width: '100%', 
-                        padding: '4px', 
-                        border: '1px solid #ccc', 
+                    {/* 只读显示订单备注 */}
+                    {noteMap[orderId] ? (
+                      <div style={{ 
+                        padding: '8px',
+                        backgroundColor: '#f6f6f7',
+                        border: '1px solid #c4cdd5',
                         borderRadius: '4px',
+                        fontSize: '14px',
+                        color: '#202223',
                         minHeight: '60px',
-                        resize: 'vertical',
-                        fontFamily: 'inherit',
-                        fontSize: 'inherit'
-                      }}
-                    />
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        maxWidth: '220px'
+                      }}>
+                        {noteMap[orderId]}
+                      </div>
+                    ) : (
+                      <span style={{ color: '#919eab', fontSize: '0.875rem' }}>无备注</span>
+                    )}
                   </td>
                   <td>{formatDate(order.createdAt)}</td>
                 </tr>
