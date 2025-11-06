@@ -76,6 +76,10 @@ export const loader = async ({ request }) => {
                     id
                     title
                     quantity
+                    image {
+                      url
+                      altText
+                    }
                     customAttributes {
                       key
                       value
@@ -396,6 +400,10 @@ export const action = async ({ request }) => {
                       id
                       title
                       quantity
+                      image {
+                        url
+                        altText
+                      }
                       customAttributes {
                         key
                         value
@@ -580,6 +588,10 @@ export const action = async ({ request }) => {
                       id
                       title
                       quantity
+                      image {
+                        url
+                        altText
+                      }
                       customAttributes {
                         key
                         value

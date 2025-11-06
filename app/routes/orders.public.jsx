@@ -1333,46 +1333,66 @@ export default function PublicOrders() {
                           <div key={item.id} style={{ 
                             marginBottom: index < order.lineItems.edges.length - 1 ? '12px' : '0',
                             paddingBottom: index < order.lineItems.edges.length - 1 ? '12px' : '0',
-                            borderBottom: index < order.lineItems.edges.length - 1 ? '1px solid #e1e3e5' : 'none'
+                            borderBottom: index < order.lineItems.edges.length - 1 ? '1px solid #e1e3e5' : 'none',
+                            display: 'flex',
+                            gap: '12px'
                           }}>
-                            <div style={{ fontWeight: '500', marginBottom: '4px', fontSize: '0.875rem' }}>
-                              {item.variant?.title?item.variant?.title:item.title}
-                            </div>
-                            <div style={{ whiteSpace: 'pre-line' }}>
-                              {dimensions}
-                            </div>
-                            <div style={{ marginTop: '8px', maxWidth: '220px' }}>
-                              <select 
-                                value={itemStatus}
-                                onChange={(e) => handleStatusChange(itemKey, e.target.value)}
-                                className={styles.statusSelect}
-                                style={{ width: '100%', padding: '4px' }}
-                              >
-                                <option value="">未设置</option>
-                                <option value="待生产">待生产</option>
-                                <option value="生产中">生产中</option>
-                                <option value="暂停生产">暂停生产</option>
-                                <option value="待发货">待发货</option>
-                                <option value="已发货">已发货</option>
-                              </select>
-                            </div>
-                            <div style={{ marginTop: '8px', maxWidth: '220px' }}>
-                              <textarea
-                                value={itemNote}
-                                onChange={(e) => handleNoteChange(itemKey, e.target.value)}
-                                onBlur={() => handleNoteBlur(itemKey)}
-                                placeholder="添加备注..."
-                                style={{ 
-                                  width: '100%', 
-                                  padding: '4px', 
-                                  border: '1px solid #ccc', 
-                                  borderRadius: '4px',
-                                  minHeight: '60px',
-                                  resize: 'vertical',
-                                  fontFamily: 'inherit',
-                                  fontSize: 'inherit'
-                                }}
-                              />
+                            {/* 商品图片 */}
+                            {item.image?.url && (
+                              <div style={{ flexShrink: 0 }}>
+                                <img 
+                                  src={item.image.url} 
+                                  alt={item.image.altText || item.title}
+                                  style={{ 
+                                    width: '80px', 
+                                    height: '80px', 
+                                    objectFit: 'cover',
+                                    borderRadius: '4px',
+                                    border: '1px solid #e1e3e5'
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: '500', marginBottom: '4px', fontSize: '0.875rem' }}>
+                                {item.variant?.title?item.variant?.title:item.title}
+                              </div>
+                              <div style={{ whiteSpace: 'pre-line' }}>
+                                {dimensions}
+                              </div>
+                              <div style={{ marginTop: '8px', maxWidth: '220px' }}>
+                                <select 
+                                  value={itemStatus}
+                                  onChange={(e) => handleStatusChange(itemKey, e.target.value)}
+                                  className={styles.statusSelect}
+                                  style={{ width: '100%', padding: '4px' }}
+                                >
+                                  <option value="">未设置</option>
+                                  <option value="待生产">待生产</option>
+                                  <option value="生产中">生产中</option>
+                                  <option value="暂停生产">暂停生产</option>
+                                  <option value="待发货">待发货</option>
+                                  <option value="已发货">已发货</option>
+                                </select>
+                              </div>
+                              <div style={{ marginTop: '8px', maxWidth: '220px' }}>
+                                <textarea
+                                  value={itemNote}
+                                  onChange={(e) => handleNoteChange(itemKey, e.target.value)}
+                                  onBlur={() => handleNoteBlur(itemKey)}
+                                  placeholder="添加备注..."
+                                  style={{ 
+                                    width: '100%', 
+                                    padding: '4px', 
+                                    border: '1px solid #ccc', 
+                                    borderRadius: '4px',
+                                    minHeight: '60px',
+                                    resize: 'vertical',
+                                    fontFamily: 'inherit',
+                                    fontSize: 'inherit'
+                                  }}
+                                />
+                              </div>
                             </div>
                           </div>
                         );
