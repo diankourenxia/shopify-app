@@ -680,6 +680,7 @@ export default function Orders() {
   const [allTags, setAllTags] = useState(initialTags || []);
   const [orderTagsMap, setOrderTagsMap] = useState(initialOrderTagsMap || {});
   const [searchQuery, setSearchQuery] = useState("");
+  const [quickOrderNumber, setQuickOrderNumber] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
   const [financialFilter, setFinancialFilter] = useState("all");
@@ -801,6 +802,7 @@ export default function Orders() {
 
   const handleClearSearch = () => {
     setSearchQuery("");
+    setQuickOrderNumber("");
     setStatusFilter("all");
     setTagFilter("all");
     setFinancialFilter("all");
@@ -812,6 +814,36 @@ export default function Orders() {
     setSelectedOrders(new Set()); // 清除选中状态
     // 导航回第一页
     navigate('/app/orders');
+  };
+
+  // 快速订单号查询
+  const handleQuickOrderSearch = () => {
+    if (!quickOrderNumber.trim()) return;
+    
+    // 移除订单号前缀（如果有）
+    let orderNumber = quickOrderNumber.trim();
+    if (orderNumber.startsWith('#')) {
+      orderNumber = orderNumber.substring(1);
+    }
+    
+    // 尝试从当前页面查找订单
+    const foundOrder = orders.find(order => order.name === `#${orderNumber}`);
+    
+    if (foundOrder) {
+      // 如果在当前页找到，直接跳转
+      const orderId = foundOrder.id.replace('gid://shopify/Order/', '');
+      navigate(`/app/orders/${orderId}`);
+    } else {
+      // 如果当前页没有，使用搜索功能
+      setSearchQuery(orderNumber);
+      handleSearch();
+    }
+  };
+
+  const handleQuickOrderKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleQuickOrderSearch();
+    }
   };
 
   // 处理订单勾选
@@ -1661,6 +1693,28 @@ export default function Orders() {
                   />
                 </InlineStack>
               )}
+
+              {/* 快速订单号查询 */}
+              <Card>
+                <BlockStack gap="300">
+                  <Text variant="headingMd" as="h2">快速查询订单</Text>
+                  <InlineStack gap="200" align="start">
+                    <div style={{ width: '300px' }}>
+                      <TextField
+                        label=""
+                        value={quickOrderNumber}
+                        onChange={setQuickOrderNumber}
+                        onKeyPress={handleQuickOrderKeyPress}
+                        placeholder="输入订单号（如：1001 或 #1001）"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <Button onClick={handleQuickOrderSearch} variant="primary">
+                      查询订单
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+              </Card>
 
               {/* 搜索和筛选 */}
               <InlineStack gap="300" align="space-between">
