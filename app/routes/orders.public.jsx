@@ -1066,183 +1066,175 @@ export default function PublicOrders() {
             backgroundColor: '#f6f6f7', 
             borderRadius: '8px',
             display: 'flex',
-            gap: '16px',
-            alignItems: 'center'
+            flexDirection: 'column',
+            gap: '12px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label htmlFor="searchQuery" style={{ fontWeight: '500' }}>订单号：</label>
-              <input
-                id="searchQuery"
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                placeholder="输入订单号（如：1001）"
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  border: '1px solid #c4cdd5',
-                  fontSize: '14px',
-                  minWidth: '180px'
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label htmlFor="fulfillmentFilter" style={{ fontWeight: '500' }}>发货状态：</label>
-              <select 
-                id="fulfillmentFilter"
-                value={fulfillmentFilter}
-                onChange={(e) => {
-                  setFulfillmentFilter(e.target.value);
-                  setCurrentPage(1); // 重置到第一页
-                }}
-                style={{ 
-                  padding: '6px 12px', 
-                  borderRadius: '4px', 
-                  border: '1px solid #c4cdd5',
-                  fontSize: '14px',
-                  minWidth: '150px'
-                }}
-              >
-                <option value="all">全部</option>
-                <option value="FULFILLED">已发货</option>
-                <option value="UNFULFILLED">未发货</option>
-                <option value="PARTIALLY_FULFILLED">部分发货</option>
-              </select>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label htmlFor="financialFilter" style={{ fontWeight: '500' }}>支付状态：</label>
-              <select 
-                id="financialFilter"
-                value={financialFilter}
-                onChange={(e) => {
-                  setFinancialFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                style={{ 
-                  padding: '6px 12px', 
-                  borderRadius: '4px', 
-                  border: '1px solid #c4cdd5',
-                  fontSize: '14px',
-                  minWidth: '150px'
-                }}
-              >
-                <option value="all">全部</option>
-                <option value="PAID">已支付</option>
-                <option value="PENDING">待支付</option>
-                <option value="PARTIALLY_PAID">部分支付</option>
-                <option value="REFUNDED">已退款</option>
-                <option value="VOIDED">已取消</option>
-              </select>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label htmlFor="tagFilter" style={{ fontWeight: '500' }}>标签：</label>
-              <select
-                id="tagFilter"
-                value={tagFilter}
-                onChange={(e) => { setTagFilter(e.target.value); setCurrentPage(1); }}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  border: '1px solid #c4cdd5',
-                  fontSize: '14px',
-                  minWidth: '180px'
-                }}
-              >
-                <option value="all">所有标签</option>
-                {allTags.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontWeight: '500' }}>订单状态：</label>
-              <div style={{ 
-                display: 'flex', 
-                gap: '12px', 
-                padding: '6px 12px',
-                backgroundColor: '#fff',
-                border: '1px solid #c4cdd5',
-                borderRadius: '4px',
-                fontSize: '14px'
-              }}>
-                {['待生产', '生产中', '暂停生产', '待发货', '已发货'].map(status => (
-                  <label key={status} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={customStatusFilter.includes(status)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setCustomStatusFilter([...customStatusFilter, status]);
-                        } else {
-                          setCustomStatusFilter(customStatusFilter.filter(s => s !== status));
-                        }
-                        setCurrentPage(1);
-                      }}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    <span>{status}</span>
-                  </label>
-                ))}
+            {/* 第一行：基础筛选 */}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label htmlFor="searchQuery" style={{ fontWeight: '500' }}>订单号：</label>
+                <input
+                  id="searchQuery"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="输入订单号（如：1001）"
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #c4cdd5',
+                    fontSize: '14px',
+                    minWidth: '180px'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label htmlFor="fulfillmentFilter" style={{ fontWeight: '500' }}>发货状态：</label>
+                <select 
+                  id="fulfillmentFilter"
+                  value={fulfillmentFilter}
+                  onChange={(e) => {
+                    setFulfillmentFilter(e.target.value);
+                    setCurrentPage(1); // 重置到第一页
+                  }}
+                  style={{ 
+                    padding: '6px 12px', 
+                    borderRadius: '4px', 
+                    border: '1px solid #c4cdd5',
+                    fontSize: '14px',
+                    minWidth: '150px'
+                  }}
+                >
+                  <option value="all">全部</option>
+                  <option value="FULFILLED">已发货</option>
+                  <option value="UNFULFILLED">未发货</option>
+                  <option value="PARTIALLY_FULFILLED">部分发货</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label htmlFor="financialFilter" style={{ fontWeight: '500' }}>支付状态：</label>
+                <select 
+                  id="financialFilter"
+                  value={financialFilter}
+                  onChange={(e) => {
+                    setFinancialFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  style={{ 
+                    padding: '6px 12px', 
+                    borderRadius: '4px', 
+                    border: '1px solid #c4cdd5',
+                    fontSize: '14px',
+                    minWidth: '150px'
+                  }}
+                >
+                  <option value="all">全部</option>
+                  <option value="PAID">已支付</option>
+                  <option value="PENDING">待支付</option>
+                  <option value="PARTIALLY_PAID">部分支付</option>
+                  <option value="REFUNDED">已退款</option>
+                  <option value="VOIDED">已取消</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label htmlFor="tagFilter" style={{ fontWeight: '500' }}>标签：</label>
+                <select
+                  id="tagFilter"
+                  value={tagFilter}
+                  onChange={(e) => { setTagFilter(e.target.value); setCurrentPage(1); }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #c4cdd5',
+                    fontSize: '14px',
+                    minWidth: '180px'
+                  }}
+                >
+                  <option value="all">所有标签</option>
+                  {allTags.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label htmlFor="sortOrder" style={{ fontWeight: '500' }}>排序：</label>
+                <select
+                  id="sortOrder"
+                  value={sortOrder}
+                  onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #c4cdd5',
+                    fontSize: '14px',
+                    minWidth: '150px'
+                  }}
+                >
+                  <option value="desc">最新在前</option>
+                  <option value="asc">最早在前</option>
+                </select>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label htmlFor="sortOrder" style={{ fontWeight: '500' }}>排序：</label>
-              <select
-                id="sortOrder"
-                value={sortOrder}
-                onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
-                style={{
+            
+            {/* 第二行：订单状态多选和清除按钮 */}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontWeight: '500' }}>订单状态：</label>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '12px', 
                   padding: '6px 12px',
-                  borderRadius: '4px',
+                  backgroundColor: '#fff',
                   border: '1px solid #c4cdd5',
-                  fontSize: '14px',
-                  minWidth: '150px'
-                }}
-              >
-                <option value="desc">最新在前</option>
-                <option value="asc">最早在前</option>
-              </select>
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}>
+                  {['待生产', '生产中', '暂停生产', '待发货', '已发货'].map(status => (
+                    <label key={status} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={customStatusFilter.includes(status)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setCustomStatusFilter([...customStatusFilter, status]);
+                          } else {
+                            setCustomStatusFilter(customStatusFilter.filter(s => s !== status));
+                          }
+                          setCurrentPage(1);
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <span>{status}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {(searchQuery || fulfillmentFilter !== "all" || financialFilter !== "all" || tagFilter !== 'all' || customStatusFilter.length > 0) && (
+                <button 
+                  onClick={() => {
+                    setSearchQuery("");
+                    setFulfillmentFilter("all");
+                    setFinancialFilter("all");
+                    setTagFilter('all');
+                    setCustomStatusFilter([]);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#fff',
+                    border: '1px solid #c4cdd5',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  清除所有筛选
+                </button>
+              )}
             </div>
-            {(searchQuery || fulfillmentFilter !== "all" || financialFilter !== "all" || tagFilter !== 'all' || customStatusFilter.length > 0) && (
-              <button 
-                onClick={() => {
-                  setSearchQuery("");
-                  setFulfillmentFilter("all");
-                  setFinancialFilter("all");
-                  setTagFilter('all');
-                  setCustomStatusFilter([]);
-                  setCurrentPage(1);
-                }}
-                style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#fff',
-                  border: '1px solid #c4cdd5',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                清除所有筛选
-              </button>
-            )}
-            {tagFilter !== 'all' && false && (
-              <button 
-                onClick={() => { setTagFilter('all'); setCurrentPage(1); }}
-                style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#fff',
-                  border: '1px solid #c4cdd5',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                清除标签
-              </button>
-            )}
           </div>
 
           {/* 分页和导出控件 */}
