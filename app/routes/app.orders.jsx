@@ -231,14 +231,17 @@ export const loader = async ({ request }) => {
           hasRomanShade = true;
         }
         
-        // 检测硬件（根据标题关键词）
-        if (title.includes('rod') || title.includes('bracket') || title.includes('finial') || 
-            title.includes('ring') || title.includes('clip') || title.includes('hook')) {
+        // 检测当前商品是否为硬件
+        const isCurrentItemHardware = title.includes('rod') || title.includes('bracket') || 
+                                      title.includes('finial') || title.includes('ring') || 
+                                      title.includes('clip') || title.includes('hook');
+        
+        if (isCurrentItemHardware) {
           hasHardware = true;
         }
         
-        // 如果不是罗马帘也不是硬件，且有头部类型，则认为是布帘
-        if (!title.includes('roman') && !hasHardware) {
+        // 如果当前商品不是罗马帘也不是硬件，且有头部类型，则认为是布帘
+        if (!title.includes('roman') && !isCurrentItemHardware) {
           const hasHeader = item.customAttributes?.some(attr => 
             attr.key.includes('Header') || attr.key.includes('Pleat')
           );
