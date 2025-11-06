@@ -191,7 +191,8 @@ export default function PublicTestOrders() {
   };
   
   const ordersWithDimensions = useMemo(() => {
-    let filteredOrders = orders.filter(order => orderHasDimensions(order));
+    // public-test 页面显示所有订单，不仅仅是有尺寸的订单
+    let filteredOrders = [...orders];
     
     if (searchQuery && searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
@@ -870,7 +871,7 @@ export default function PublicTestOrders() {
                   ? parseAndRenderDimensions(item.customAttributes, item.quantity, item.title)
                   : null;
                 
-                if (!dimensions) return null;
+                // 不再过滤没有尺寸的商品，显示所有商品（包括小样订单）
                 
                 // 状态优先使用数据库中存储的，如果为空则使用默认值
                 const itemKey = `${orderId}:${item.id}`;
@@ -935,9 +936,15 @@ export default function PublicTestOrders() {
                           </>
                         )}
                       </div>
-                      <div style={{ whiteSpace: 'pre-line' }}>
-                        {dimensions}
-                      </div>
+                      {dimensions ? (
+                        <div style={{ whiteSpace: 'pre-line', marginTop: '4px', fontSize: '0.875rem', color: '#637381' }}>
+                          {dimensions}
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: '4px', fontSize: '0.875rem', color: '#919eab', fontStyle: 'italic' }}>
+                          无尺寸信息
+                        </div>
+                      )}
                       <div style={{ marginTop: '8px', maxWidth: '220px' }}>
                         <select 
                           value={itemStatus}
@@ -974,7 +981,7 @@ export default function PublicTestOrders() {
                     </div>
                   </div>
                 );
-              }).filter(Boolean);
+              }); // 移除 filter(Boolean)，显示所有商品包括小样订单
               
               return (
                 <tr key={order.id}>
