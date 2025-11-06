@@ -5,57 +5,73 @@ import styles from "./_index/styles.module.css";
 import * as XLSX from 'xlsx';
 
 export const loader = async ({ request }) => {
-  const { getOrdersFromCache } = await import("../services/cache.server");
-  const prisma = (await import("../db.server")).default;
+  try {
+    const { getOrdersFromCache } = await import("../services/cache.server");
+    const prisma = (await import("../db.server")).default;
 
-  const cacheData = await getOrdersFromCache();
+    const cacheData = await getOrdersFromCache();
 
-  if (!cacheData) {
-    return {
+    if (!cacheData || !cacheData.orders) {
+      return json({
+        orders: [],
+        pageInfo: null,
+        allTags: [],
+        orderTagsMap: {},
+        statusMap: {},
+        noteMap: {},
+        fromCache: false,
+        noCache: true
+      });
+    }
+
+    const orderStatuses = await prisma.orderStatus.findMany();
+    const statusMap = {};
+    const noteMap = {};
+    orderStatuses.forEach(status => {
+      const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
+      statusMap[key] = status.status;
+      noteMap[key] = status.note || '';
+    });
+
+    const allTags = await prisma.tag.findMany({
+      orderBy: { name: 'asc' }
+    });
+
+    const orderTags = await prisma.orderTag.findMany({
+      include: { tag: true }
+    });
+
+    const orderTagsMap = {};
+    orderTags.forEach(ot => {
+      if (!orderTagsMap[ot.orderId]) {
+        orderTagsMap[ot.orderId] = [];
+      }
+      orderTagsMap[ot.orderId].push(ot.tag);
+    });
+
+    return json({
+      orders: cacheData.orders,
+      pageInfo: cacheData.pageInfo,
+      statusMap,
+      noteMap,
+      allTags,
+      orderTagsMap,
+      fromCache: true,
+      cacheTimestamp: cacheData.timestamp || new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Public-test loader error:", error);
+    return json({
       orders: [],
       pageInfo: null,
       allTags: [],
       orderTagsMap: {},
+      statusMap: {},
+      noteMap: {},
       fromCache: false,
-      noCache: true
-    };
+      error: error.message
+    });
   }
-
-  const orderStatuses = await prisma.orderStatus.findMany();
-  const statusMap = {};
-  const noteMap = {};
-  orderStatuses.forEach(status => {
-    const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
-    statusMap[key] = status.status;
-    noteMap[key] = status.note || '';
-  });
-
-  const allTags = await prisma.tag.findMany({
-    orderBy: { name: 'asc' }
-  });
-
-  const orderTags = await prisma.orderTag.findMany({
-    include: { tag: true }
-  });
-
-  const orderTagsMap = {};
-  orderTags.forEach(ot => {
-    if (!orderTagsMap[ot.orderId]) {
-      orderTagsMap[ot.orderId] = [];
-    }
-    orderTagsMap[ot.orderId].push(ot.tag);
-  });
-
-  return {
-    orders: cacheData.orders,
-    pageInfo: cacheData.pageInfo,
-    statusMap,
-    noteMap,
-    allTags,
-    orderTagsMap,
-    fromCache: true,
-    cacheTimestamp: cacheData.timestamp || new Date().toISOString()
-  };
 };
 
 export const action = async ({ request }) => {
