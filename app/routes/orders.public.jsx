@@ -341,7 +341,7 @@ export default function PublicOrders() {
   const [tagFilter, setTagFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [customStatusFilter, setCustomStatusFilter] = useState("all"); // lineItem自定义状态筛选
+  const [customStatusFilter, setCustomStatusFilter] = useState([]); // lineItem自定义状态筛选（多选）
   const [fulfillmentFilter, setFulfillmentFilter] = useState("UNFULFILLED");
   const [financialFilter, setFinancialFilter] = useState("PAID");
   const [sortOrder, setSortOrder] = useState("desc"); // desc: 最新在前, asc: 最早在前
@@ -538,15 +538,15 @@ export default function PublicOrders() {
       });
     }
     
-    // 应用lineItem自定义状态筛选
-    if (customStatusFilter && customStatusFilter !== 'all') {
+    // 应用lineItem自定义状态筛选（多选）
+    if (customStatusFilter && customStatusFilter.length > 0) {
       filteredOrders = filteredOrders.filter(order => {
         const orderId = order.id.replace('gid://shopify/Order/', '');
-        // 检查订单中是否有任何lineItem匹配该状态
+        // 检查订单中是否有任何lineItem匹配选中的状态
         return order.lineItems?.edges?.some(({ node: item }) => {
           const itemKey = `${orderId}:${item.id}`;
           const itemStatus = statusMap[itemKey] || '';
-          return itemStatus === customStatusFilter;
+          return customStatusFilter.includes(itemStatus);
         });
       });
     }
@@ -1158,26 +1158,35 @@ export default function PublicOrders() {
               </select>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label htmlFor="customStatusFilter" style={{ fontWeight: '500' }}>订单状态：</label>
-              <select
-                id="customStatusFilter"
-                value={customStatusFilter}
-                onChange={(e) => { setCustomStatusFilter(e.target.value); setCurrentPage(1); }}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  border: '1px solid #c4cdd5',
-                  fontSize: '14px',
-                  minWidth: '150px'
-                }}
-              >
-                <option value="all">全部状态</option>
-                <option value="待生产">待生产</option>
-                <option value="生产中">生产中</option>
-                <option value="暂停生产">暂停生产</option>
-                <option value="待发货">待发货</option>
-                <option value="已发货">已发货</option>
-              </select>
+              <label style={{ fontWeight: '500' }}>订单状态：</label>
+              <div style={{ 
+                display: 'flex', 
+                gap: '12px', 
+                padding: '6px 12px',
+                backgroundColor: '#fff',
+                border: '1px solid #c4cdd5',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}>
+                {['待生产', '生产中', '暂停生产', '待发货', '已发货'].map(status => (
+                  <label key={status} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={customStatusFilter.includes(status)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setCustomStatusFilter([...customStatusFilter, status]);
+                        } else {
+                          setCustomStatusFilter(customStatusFilter.filter(s => s !== status));
+                        }
+                        setCurrentPage(1);
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <span>{status}</span>
+                  </label>
+                ))}
+              </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label htmlFor="sortOrder" style={{ fontWeight: '500' }}>排序：</label>
@@ -1197,14 +1206,14 @@ export default function PublicOrders() {
                 <option value="asc">最早在前</option>
               </select>
             </div>
-            {(searchQuery || fulfillmentFilter !== "all" || financialFilter !== "all" || tagFilter !== 'all' || customStatusFilter !== 'all') && (
+            {(searchQuery || fulfillmentFilter !== "all" || financialFilter !== "all" || tagFilter !== 'all' || customStatusFilter.length > 0) && (
               <button 
                 onClick={() => {
                   setSearchQuery("");
                   setFulfillmentFilter("all");
                   setFinancialFilter("all");
                   setTagFilter('all');
-                  setCustomStatusFilter('all');
+                  setCustomStatusFilter([]);
                   setCurrentPage(1);
                 }}
                 style={{
