@@ -337,15 +337,18 @@ export default function PublicTestOrders() {
       return false;
     }
     return lineItems.edges.every(({ node: item }) => {
-      let price = 0;
-      if (item.originalUnitPriceSet?.shopMoney?.amount) {
-        price = parseFloat(item.originalUnitPriceSet.shopMoney.amount);
-      } else if (item.discountedUnitPriceSet?.shopMoney?.amount) {
-        price = parseFloat(item.discountedUnitPriceSet.shopMoney.amount);
-      } else {
-        price = parseFloat(item.variant?.price || '0');
+      const basePrice = parseFloat(item.variant?.price || '0');
+      let addonsPrice = 0;
+      
+      if (item.customAttributes && Array.isArray(item.customAttributes)) {
+        const addonsAttr = item.customAttributes.find(attr => attr.key === '__bss_po_addons');
+        if (addonsAttr && addonsAttr.value) {
+          addonsPrice = parseFloat(addonsAttr.value) || 0;
+        }
       }
-      return price === 1.99;
+      
+      const totalPrice = basePrice + addonsPrice;
+      return totalPrice === 1.99 || basePrice === 1.99;
     });
   };
 
@@ -840,15 +843,19 @@ export default function PublicTestOrders() {
                 const itemNote = noteMap[itemKey] || '';
                 
                 // 计算单个商品的总价
-                // 使用 originalUnitPriceSet 如果存在（包含额外选项价格），否则使用 variant.price
-                let itemPrice = 0;
-                if (item.originalUnitPriceSet?.shopMoney?.amount) {
-                  itemPrice = parseFloat(item.originalUnitPriceSet.shopMoney.amount);
-                } else if (item.discountedUnitPriceSet?.shopMoney?.amount) {
-                  itemPrice = parseFloat(item.discountedUnitPriceSet.shopMoney.amount);
-                } else {
-                  itemPrice = parseFloat(item.variant?.price || '0');
+                // 基础价格 + 额外选项价格（从 customAttributes 中的 __bss_po_addons）
+                const basePrice = parseFloat(item.variant?.price || '0');
+                let addonsPrice = 0;
+                
+                // 查找 __bss_po_addons 字段
+                if (item.customAttributes && Array.isArray(item.customAttributes)) {
+                  const addonsAttr = item.customAttributes.find(attr => attr.key === '__bss_po_addons');
+                  if (addonsAttr && addonsAttr.value) {
+                    addonsPrice = parseFloat(addonsAttr.value) || 0;
+                  }
                 }
+                
+                const itemPrice = basePrice + addonsPrice;
                 const itemQuantity = item.quantity || 1;
                 const itemTotal = itemPrice * itemQuantity;
                 
@@ -881,7 +888,17 @@ export default function PublicTestOrders() {
                         {item.variant?.title ? item.variant?.title : item.title}
                       </div>
                       <div style={{ fontSize: '0.875rem', color: '#637381', marginBottom: '4px' }}>
-                        单价: {formatCurrency(itemPrice.toString(), currencyCode)} × {itemQuantity} = <span style={{ fontWeight: '600', color: '#2c5f2d' }}>{formatCurrency(itemTotal.toString(), currencyCode)}</span>
+                        {addonsPrice > 0 ? (
+                          <>
+                            单价: {formatCurrency(basePrice.toString(), currencyCode)} + {formatCurrency(addonsPrice.toString(), currencyCode)} (选项) = {formatCurrency(itemPrice.toString(), currencyCode)}
+                            <br />
+                            小计: {formatCurrency(itemPrice.toString(), currencyCode)} × {itemQuantity} = <span style={{ fontWeight: '600', color: '#2c5f2d' }}>{formatCurrency(itemTotal.toString(), currencyCode)}</span>
+                          </>
+                        ) : (
+                          <>
+                            单价: {formatCurrency(itemPrice.toString(), currencyCode)} × {itemQuantity} = <span style={{ fontWeight: '600', color: '#2c5f2d' }}>{formatCurrency(itemTotal.toString(), currencyCode)}</span>
+                          </>
+                        )}
                       </div>
                       <div style={{ whiteSpace: 'pre-line' }}>
                         {dimensions}
