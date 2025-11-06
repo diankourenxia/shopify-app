@@ -826,18 +826,9 @@ export default function Orders() {
       orderNumber = orderNumber.substring(1);
     }
     
-    // 尝试从当前页面查找订单
-    const foundOrder = orders.find(order => order.name === `#${orderNumber}`);
-    
-    if (foundOrder) {
-      // 如果在当前页找到，直接跳转
-      const orderId = foundOrder.id.replace('gid://shopify/Order/', '');
-      navigate(`/app/orders/${orderId}`);
-    } else {
-      // 如果当前页没有，使用搜索功能
-      setSearchQuery(orderNumber);
-      handleSearch();
-    }
+    // 使用搜索功能查找订单
+    setSearchQuery(orderNumber);
+    handleSearch();
   };
 
   const handleQuickOrderKeyPress = (e) => {
