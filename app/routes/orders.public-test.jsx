@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { json } from "@remix-run/node";
-import styles from "./orders.public.module.css";
+import styles from "./_index/styles.module.css";
 import * as XLSX from 'xlsx';
 
 export const loader = async ({ request }) => {
