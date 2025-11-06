@@ -342,6 +342,183 @@ export default function PublicTestOrders() {
     });
   };
 
+  const getStatusBadge = (status) => {
+    const statusMap = {
+      'FULFILLED': '已发货',
+      'UNFULFILLED': '未发货',
+      'PARTIALLY_FULFILLED': '部分发货',
+      'PAID': '已支付',
+      'PENDING': '待支付',
+      'PARTIALLY_PAID': '部分支付',
+      'REFUNDED': '已退款',
+      'VOIDED': '已取消',
+    };
+    return statusMap[status] || status;
+  };
+
+  const getCustomStatusBadge = (status) => {
+    return status || '未设置';
+  };
+
+  const parseDimensions = (customAttributes, quantity, title) => {
+    if (!customAttributes || !Array.isArray(customAttributes)) return null;
+    const dimensions = {};
+    let isRomanShade = false;
+    
+    if (title && title.toLowerCase().includes('roman')) {
+      isRomanShade = true;
+    }
+    
+    const headerMapping = {
+      'Pinch Pleat - Double': '韩褶-L型-2折',
+      'Pinch Pleat - Triple': '韩褶-L型-3折',
+      'Euro Pleat - Double': '韩褶-7型-2折',
+      'Euro Pleat - Triple': '韩褶-7型-3折',
+      'Rod Pocket': '穿杆带遮轨',
+      'Grommet Top': '打孔',
+      'Ripple Fold': '蛇形帘（铆钉）',
+      'Ripple Fold  吊环挂钩（四合一）': '蛇形帘（挂钩）',
+      'Flat Panel': '吊环挂钩（四合一）',
+      'Back Tab': '背带式'
+    };
+    
+    const grommetColorMapping = {
+      'Black': '黑色',
+      'Silver': '银色',
+      'Bronze': '青铜色',
+      'Gold': '金色'
+    };
+    
+    const liningTypeMapping = {
+      'White_Shading Rate 100%': '漂白春亚纺1#',
+      'White_Shading Rate 30%': '18-1',
+      'Beige_Shading Rate 50%': 'A60-2',
+      'Black_Shading Rate 80%': 'A60-28',
+      'Black_Shading Rate 100%': '2019-18'
+    };
+    
+    let widthFraction = 0;
+    let heightFraction = 0;
+    
+    customAttributes.forEach(attr => {
+      const key = attr.key;
+      const value = attr.value;
+      
+      if(key.includes('Mount Type')) {
+        dimensions.mountType = value.includes('Outside') ? '外装' : '内装';
+      }
+      if(key.includes('Lift Styles')) {
+        const liftValue = value.split('(')[0].trim();
+        dimensions.liftStyle = liftValue;
+      }
+      if(key.includes('Cord Position')) {
+        dimensions.cordPosition = value === 'Right' ? '右侧' : value === 'Left' ? '左侧' : value;
+      }
+      if(key.includes('Header')) {
+        const headerValue = value.split('(')[0].trim();
+        dimensions.header = headerMapping[headerValue] || headerValue;
+      }
+      if(key.includes('GROMMET COLOR')) {
+        dimensions.grommetColor = grommetColorMapping[value] || value;
+      }
+      if(key.includes('Lining Type')) {
+        const liningValue = value.split('(')[0].trim();
+        dimensions.liningType = liningTypeMapping[liningValue] || liningValue;
+      }
+      if(key.includes('Body Memory Shaped')) {
+        if(!value.includes('No')){
+          dimensions.bodyMemory = '需要';
+        }
+      }
+      if(key.includes('Tieback')) {
+        dimensions.tieback = value=='No Need'? '无': '有';
+      }
+      if(key.includes('Room')) {
+        dimensions.room = value;
+      }
+      
+      if (key.includes('Width Fraction')) {
+        const fractionMatch = value.match(/(\d+)\/(\d+)/);
+        if (fractionMatch) {
+          widthFraction = parseFloat(fractionMatch[1]) / parseFloat(fractionMatch[2]);
+        }
+      }
+      if (key.includes('Height Fraction')) {
+        const fractionMatch = value.match(/(\d+)\/(\d+)/);
+        if (fractionMatch) {
+          heightFraction = parseFloat(fractionMatch[1]) / parseFloat(fractionMatch[2]);
+        }
+      }
+      
+      if (key.includes('Width') || key.includes('Length') || key.includes('Height')) {
+        const inchMatch = value.match(/(\d+(?:\.\d+)?)/);
+        if (inchMatch) {
+          const inches = parseFloat(inchMatch[1]);
+          const centimeters = Math.round(inches * 2.54 * 100) / 100;
+          
+          if (key.includes('Width') && !key.includes('Fraction')) {
+            dimensions.width = centimeters;
+          } else if ((key.includes('Length') || key.includes('Height')) && !key.includes('Fraction')) {
+            dimensions.length = centimeters;
+          }
+        }
+      }
+    });
+    
+    if (widthFraction > 0 && dimensions.width) {
+      const fractionInCm = Math.round(widthFraction * 2.54 * 100) / 100;
+      dimensions.width = Math.round((dimensions.width + fractionInCm) * 100) / 100;
+    }
+    if (heightFraction > 0 && dimensions.length) {
+      const fractionInCm = Math.round(heightFraction * 2.54 * 100) / 100;
+      dimensions.length = Math.round((dimensions.length + fractionInCm) * 100) / 100;
+    }
+    
+    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory || dimensions.mountType || dimensions.liftStyle || dimensions.cordPosition) {
+      return { dimensions, isRomanShade };
+    }
+    
+    return null;
+  };
+
+  const renderDimensions = (dimensions, quantity, isRomanShade) => {
+    if (!dimensions) return null;
+    
+    const parts = [];
+    parts.push(`数量: ${quantity}`);
+    
+    if (isRomanShade) {
+      parts.push(`类型: 罗马帘`);
+      if (dimensions.mountType) parts.push(`安装方式: ${dimensions.mountType}`);
+      if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
+      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
+      if (dimensions.liftStyle) parts.push(`升降方式: ${dimensions.liftStyle}`);
+      if (dimensions.cordPosition) parts.push(`绳位: ${dimensions.cordPosition}`);
+    } else {
+      if(dimensions.header) {
+        let headerText = dimensions.header;
+        if (dimensions.grommetColor) {
+          headerText += `（${dimensions.grommetColor}）`;
+        }
+        parts.push(`头部: ${headerText}`);
+      }
+      if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
+      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
+      if(dimensions.liningType) parts.push(`里料: ${dimensions.liningType}`);
+      if(dimensions.bodyMemory) parts.push(`高温定型: ${dimensions.bodyMemory}`);
+      if(dimensions.tieback) parts.push(`绑带: ${dimensions.tieback}`);
+      if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
+    }
+    
+    return parts.join('\n');
+  };
+
+  const parseAndRenderDimensions = (customAttributes, quantity, title) => {
+    const result = parseDimensions(customAttributes, quantity, title);
+    if (!result) return null;
+    return renderDimensions(result.dimensions, quantity, result.isRomanShade);
+  };
+
   const handlePreviousPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
