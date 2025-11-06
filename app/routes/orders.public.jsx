@@ -504,6 +504,16 @@ export default function PublicOrders() {
   const ordersWithDimensions = useMemo(() => {
     let filteredOrders = orders.filter(order => orderHasDimensions(order));
     
+    // 应用订单号搜索
+    if (searchQuery && searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      filteredOrders = filteredOrders.filter(order => {
+        // 移除订单号前缀 # 进行匹配
+        const orderNumber = order.name.replace('#', '').toLowerCase();
+        return orderNumber.includes(query.replace('#', ''));
+      });
+    }
+    
     // 应用发货状态筛选
     if (fulfillmentFilter !== "all") {
       filteredOrders = filteredOrders.filter(order => 
@@ -535,7 +545,7 @@ export default function PublicOrders() {
     });
     
     return filteredOrders;
-  }, [orders, fulfillmentFilter, financialFilter, tagFilter, orderTagsMap, sortOrder]);
+  }, [orders, searchQuery, fulfillmentFilter, financialFilter, tagFilter, orderTagsMap, sortOrder]);
   
   const totalPages = Math.ceil(ordersWithDimensions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -1046,6 +1056,26 @@ export default function PublicOrders() {
             alignItems: 'center'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label htmlFor="searchQuery" style={{ fontWeight: '500' }}>订单号：</label>
+              <input
+                id="searchQuery"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="输入订单号（如：1001）"
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #c4cdd5',
+                  fontSize: '14px',
+                  minWidth: '180px'
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label htmlFor="fulfillmentFilter" style={{ fontWeight: '500' }}>发货状态：</label>
               <select 
                 id="fulfillmentFilter"
@@ -1131,9 +1161,10 @@ export default function PublicOrders() {
                 <option value="asc">最早在前</option>
               </select>
             </div>
-            {(fulfillmentFilter !== "all" || financialFilter !== "all" || tagFilter !== 'all') && (
+            {(searchQuery || fulfillmentFilter !== "all" || financialFilter !== "all" || tagFilter !== 'all') && (
               <button 
                 onClick={() => {
+                  setSearchQuery("");
                   setFulfillmentFilter("all");
                   setFinancialFilter("all");
                   setTagFilter('all');
