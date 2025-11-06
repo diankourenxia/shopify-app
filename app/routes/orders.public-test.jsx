@@ -414,6 +414,12 @@ export default function PublicTestOrders() {
       const key = attr.key;
       const value = attr.value;
       
+      // 提取价格信息的辅助函数
+      const extractPrice = (str) => {
+        const match = str.match(/\(\+?\s*\$?([\d.]+)\)/);
+        return match ? match[1] : null;
+      };
+      
       if(key.includes('Mount Type')) {
         dimensions.mountType = value.includes('Outside') ? '外装' : '内装';
       }
@@ -427,6 +433,8 @@ export default function PublicTestOrders() {
       if(key.includes('Header')) {
         const headerValue = value.split('(')[0].trim();
         dimensions.header = headerMapping[headerValue] || headerValue;
+        const price = extractPrice(value);
+        if (price) dimensions.headerPrice = price;
       }
       if(key.includes('GROMMET COLOR')) {
         dimensions.grommetColor = grommetColorMapping[value] || value;
@@ -434,6 +442,8 @@ export default function PublicTestOrders() {
       if(key.includes('Lining Type')) {
         const liningValue = value.split('(')[0].trim();
         dimensions.liningType = liningTypeMapping[liningValue] || liningValue;
+        const price = extractPrice(value);
+        if (price) dimensions.liningPrice = price;
       }
       if(key.includes('Body Memory Shaped')) {
         if(!value.includes('No')){
@@ -468,8 +478,12 @@ export default function PublicTestOrders() {
           
           if (key.includes('Width') && !key.includes('Fraction')) {
             dimensions.width = centimeters;
+            const price = extractPrice(value);
+            if (price) dimensions.widthPrice = price;
           } else if ((key.includes('Length') || key.includes('Height')) && !key.includes('Fraction')) {
             dimensions.length = centimeters;
+            const price = extractPrice(value);
+            if (price) dimensions.lengthPrice = price;
           }
         }
       }
@@ -500,21 +514,42 @@ export default function PublicTestOrders() {
     if (isRomanShade) {
       parts.push(`类型: 罗马帘`);
       if (dimensions.mountType) parts.push(`安装方式: ${dimensions.mountType}`);
-      if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
-      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
+      if (dimensions.width) {
+        let widthText = `宽: ${dimensions.width}cm`;
+        if (dimensions.widthPrice) widthText += ` (+$${dimensions.widthPrice})`;
+        parts.push(widthText);
+      }
+      if (dimensions.length) {
+        let lengthText = `高: ${dimensions.length}cm`;
+        if (dimensions.lengthPrice) lengthText += ` (+$${dimensions.lengthPrice})`;
+        parts.push(lengthText);
+      }
       if (dimensions.liftStyle) parts.push(`升降方式: ${dimensions.liftStyle}`);
       if (dimensions.cordPosition) parts.push(`绳位: ${dimensions.cordPosition}`);
     } else {
       if(dimensions.header) {
-        let headerText = dimensions.header;
+        let headerText = `头部: ${dimensions.header}`;
         if (dimensions.grommetColor) {
-          headerText += `（${dimensions.grommetColor}）`;
+          headerText = `头部: ${dimensions.header}（${dimensions.grommetColor}）`;
         }
-        parts.push(`头部: ${headerText}`);
+        if (dimensions.headerPrice) headerText += ` (+$${dimensions.headerPrice})`;
+        parts.push(headerText);
       }
-      if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
-      if (dimensions.length) parts.push(`高: ${dimensions.length}cm`);
-      if(dimensions.liningType) parts.push(`里料: ${dimensions.liningType}`);
+      if (dimensions.width) {
+        let widthText = `宽: ${dimensions.width}cm`;
+        if (dimensions.widthPrice) widthText += ` (+$${dimensions.widthPrice})`;
+        parts.push(widthText);
+      }
+      if (dimensions.length) {
+        let lengthText = `高: ${dimensions.length}cm`;
+        if (dimensions.lengthPrice) lengthText += ` (+$${dimensions.lengthPrice})`;
+        parts.push(lengthText);
+      }
+      if(dimensions.liningType) {
+        let liningText = `里料: ${dimensions.liningType}`;
+        if (dimensions.liningPrice) liningText += ` (+$${dimensions.liningPrice})`;
+        parts.push(liningText);
+      }
       if(dimensions.bodyMemory) parts.push(`高温定型: ${dimensions.bodyMemory}`);
       if(dimensions.tieback) parts.push(`绑带: ${dimensions.tieback}`);
       if(dimensions.room) parts.push(`房间: ${dimensions.room}`);
