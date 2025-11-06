@@ -231,10 +231,9 @@ export const loader = async ({ request }) => {
           hasRomanShade = true;
         }
         
-        // 检测当前商品是否为硬件
-        const isCurrentItemHardware = title.includes('rod') || title.includes('bracket') || 
-                                      title.includes('finial') || title.includes('ring') || 
-                                      title.includes('clip') || title.includes('hook');
+        // 检测当前商品是否为硬件（使用单词边界匹配）
+        const hardwarePattern = /\b(rod|bracket|finial|ring|clip|hook)\b/i;
+        const isCurrentItemHardware = hardwarePattern.test(item.title || '');
         
         if (isCurrentItemHardware) {
           hasHardware = true;
