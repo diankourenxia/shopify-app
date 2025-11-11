@@ -342,7 +342,7 @@ export default function PublicOrders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [customStatusFilter, setCustomStatusFilter] = useState([]); // lineItem自定义状态筛选（多选）
-  const [fulfillmentFilter, setFulfillmentFilter] = useState("UNFULFILLED");
+  const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
   const [financialFilter, setFinancialFilter] = useState("PAID");
   const [sortOrder, setSortOrder] = useState("desc"); // desc: 最新在前, asc: 最早在前
   const [isLoading, setIsLoading] = useState(false);
