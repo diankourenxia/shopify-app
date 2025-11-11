@@ -550,13 +550,7 @@ export default function PublicOrders() {
           const itemKey = `${orderId}:${item.id}`;
           // 如果订单已发货，强制状态为"已发货"；否则使用数据库中存储的状态，空值默认为"待生产"
           const itemStatus = isFulfilled ? '已发货' : (statusMap[itemKey] || '待生产');
-          // "未设置"对应空字符串或"待生产"（因为默认是待生产）
-          return customStatusFilter.some(filterStatus => {
-            if (filterStatus === '未设置') {
-              return itemStatus === '' || itemStatus === '待生产';
-            }
-            return itemStatus === filterStatus;
-          });
+          return customStatusFilter.includes(itemStatus);
         });
       });
     }
@@ -1202,7 +1196,7 @@ export default function PublicOrders() {
                   borderRadius: '4px',
                   fontSize: '14px'
                 }}>
-                  {['未设置', '待生产', '生产中', '暂停生产', '待发货', '已发货'].map(status => (
+                  {['待生产', '生产中', '暂停生产', '待发货', '已发货'].map(status => (
                     <label key={status} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
@@ -1380,7 +1374,6 @@ export default function PublicOrders() {
                                   style={{ width: '100%', padding: '4px' }}
                                   disabled={isFulfilled}
                                 >
-                                  <option value="">未设置</option>
                                   <option value="待生产">待生产</option>
                                   <option value="生产中">生产中</option>
                                   <option value="暂停生产">暂停生产</option>
