@@ -548,9 +548,15 @@ export default function PublicOrders() {
         // 检查订单中是否有任何lineItem匹配选中的状态
         return order.lineItems?.edges?.some(({ node: item }) => {
           const itemKey = `${orderId}:${item.id}`;
-          // 如果订单已发货，强制状态为"已发货"；否则使用数据库中存储的状态
-          const itemStatus = isFulfilled ? '已发货' : (statusMap[itemKey] || '');
-          return customStatusFilter.includes(itemStatus);
+          // 如果订单已发货，强制状态为"已发货"；否则使用数据库中存储的状态，空值默认为"待生产"
+          const itemStatus = isFulfilled ? '已发货' : (statusMap[itemKey] || '待生产');
+          // "未设置"对应空字符串或"待生产"（因为默认是待生产）
+          return customStatusFilter.some(filterStatus => {
+            if (filterStatus === '未设置') {
+              return itemStatus === '' || itemStatus === '待生产';
+            }
+            return itemStatus === filterStatus;
+          });
         });
       });
     }
@@ -1196,7 +1202,7 @@ export default function PublicOrders() {
                   borderRadius: '4px',
                   fontSize: '14px'
                 }}>
-                  {['待生产', '生产中', '暂停生产', '待发货', '已发货'].map(status => (
+                  {['未设置', '待生产', '生产中', '暂停生产', '待发货', '已发货'].map(status => (
                     <label key={status} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
@@ -1320,7 +1326,7 @@ export default function PublicOrders() {
                       
                       // 如果Shopify发货状态是已发货，则强制状态为已发货
                       const isFulfilled = order.displayFulfillmentStatus === 'FULFILLED';
-                      const defaultStatus = isFulfilled ? '已发货' : '';
+                      const defaultStatus = isFulfilled ? '已发货' : '待生产';
                       
                       // 获取所有商品的尺寸信息和状态选择器
                       const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
@@ -1330,7 +1336,7 @@ export default function PublicOrders() {
                         
                         if (!dimensions) return null;
                         
-                        // 如果Shopify发货状态是已发货，强制为已发货；否则使用数据库中存储的状态或默认值
+                        // 如果Shopify发货状态是已发货，强制为已发货；否则使用数据库中存储的状态或默认值（待生产）
                         const itemKey = `${orderId}:${item.id}`;
                         const itemStatus = isFulfilled ? '已发货' : (statusMap[itemKey] || defaultStatus);
                         const itemNote = noteMap[itemKey] || '';
