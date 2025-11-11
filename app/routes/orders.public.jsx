@@ -1399,8 +1399,33 @@ export default function PublicOrders() {
                         );
                       }).filter(Boolean);
                       
+                      // 计算订单创建时间距今的天数
+                      const orderCreatedDate = new Date(order.createdAt);
+                      const currentDate = new Date();
+                      const daysDiff = Math.floor((currentDate - orderCreatedDate) / (1000 * 60 * 60 * 24));
+                      
+                      // 检查订单是否含有布帘或罗马帘标签
+                      const hasCurtainTag = orderTags.some(tag => 
+                        tag.name === '布帘' || tag.name === '罗马帘'
+                      );
+                      
+                      // 检查订单是否未发货
+                      const isUnfulfilled = order.displayFulfillmentStatus === 'UNFULFILLED';
+                      
+                      // 根据条件设置行背景色
+                      let rowBackgroundColor = 'transparent';
+                      if (hasCurtainTag && isUnfulfilled) {
+                        if (daysDiff > 6) {
+                          rowBackgroundColor = '#ffebee'; // 红色背景
+                        } else if (daysDiff >= 5) {
+                          rowBackgroundColor = '#fff3e0'; // 橙色背景
+                        } else if (daysDiff <= 4) {
+                          rowBackgroundColor = '#e8f5e9'; // 绿色背景
+                        }
+                      }
+                      
                       return (
-                        <tr key={order.id}>
+                        <tr key={order.id} style={{ backgroundColor: rowBackgroundColor }}>
                           <td>
                             <input 
                               type="checkbox"
