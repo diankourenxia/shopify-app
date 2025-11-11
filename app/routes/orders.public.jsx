@@ -918,7 +918,8 @@ export default function PublicOrders() {
       '待生产': { className: 'status-info', text: '待生产' },
       '生产中': { className: 'status-warning', text: '生产中' },
       '暂停生产': { className: 'status-critical', text: '暂停生产' },
-      '待发货': { className: 'status-success', text: '待发货' },
+      '定型中': { className: 'status-attention', text: '定型中' },
+      '待检验': { className: 'status-attention', text: '待检验' },
       '已发货': { className: 'status-success', text: '已发货' },
     };
     
@@ -1196,7 +1197,7 @@ export default function PublicOrders() {
                   borderRadius: '4px',
                   fontSize: '14px'
                 }}>
-                  {['待生产', '生产中', '暂停生产', '待发货', '已发货'].map(status => (
+                  {['待生产', '生产中', '暂停生产', '定型中', '待检验', '已发货'].map(status => (
                     <label key={status} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
@@ -1377,7 +1378,8 @@ export default function PublicOrders() {
                                   <option value="待生产">待生产</option>
                                   <option value="生产中">生产中</option>
                                   <option value="暂停生产">暂停生产</option>
-                                  <option value="待发货">待发货</option>
+                                  <option value="定型中">定型中</option>
+                                  <option value="待检验">待检验</option>
                                   <option value="已发货">已发货</option>
                                 </select>
                               </div>
