@@ -1314,8 +1314,9 @@ export default function PublicOrders() {
                       const financialStatus = getStatusBadge(order.displayFinancialStatus);
                       const customStatus = getCustomStatusBadge(currentStatus);
                       
-                      // 如果Shopify发货状态是已发货，则默认状态为已发货
-                      const defaultStatus = order.displayFulfillmentStatus === 'FULFILLED' ? '已发货' : '';
+                      // 如果Shopify发货状态是已发货，则强制状态为已发货
+                      const isFulfilled = order.displayFulfillmentStatus === 'FULFILLED';
+                      const defaultStatus = isFulfilled ? '已发货' : '';
                       
                       // 获取所有商品的尺寸信息和状态选择器
                       const allItemsDimensions = order.lineItems?.edges?.map(({ node: item }, index) => {
@@ -1325,9 +1326,9 @@ export default function PublicOrders() {
                         
                         if (!dimensions) return null;
                         
-                        // 状态优先使用数据库中存储的，如果为空则使用默认值
+                        // 如果Shopify发货状态是已发货，强制为已发货；否则使用数据库中存储的状态或默认值
                         const itemKey = `${orderId}:${item.id}`;
-                        const itemStatus = statusMap[itemKey] || defaultStatus;
+                        const itemStatus = isFulfilled ? '已发货' : (statusMap[itemKey] || defaultStatus);
                         const itemNote = noteMap[itemKey] || '';
                         
                         return (
@@ -1367,6 +1368,7 @@ export default function PublicOrders() {
                                   onChange={(e) => handleStatusChange(itemKey, e.target.value)}
                                   className={styles.statusSelect}
                                   style={{ width: '100%', padding: '4px' }}
+                                  disabled={isFulfilled}
                                 >
                                   <option value="">未设置</option>
                                   <option value="待生产">待生产</option>
@@ -1382,6 +1384,7 @@ export default function PublicOrders() {
                                   onChange={(e) => handleNoteChange(itemKey, e.target.value)}
                                   onBlur={() => handleNoteBlur(itemKey)}
                                   placeholder="添加备注..."
+                                  disabled={isFulfilled}
                                   style={{ 
                                     width: '100%', 
                                     padding: '4px', 
@@ -1390,7 +1393,9 @@ export default function PublicOrders() {
                                     minHeight: '60px',
                                     resize: 'vertical',
                                     fontFamily: 'inherit',
-                                    fontSize: 'inherit'
+                                    fontSize: 'inherit',
+                                    backgroundColor: isFulfilled ? '#f6f6f7' : 'white',
+                                    cursor: isFulfilled ? 'not-allowed' : 'text'
                                   }}
                                 />
                               </div>
