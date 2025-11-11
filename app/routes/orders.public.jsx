@@ -542,10 +542,14 @@ export default function PublicOrders() {
     if (customStatusFilter && customStatusFilter.length > 0) {
       filteredOrders = filteredOrders.filter(order => {
         const orderId = order.id.replace('gid://shopify/Order/', '');
+        // 如果Shopify发货状态是已发货，则强制状态为已发货
+        const isFulfilled = order.displayFulfillmentStatus === 'FULFILLED';
+        
         // 检查订单中是否有任何lineItem匹配选中的状态
         return order.lineItems?.edges?.some(({ node: item }) => {
           const itemKey = `${orderId}:${item.id}`;
-          const itemStatus = statusMap[itemKey] || '';
+          // 如果订单已发货，强制状态为"已发货"；否则使用数据库中存储的状态
+          const itemStatus = isFulfilled ? '已发货' : (statusMap[itemKey] || '');
           return customStatusFilter.includes(itemStatus);
         });
       });
