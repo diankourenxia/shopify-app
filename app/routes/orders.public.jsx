@@ -1320,13 +1320,6 @@ export default function PublicOrders() {
                       const financialStatus = getStatusBadge(order.displayFinancialStatus);
                       const customStatus = getCustomStatusBadge(currentStatus);
                       
-                      // 获取发货时间（取最早的发货记录）
-                      let fulfillmentDate = null;
-                      if (order.fulfillments?.edges && order.fulfillments.edges.length > 0) {
-                        const fulfillment = order.fulfillments.edges[0].node;
-                        fulfillmentDate = fulfillment.createdAt;
-                      }
-                      
                       // 如果Shopify发货状态是已发货，则强制状态为已发货
                       const isFulfilled = order.displayFulfillmentStatus === 'FULFILLED';
                       const defaultStatus = isFulfilled ? '已发货' : '待生产';
@@ -1558,19 +1551,21 @@ export default function PublicOrders() {
                             </span>
                           </td>
                           <td>
-                            {fulfillmentDate ? (
-                              <div style={{ fontSize: '0.875rem' }}>
-                                {new Date(fulfillmentDate).toLocaleString('zh-CN', {
-                                  year: 'numeric',
-                                  month: '2-digit',
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: false
-                                })}
+                            {order.fulfillments && order.fulfillments.length > 0 ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {order.fulfillments.map((fulfillment, idx) => (
+                                  <div key={fulfillment.id || idx} style={{ fontSize: '0.875rem' }}>
+                                    <div>{formatDate(fulfillment.createdAt)}</div>
+                                    {fulfillment.trackingInfo && fulfillment.trackingInfo.length > 0 && (
+                                      <div style={{ fontSize: '0.75rem', color: '#6d7175' }}>
+                                        {fulfillment.trackingInfo[0].company}: {fulfillment.trackingInfo[0].number}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
                             ) : (
-                              <span style={{ color: '#999' }}>未发货</span>
+                              <span>-</span>
                             )}
                           </td>
                           <td>

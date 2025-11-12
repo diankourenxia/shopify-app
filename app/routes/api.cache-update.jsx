@@ -33,6 +33,19 @@ export const action = async ({ request }) => {
                 id
                 displayName
               }
+              fulfillments {
+                id
+                createdAt
+                deliveredAt
+                estimatedDeliveryAt
+                inTransitAt
+                status
+                trackingInfo {
+                  company
+                  number
+                  url
+                }
+              }
               lineItems(first: 5) {
                 edges {
                   node {
