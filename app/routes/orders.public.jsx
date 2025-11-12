@@ -344,6 +344,8 @@ export default function PublicOrders() {
   const [customStatusFilter, setCustomStatusFilter] = useState([]); // lineItem自定义状态筛选（多选）
   const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
   const [financialFilter, setFinancialFilter] = useState("PAID");
+  const [fulfillmentDateStart, setFulfillmentDateStart] = useState(""); // 发货时间范围-开始
+  const [fulfillmentDateEnd, setFulfillmentDateEnd] = useState(""); // 发货时间范围-结束
   const [sortOrder, setSortOrder] = useState("desc"); // desc: 最新在前, asc: 最早在前
   const [isLoading, setIsLoading] = useState(false);
   const [cacheTimestamp, setCacheTimestamp] = useState(initialCacheTimestamp);
@@ -555,6 +557,30 @@ export default function PublicOrders() {
       });
     }
     
+    // 应用发货时间范围筛选
+    if (fulfillmentDateStart || fulfillmentDateEnd) {
+      filteredOrders = filteredOrders.filter(order => {
+        // 只筛选已发货的订单
+        if (!order.fulfillments || order.fulfillments.length === 0) {
+          return false;
+        }
+        
+        // 获取最早的发货时间
+        const fulfillmentDate = new Date(order.fulfillments[0].createdAt);
+        const startDate = fulfillmentDateStart ? new Date(fulfillmentDateStart) : null;
+        const endDate = fulfillmentDateEnd ? new Date(fulfillmentDateEnd + 'T23:59:59') : null;
+        
+        if (startDate && fulfillmentDate < startDate) {
+          return false;
+        }
+        if (endDate && fulfillmentDate > endDate) {
+          return false;
+        }
+        
+        return true;
+      });
+    }
+    
     // 按创建时间排序
     filteredOrders.sort((a, b) => {
       const timeA = new Date(a.createdAt).getTime();
@@ -563,7 +589,7 @@ export default function PublicOrders() {
     });
     
     return filteredOrders;
-  }, [orders, searchQuery, fulfillmentFilter, financialFilter, tagFilter, customStatusFilter, orderTagsMap, statusMap, sortOrder]);
+  }, [orders, searchQuery, fulfillmentFilter, financialFilter, tagFilter, customStatusFilter, fulfillmentDateStart, fulfillmentDateEnd, orderTagsMap, statusMap, sortOrder]);
   
   const totalPages = Math.ceil(ordersWithDimensions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -1182,6 +1208,34 @@ export default function PublicOrders() {
                   <option value="asc">最早在前</option>
                 </select>
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontWeight: '500' }}>发货时间：</label>
+                <input
+                  type="date"
+                  value={fulfillmentDateStart}
+                  onChange={(e) => { setFulfillmentDateStart(e.target.value); setCurrentPage(1); }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #c4cdd5',
+                    fontSize: '14px'
+                  }}
+                  placeholder="开始日期"
+                />
+                <span>至</span>
+                <input
+                  type="date"
+                  value={fulfillmentDateEnd}
+                  onChange={(e) => { setFulfillmentDateEnd(e.target.value); setCurrentPage(1); }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #c4cdd5',
+                    fontSize: '14px'
+                  }}
+                  placeholder="结束日期"
+                />
+              </div>
             </div>
             
             {/* 第二行：订单状态多选和清除按钮 */}
@@ -1217,7 +1271,7 @@ export default function PublicOrders() {
                   ))}
                 </div>
               </div>
-              {(searchQuery || fulfillmentFilter !== "all" || financialFilter !== "all" || tagFilter !== 'all' || customStatusFilter.length > 0) && (
+              {(searchQuery || fulfillmentFilter !== "all" || financialFilter !== "all" || tagFilter !== 'all' || customStatusFilter.length > 0 || fulfillmentDateStart || fulfillmentDateEnd) && (
                 <button 
                   onClick={() => {
                     setSearchQuery("");
@@ -1225,6 +1279,8 @@ export default function PublicOrders() {
                     setFinancialFilter("all");
                     setTagFilter('all');
                     setCustomStatusFilter([]);
+                    setFulfillmentDateStart("");
+                    setFulfillmentDateEnd("");
                     setCurrentPage(1);
                   }}
                   style={{
