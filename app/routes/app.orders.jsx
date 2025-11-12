@@ -70,6 +70,19 @@ export const loader = async ({ request }) => {
                 id
                 displayName
               }
+              fulfillments {
+                id
+                createdAt
+                deliveredAt
+                estimatedDeliveryAt
+                inTransitAt
+                status
+                trackingInfo {
+                  company
+                  number
+                  url
+                }
+              }
               lineItems(first: 20) {
                 edges {
                   node {
@@ -394,6 +407,19 @@ export const action = async ({ request }) => {
                   id
                   displayName
                 }
+                fulfillments {
+                  id
+                  createdAt
+                  deliveredAt
+                  estimatedDeliveryAt
+                  inTransitAt
+                  status
+                  trackingInfo {
+                    company
+                    number
+                    url
+                  }
+                }
                 lineItems(first: 20) {
                   edges {
                     node {
@@ -581,6 +607,19 @@ export const action = async ({ request }) => {
                 customer {
                   id
                   displayName
+                }
+                fulfillments {
+                  id
+                  createdAt
+                  deliveredAt
+                  estimatedDeliveryAt
+                  inTransitAt
+                  status
+                  trackingInfo {
+                    company
+                    number
+                    url
+                  }
                 }
                 lineItems(first: 20) {
                   edges {
@@ -1585,6 +1624,24 @@ export default function Orders() {
         : '无尺寸信息',
       <div key={`custom-status-${order.id}`} style={{ minWidth: '120px' }}>—</div>,
       <Badge {...getStatusBadge(order.displayFulfillmentStatus)} />,
+      <div key={`fulfillment-time-${order.id}`} style={{ minWidth: '150px' }}>
+        {order.fulfillments && order.fulfillments.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {order.fulfillments.map((fulfillment, idx) => (
+              <div key={fulfillment.id || idx} style={{ fontSize: '0.875rem' }}>
+                <div>{formatDate(fulfillment.createdAt)}</div>
+                {fulfillment.trackingInfo && fulfillment.trackingInfo.length > 0 && (
+                  <div style={{ fontSize: '0.75rem', color: '#6d7175' }}>
+                    {fulfillment.trackingInfo[0].company}: {fulfillment.trackingInfo[0].number}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <span>-</span>
+        )}
+      </div>,
       <Badge {...getStatusBadge(order.displayFinancialStatus)} />,
       <div style={{ maxWidth: '200px', wordWrap: 'break-word' }}>
         {order.note || '-'}
@@ -1628,6 +1685,7 @@ export default function Orders() {
     '尺寸(cm)',
     '订单状态',
     '发货状态',
+    '发货时间',
     '支付状态',
     '备注',
     '创建时间',
