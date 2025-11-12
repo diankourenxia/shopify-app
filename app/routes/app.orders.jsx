@@ -66,22 +66,6 @@ export const loader = async ({ request }) => {
               displayFulfillmentStatus
               displayFinancialStatus
               note
-              fulfillments(first: 10) {
-                edges {
-                  node {
-                    id
-                    createdAt
-                    updatedAt
-                    deliveredAt
-                    displayStatus
-                    trackingInfo {
-                      company
-                      number
-                      url
-                    }
-                  }
-                }
-              }
               customer {
                 id
                 displayName
@@ -406,22 +390,6 @@ export const action = async ({ request }) => {
                 displayFulfillmentStatus
                 displayFinancialStatus
                 note
-                fulfillments(first: 10) {
-                  edges {
-                    node {
-                      id
-                      createdAt
-                      updatedAt
-                      deliveredAt
-                      displayStatus
-                      trackingInfo {
-                        company
-                        number
-                        url
-                      }
-                    }
-                  }
-                }
                 customer {
                   id
                   displayName
@@ -610,22 +578,6 @@ export const action = async ({ request }) => {
                 displayFulfillmentStatus
                 displayFinancialStatus
                 note
-                fulfillments(first: 10) {
-                  edges {
-                    node {
-                      id
-                      createdAt
-                      updatedAt
-                      deliveredAt
-                      displayStatus
-                      trackingInfo {
-                        company
-                        number
-                        url
-                      }
-                    }
-                  }
-                }
                 customer {
                   id
                   displayName
