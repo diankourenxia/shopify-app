@@ -1304,6 +1304,7 @@ export default function PublicOrders() {
                       <th>尺寸(cm)</th>
                       <th>订单状态</th>
                       <th>发货状态</th>
+                      <th>发货时间</th>
                       <th>支付状态</th>
                       <th>备注</th>
                       <th>评论</th>
@@ -1318,6 +1319,13 @@ export default function PublicOrders() {
                       const fulfillmentStatus = getStatusBadge(order.displayFulfillmentStatus);
                       const financialStatus = getStatusBadge(order.displayFinancialStatus);
                       const customStatus = getCustomStatusBadge(currentStatus);
+                      
+                      // 获取发货时间（取最早的发货记录）
+                      let fulfillmentDate = null;
+                      if (order.fulfillments?.edges && order.fulfillments.edges.length > 0) {
+                        const fulfillment = order.fulfillments.edges[0].node;
+                        fulfillmentDate = fulfillment.createdAt;
+                      }
                       
                       // 如果Shopify发货状态是已发货，则强制状态为已发货
                       const isFulfilled = order.displayFulfillmentStatus === 'FULFILLED';
@@ -1548,6 +1556,22 @@ export default function PublicOrders() {
                             <span className={`${styles.statusBadge} ${styles[fulfillmentStatus.className]}`}>
                               {fulfillmentStatus.text}
                             </span>
+                          </td>
+                          <td>
+                            {fulfillmentDate ? (
+                              <div style={{ fontSize: '0.875rem' }}>
+                                {new Date(fulfillmentDate).toLocaleString('zh-CN', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: false
+                                })}
+                              </div>
+                            ) : (
+                              <span style={{ color: '#999' }}>未发货</span>
+                            )}
                           </td>
                           <td>
                             <span className={`${styles.statusBadge} ${styles[financialStatus.className]}`}>
