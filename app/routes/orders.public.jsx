@@ -373,8 +373,6 @@ export default function PublicOrders() {
       'Euro Pleat - Triple': '韩褶-7型-3折',
       'Rod Pocket': '穿杆带遮轨',
       'Grommet Top': '打孔',
-      'Ripple Fold': '蛇形帘（铆钉）',
-      'Ripple Fold  吊环挂钩（四合一）': '蛇形帘（挂钩）',
       'Flat Panel': '吊环挂钩（四合一）',
       'Back Tab': '背带式'
     };
@@ -394,10 +392,26 @@ export default function PublicOrders() {
       'Black_Shading Rate 100%': '2019-18'
     };
     
-    // 临时存储 fraction 值
+    // 临时存储 fraction 值和其他属性
     let widthFraction = 0;
     let heightFraction = 0;
+    let tapeType = null; // 存储 Tape 类型
+    let headerType = null; // 存储 Header 类型
     
+    // 第一次遍历：收集 Tape 和 Header 信息
+    customAttributes.forEach(attr => {
+      const key = attr.key;
+      const value = attr.value;
+      
+      if(key.includes('Tape')) {
+        tapeType = value;
+      }
+      if(key.includes('Header')) {
+        headerType = value.split('(')[0].trim();
+      }
+    });
+    
+    // 第二次遍历：处理所有属性
     customAttributes.forEach(attr => {
       const key = attr.key;
       const value = attr.value;
@@ -417,7 +431,19 @@ export default function PublicOrders() {
       // 窗帘相关字段
       if(key.includes('Header')) {
         const headerValue = value.split('(')[0].trim();
-        dimensions.header = headerMapping[headerValue] || headerValue;
+        // 特殊处理 Ripple Fold：根据 Tape 类型区分
+        if (headerValue === 'Ripple Fold') {
+          if (tapeType && tapeType.includes('Hook')) {
+            dimensions.header = '蛇形帘（挂钩）';
+          } else if (tapeType && tapeType.includes('Buckle')) {
+            dimensions.header = '蛇形帘（铆钉）';
+          } else {
+            // 如果没有 Tape 信息，保持原样或使用默认值
+            dimensions.header = '蛇形帘（铆钉）';
+          }
+        } else {
+          dimensions.header = headerMapping[headerValue] || headerValue;
+        }
       }
       if(key.includes('GROMMET COLOR')) {
         dimensions.grommetColor = grommetColorMapping[value] || value;
