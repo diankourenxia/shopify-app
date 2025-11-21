@@ -807,8 +807,8 @@ export default function PublicOrders() {
       
       // 为每个商品创建一行
       order.lineItems?.edges?.forEach(({ node: item }, index) => {
-        const dimensions = item.customAttributes 
-          ? parseDimensions(item.customAttributes, item.quantity)
+        const result = item.customAttributes 
+          ? parseDimensions(item.customAttributes, item.quantity, item.title)
           : null;
 
         // 解析尺寸信息
@@ -823,24 +823,15 @@ export default function PublicOrders() {
         let tiebacks = '';
         let processing = '';
 
-        if (dimensions) {
-          // 从尺寸信息中提取数据
-          const parts = dimensions.props.children.map(child => child.props.children);
-          parts.forEach(part => {
-            if (part.includes('高:')) {
-              fabricHeight = part.replace('高:', '').replace('cm', '');
-            } else if (part.includes('宽:')) {
-              widthFromDimensions = part.replace('宽:', '').replace('cm', '');
-            } else if (part.includes('头部:')) {
-              headerType = part.replace('头部:', '').trim();
-            } else if (part.includes('高温定型:')) {
-              isShaped = part.replace('高温定型:', '').trim() === '需要' ? '是' : '否';
-            } else if (part.includes('里料:')) {
-              lining = part.replace('里料:', '');
-            } else if (part.includes('绑带:')) {
-              tiebacks = part.replace('绑带:', '');
-            }
-          });
+        if (result && result.dimensions) {
+          // 直接从 dimensions 对象中提取数据
+          const dims = result.dimensions;
+          fabricHeight = dims.length ? dims.length.toString() : '';
+          widthFromDimensions = dims.width ? dims.width.toString() : '';
+          headerType = dims.header || '';
+          isShaped = dims.bodyMemory === '需要' ? '是' : '否';
+          lining = dims.liningType || '';
+          tiebacks = dims.tieback || '';
         }
 
         // 计算其他字段
