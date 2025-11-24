@@ -367,8 +367,8 @@ export default function Fabrics() {
     return [
       fabric.code,
       fabric.name || '-',
-      latestPrice ? `$${latestPrice.fabricPrice.toFixed(2)}` : '-',
-      latestPrice ? `$${latestPrice.liningPrice.toFixed(2)}` : '-',
+      latestPrice ? `¥${latestPrice.fabricPrice.toFixed(2)}` : '-',
+      latestPrice ? `¥${latestPrice.liningPrice.toFixed(2)}` : '-',
       fabric.colors.length,
       latestPrice ? formatDate(latestPrice.effectiveDate) : '-',
       <InlineStack gap="200" key={`actions-${fabric.id}`}>
@@ -505,8 +505,8 @@ export default function Fabrics() {
                                   {colorPrice && <Badge tone="success">独立价格</Badge>}
                                 </BlockStack>
                                 <BlockStack gap="200">
-                                  <Text>布料: ${effectivePrice?.fabricPrice.toFixed(2) || '-'}</Text>
-                                  <Text>内衬: ${effectivePrice?.liningPrice.toFixed(2) || '-'}</Text>
+                                  <Text>布料: ¥{effectivePrice?.fabricPrice.toFixed(2) || '-'}</Text>
+                                  <Text>内衬: ¥{effectivePrice?.liningPrice.toFixed(2) || '-'}</Text>
                                 </BlockStack>
                                 <InlineStack gap="200">
                                   <Button
@@ -562,8 +562,8 @@ export default function Fabrics() {
                                     {colorPrice && <Badge tone="success">独立价格</Badge>}
                                   </BlockStack>
                                   <BlockStack gap="200">
-                                    <Text>布料: ${effectivePrice?.fabricPrice.toFixed(2) || '-'}</Text>
-                                    <Text>内衬: ${effectivePrice?.liningPrice.toFixed(2) || '-'}</Text>
+                                    <Text>布料: ¥{effectivePrice?.fabricPrice.toFixed(2) || '-'}</Text>
+                                    <Text>内衬: ¥{effectivePrice?.liningPrice.toFixed(2) || '-'}</Text>
                                   </BlockStack>
                                   <InlineStack gap="200">
                                     <Button
@@ -643,7 +643,7 @@ export default function Fabrics() {
               autoComplete="off"
             />
             <TextField
-              label="布料价格（$/米）"
+              label="布料价格（¥/米）"
               type="number"
               value={newFabric.fabricPrice}
               onChange={(value) => setNewFabric({ ...newFabric, fabricPrice: value })}
@@ -652,7 +652,7 @@ export default function Fabrics() {
               requiredIndicator
             />
             <TextField
-              label="内衬价格（$/米）"
+              label="内衬价格（¥/米）"
               type="number"
               value={newFabric.liningPrice}
               onChange={(value) => setNewFabric({ ...newFabric, liningPrice: value })}
@@ -724,7 +724,7 @@ export default function Fabrics() {
               </Text>
             )}
             <TextField
-              label="布料价格（$/米）"
+              label="布料价格（¥/米）"
               type="number"
               value={priceForm.fabricPrice}
               onChange={(value) => setPriceForm({ ...priceForm, fabricPrice: value })}
@@ -733,7 +733,7 @@ export default function Fabrics() {
               requiredIndicator
             />
             <TextField
-              label="内衬价格（$/米）"
+              label="内衬价格（¥/米）"
               type="number"
               value={priceForm.liningPrice}
               onChange={(value) => setPriceForm({ ...priceForm, liningPrice: value })}
@@ -772,8 +772,8 @@ export default function Fabrics() {
                       </Text>
                     </InlineStack>
                     <InlineStack gap="400">
-                      <Text>布料价格: ${price.fabricPrice.toFixed(2)}</Text>
-                      <Text>内衬价格: ${price.liningPrice.toFixed(2)}</Text>
+                      <Text>布料价格: ¥{price.fabricPrice.toFixed(2)}</Text>
+                      <Text>内衬价格: ¥{price.liningPrice.toFixed(2)}</Text>
                     </InlineStack>
                   </BlockStack>
                 </Card>

@@ -919,6 +919,29 @@ export default function Orders() {
         console.error(`Error fetching comments for order ${order.id}:`, error);
       }
     }));
+
+    // 获取布料价格数据
+    const fabricPricesMap = {};
+    try {
+      const response = await fetch('/app/fabrics');
+      const html = await response.text();
+      // 从页面 loader 数据中提取布料价格
+      // 更好的方式是创建一个 API 端点
+      const fabricsResponse = await fetch('/api/fabric-prices');
+      if (fabricsResponse.ok) {
+        const { fabrics } = await fabricsResponse.json();
+        fabrics.forEach(fabric => {
+          fabric.colors.forEach(color => {
+            const colorPrice = color.prices[0];
+            const fabricPrice = fabric.prices[0];
+            const effectivePrice = colorPrice || fabricPrice;
+            fabricPricesMap[color.fullCode] = effectivePrice;
+          });
+        });
+      }
+    } catch (error) {
+      console.error('获取布料价格失败:', error);
+    }
     
     // 准备Excel数据 - 每个商品一行
     const excelData = [];
@@ -1047,9 +1070,24 @@ export default function Orders() {
           return; // 跳过没有头部类型的商品
         }
 
-        // 处理布料型号：去掉字母，只保留数字和符号
-        const fabricModel = item.variant?.title || 'Default Title';
-        const fabricModelFiltered = fabricModel; // 去掉所有字母
+        // 从商品标题中提取布料编号（格式如 "Celina# 8823-02 Light Beige"）
+        const itemTitle = item.title || '';
+        const fabricCodeMatch = itemTitle.match(/(\d+)-(\d+)/);
+        let fabricCost = '';
+        
+        if (fabricCodeMatch && purchaseMeters > 0) {
+          const fullCode = `${fabricCodeMatch[1]}-${fabricCodeMatch[2]}`;
+          const priceInfo = fabricPricesMap[fullCode];
+          
+          if (priceInfo) {
+            // 布料成本 = 布料采购米数 * 布料单价 + 布料采购米数 * 衬布单价
+            const cost = purchaseMeters * priceInfo.fabricPrice + purchaseMeters * priceInfo.liningPrice;
+            fabricCost = cost.toFixed(2);
+          }
+        }
+
+        // 处理布料型号：从商品标题提取
+        const fabricModel = fabricCodeMatch ? `${fabricCodeMatch[1]}-${fabricCodeMatch[2]}` : (item.variant?.title || 'Default Title');
 
         // 如果是当前订单的第一个有效商品，显示订单信息；否则留空
         const rowData = {
@@ -1057,12 +1095,13 @@ export default function Orders() {
           '订单编号': validItemIndex === 0 ? orderNumber : '',
           '备注': validItemIndex === 0 ? (order.note || '') : '',
           '评论': validItemIndex === 0 ? (commentsMap[order.id] || '') : '',
-          '布料型号': fabricModelFiltered, // 去掉字母后的布料型号
-          '布料采购米数': purchaseMetersStr, // 根据规则计算的采购米数
+          '布料型号': fabricModel,
+          '布料采购米数': purchaseMetersStr,
+          '布料成本': fabricCost || '-',
           '加工方式': headerType || '',
-          '布料高度': fabricHeight ? Math.round(parseFloat(fabricHeight)).toString() : '', // 四舍五入取整
-          '墙宽': wallWidth ? Math.round(parseFloat(wallWidth)).toString() : '', // 四舍五入取整
-          '每片用料': widthFromDimensions ? Math.round(parseFloat(widthFromDimensions)).toString() : '', // 四舍五入取整
+          '布料高度': fabricHeight ? Math.round(parseFloat(fabricHeight)).toString() : '',
+          '墙宽': wallWidth ? Math.round(parseFloat(wallWidth)).toString() : '',
+          '每片用料': widthFromDimensions ? Math.round(parseFloat(widthFromDimensions)).toString() : '',
           '分片': panels,
           '倍数': multiplier,
           '窗户数量': windows,
