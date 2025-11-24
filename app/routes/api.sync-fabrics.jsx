@@ -27,24 +27,24 @@ export const action = async ({ request }) => {
         const variantTitle = item.variant?.title;
         if (!variantTitle || variantTitle === 'Default Title') continue;
         
-        // 解析布料编号，格式如 "8823-1" 或 "8823"
-        const match = variantTitle.match(/^([A-Za-z0-9]+)(?:-(\d+))?/);
+        // 解析布料编号，精确匹配格式 "数字-数字" 如 "8823-1"
+        // 只匹配纯数字的布料编号和颜色编号
+        const match = variantTitle.match(/(\d+)-(\d+)/);
         if (!match) continue;
         
         const fabricCode = match[1];
-        const colorCode = match[2] || null;
+        const colorCode = match[2];
         
         fabricsFound.add(fabricCode);
         
-        if (colorCode) {
-          const fullCode = `${fabricCode}-${colorCode}`;
-          if (!colorsFound.has(fullCode)) {
-            colorsFound.set(fullCode, {
-              fabricCode,
-              colorCode,
-              fullCode
-            });
-          }
+        // 颜色编号必须存在才记录
+        const fullCode = `${fabricCode}-${colorCode}`;
+        if (!colorsFound.has(fullCode)) {
+          colorsFound.set(fullCode, {
+            fabricCode,
+            colorCode,
+            fullCode
+          });
         }
       }
     }
