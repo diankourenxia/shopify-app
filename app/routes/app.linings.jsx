@@ -124,11 +124,11 @@ export const action = async ({ request }) => {
     try {
       const { admin } = await authenticate.admin(request);
       
-      // 获取所有订单
+      // 获取所有订单(不限制标签)
       const ordersResponse = await admin.graphql(
         `#graphql
         query {
-          orders(first: 250, query: "tag:订单已导入") {
+          orders(first: 250) {
             edges {
               node {
                 id
@@ -155,6 +155,7 @@ export const action = async ({ request }) => {
 
       // 提取所有衬布类型
       const liningTypesSet = new Set();
+      const debugInfo = []; // 调试信息
       
       orders.forEach(orderEdge => {
         const lineItems = orderEdge.node.lineItems.edges;
@@ -162,12 +163,19 @@ export const action = async ({ request }) => {
         lineItems.forEach(itemEdge => {
           const item = itemEdge.node;
           
+          // 调试: 记录所有 customAttributes
+          if (item.customAttributes && item.customAttributes.length > 0) {
+            const attrs = item.customAttributes.map(a => a.key).join(', ');
+            debugInfo.push(`Item: ${item.title}, Attrs: ${attrs}`);
+          }
+          
           // 从 customAttributes 中找到 _Lining Type
           const liningTypeAttr = item.customAttributes?.find(
             attr => attr.key === '_Lining Type'
           );
           
           if (liningTypeAttr?.value) {
+            debugInfo.push(`Found lining: ${liningTypeAttr.value}`);
             const liningValue = liningTypeAttr.value.toLowerCase();
             // 如果是 unlined 或包含 lining type,则跳过,否则提取衬布类型
             if (liningValue !== 'unlined' && !liningValue.includes('lining type')) {
@@ -175,6 +183,7 @@ export const action = async ({ request }) => {
               const liningType = liningTypeAttr.value.split('(')[0].trim();
               if (liningType && liningType !== '') {
                 liningTypesSet.add(liningType);
+                debugInfo.push(`Added type: ${liningType}`);
               }
             }
           }
@@ -214,7 +223,8 @@ export const action = async ({ request }) => {
         imported: importedLinings.length,
         types: importedLinings.map(l => l.type),
         total: liningTypesSet.size,
-        existing: existingTypes.size
+        existing: existingTypes.size,
+        debug: debugInfo.slice(0, 50) // 返回前50条调试信息
       });
     } catch (error) {
       return json({ error: error.message }, { status: 400 });
@@ -258,11 +268,21 @@ export default function Linings() {
     } else if (fetcher.data?.success && fetcher.data?.imported !== undefined) {
       // 扫描导入完成
       setIsScanning(false);
+      
+      // 显示调试信息
+      if (fetcher.data.debug && fetcher.data.debug.length > 0) {
+        console.log('=== 衬布扫描调试信息 ===');
+        console.log('找到的订单数:', fetcher.data.debug.filter(d => d.includes('Item:')).length);
+        console.log('找到的衬布:', fetcher.data.debug.filter(d => d.includes('Found lining:')));
+        console.log('添加的类型:', fetcher.data.debug.filter(d => d.includes('Added type:')));
+        console.log('所有调试信息:', fetcher.data.debug);
+      }
+      
       if (fetcher.data.imported > 0) {
         alert(`成功导入 ${fetcher.data.imported} 个新的衬布类型:\n${fetcher.data.types.join('\n')}\n\n请为它们设置价格。`);
         window.location.reload();
       } else {
-        alert(`扫描完成！\n总共发现 ${fetcher.data.total} 个衬布类型\n已存在 ${fetcher.data.existing} 个\n无新类型需要导入`);
+        alert(`扫描完成！\n总共发现 ${fetcher.data.total} 个衬布类型\n已存在 ${fetcher.data.existing} 个\n无新类型需要导入\n\n查看控制台了解详细信息`);
       }
     } else if (fetcher.data?.success) {
       setIsScanning(false);
