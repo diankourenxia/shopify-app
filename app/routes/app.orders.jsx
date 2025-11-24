@@ -1071,7 +1071,7 @@ export default function Orders() {
         }
 
         // 从商品标题中提取布料编号（格式如 "Celina# 8823-02 Light Beige" 或 "Khaki 8823-5"）
-        const itemTitle = item.title || '';
+        const itemTitle = item.variant.title || '';
         console.log(2222,item,item.title)
         // 匹配 "数字-数字" 格式，可能前面有文字
         const fabricCodeMatch = itemTitle.match(/(\d+)-(\d+)/);
