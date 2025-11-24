@@ -24,16 +24,21 @@ export const action = async ({ request }) => {
       if (!order.lineItems?.edges) continue;
       
       for (const { node: item } of order.lineItems.edges) {
-        const variantTitle = item.variant?.title;
-        if (!variantTitle || variantTitle === 'Default Title') continue;
+        const itemTitle = item.title;
+        if (!itemTitle) continue;
         
-        // 解析布料编号，精确匹配格式 "数字-数字" 如 "8823-1"
-        // 只匹配纯数字的布料编号和颜色编号
-        const match = variantTitle.match(/(\d+)-(\d+)/);
+        // 从商品标题中提取布料信息
+        // 格式如: "Celina# 8823-02 Light Beige" 或 "Amara# 1038-01 Light Beige"
+        // 匹配 "数字-数字" 格式
+        const match = itemTitle.match(/(\d+)-(\d+)/);
         if (!match) continue;
         
         const fabricCode = match[1];
         const colorCode = match[2];
+        
+        // 尝试提取颜色名称（# 后面的部分，去掉布料编号）
+        const colorNameMatch = itemTitle.match(/# \d+-\d+\s+(.+)$/);
+        const colorName = colorNameMatch ? colorNameMatch[1].trim() : null;
         
         fabricsFound.add(fabricCode);
         
@@ -43,6 +48,7 @@ export const action = async ({ request }) => {
           colorsFound.set(fullCode, {
             fabricCode,
             colorCode,
+            colorName,
             fullCode
           });
         }
@@ -89,6 +95,7 @@ export const action = async ({ request }) => {
             data: {
               fabricId: fabric.id,
               colorCode: colorInfo.colorCode,
+              colorName: colorInfo.colorName,
               fullCode: colorInfo.fullCode,
             }
           });

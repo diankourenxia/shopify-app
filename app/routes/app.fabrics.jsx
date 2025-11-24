@@ -164,6 +164,47 @@ export const action = async ({ request }) => {
     }
   }
 
+  if (action === "deleteFabric") {
+    const fabricId = formData.get("fabricId");
+
+    try {
+      // 删除布料（会级联删除关联的颜色和价格）
+      await prisma.fabric.delete({
+        where: { id: fabricId }
+      });
+
+      return json({ success: true, message: "布料已删除" });
+    } catch (error) {
+      return json({ error: error.message }, { status: 400 });
+    }
+  }
+
+  if (action === "deleteColor") {
+    const colorId = formData.get("colorId");
+
+    try {
+      // 删除颜色（会级联删除关联的价格）
+      await prisma.fabricColor.delete({
+        where: { id: colorId }
+      });
+
+      return json({ success: true, message: "颜色已删除" });
+    } catch (error) {
+      return json({ error: error.message }, { status: 400 });
+    }
+  }
+
+  if (action === "deleteAllFabrics") {
+    try {
+      // 删除所有布料数据（会级联删除所有相关数据）
+      await prisma.fabric.deleteMany({});
+
+      return json({ success: true, message: "所有布料数据已清空" });
+    } catch (error) {
+      return json({ error: error.message }, { status: 400 });
+    }
+  }
+
   return json({ error: "未知操作" }, { status: 400 });
 };
 
@@ -225,6 +266,34 @@ export default function Fabrics() {
   const handleSyncFabrics = () => {
     if (confirm('确定要从订单中同步布料信息吗？')) {
       syncFetcher.submit({}, { method: "POST", action: "/api/sync-fabrics" });
+    }
+  };
+
+  const handleDeleteAllFabrics = () => {
+    if (confirm('⚠️ 警告：此操作将删除所有布料、颜色和价格数据，且无法恢复！\n\n确定要继续吗？')) {
+      if (confirm('请再次确认：真的要删除所有数据吗？')) {
+        const formData = new FormData();
+        formData.append("action", "deleteAllFabrics");
+        fetcher.submit(formData, { method: "POST" });
+      }
+    }
+  };
+
+  const handleDeleteFabric = (fabricId) => {
+    if (confirm('确定要删除这个布料吗？删除后相关的颜色和价格记录也会被删除。')) {
+      const formData = new FormData();
+      formData.append("action", "deleteFabric");
+      formData.append("fabricId", fabricId);
+      fetcher.submit(formData, { method: "POST" });
+    }
+  };
+
+  const handleDeleteColor = (colorId) => {
+    if (confirm('确定要删除这个颜色吗？删除后相关的价格记录也会被删除。')) {
+      const formData = new FormData();
+      formData.append("action", "deleteColor");
+      formData.append("colorId", colorId);
+      fetcher.submit(formData, { method: "POST" });
     }
   };
 
@@ -326,6 +395,13 @@ export default function Fabrics() {
         >
           价格历史
         </Button>
+        <Button
+          size="slim"
+          tone="critical"
+          onClick={() => handleDeleteFabric(fabric.id)}
+        >
+          删除
+        </Button>
       </InlineStack>
     ];
   });
@@ -371,6 +447,13 @@ export default function Fabrics() {
                           }}
                         >
                           新建布料
+                        </Button>
+                        <Button
+                          variant="primary"
+                          tone="critical"
+                          onClick={handleDeleteAllFabrics}
+                        >
+                          清空所有数据
                         </Button>
                       </InlineStack>
                     </InlineStack>
@@ -437,6 +520,13 @@ export default function Fabrics() {
                                     onClick={() => handleViewHistory('color', color.id)}
                                   >
                                     历史记录
+                                  </Button>
+                                  <Button
+                                    size="slim"
+                                    tone="critical"
+                                    onClick={() => handleDeleteColor(color.id)}
+                                  >
+                                    删除
                                   </Button>
                                 </InlineStack>
                               </InlineStack>
