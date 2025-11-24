@@ -983,6 +983,21 @@ export default function Orders() {
         let tiebacks = '';
         let processing = '';
 
+        // 从 customAttributes 提取衬布类型
+        const liningTypeAttr = item.customAttributes?.find(
+          attr => attr.key === '_Lining Type'
+        );
+        if (liningTypeAttr?.value) {
+          const liningValue = liningTypeAttr.value.toLowerCase();
+          // 如果是 unlined 或包含 lining type,则为无衬布,否则提取衬布类型名称
+          if (liningValue === 'unlined' || liningValue.includes('lining type')) {
+            lining = '';
+          } else {
+            // 提取括号前的部分作为衬布类型,去除价格信息
+            lining = liningTypeAttr.value.split('(')[0].trim();
+          }
+        }
+
         if (dimensions) {
           // 从尺寸信息中提取数据
           const parts = dimensions.props.children.map(child => child.props.children);
@@ -995,8 +1010,6 @@ export default function Orders() {
               headerType = part.replace('头部:', '').trim();
             } else if (part.includes('高温定型:')) {
               isShaped = part.replace('高温定型:', '').trim() === '需要' ? '是' : '否';
-            } else if (part.includes('里料:')) {
-              lining = part.replace('里料:', '');
             } else if (part.includes('绑带:')) {
               tiebacks = part.replace('绑带:', '');
             }

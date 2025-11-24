@@ -162,19 +162,18 @@ export const action = async ({ request }) => {
         lineItems.forEach(itemEdge => {
           const item = itemEdge.node;
           
-          // 从 customAttributes 中找到 dimensions
-          const dimensionsAttr = item.customAttributes?.find(
-            attr => attr.key === 'dimensions' || attr.key === '尺寸'
+          // 从 customAttributes 中找到 _Lining Type
+          const liningTypeAttr = item.customAttributes?.find(
+            attr => attr.key === '_Lining Type'
           );
           
-          if (dimensionsAttr?.value) {
-            // 解析尺寸信息,提取里料类型
-            const dimensionsText = dimensionsAttr.value;
-            const liningMatch = dimensionsText.match(/里料[:：]\s*([^\n,;]+)/);
-            
-            if (liningMatch && liningMatch[1]) {
-              const liningType = liningMatch[1].trim();
-              if (liningType && liningType !== '' && liningType !== 'null') {
+          if (liningTypeAttr?.value) {
+            const liningValue = liningTypeAttr.value.toLowerCase();
+            // 如果是 unlined 或包含 lining type,则跳过,否则提取衬布类型
+            if (liningValue !== 'unlined' && !liningValue.includes('lining type')) {
+              // 提取括号前的部分作为衬布类型,去除价格信息
+              const liningType = liningTypeAttr.value.split('(')[0].trim();
+              if (liningType && liningType !== '') {
                 liningTypesSet.add(liningType);
               }
             }
