@@ -34,7 +34,8 @@ export const action = async ({ request }) => {
         if (!match) continue;
         
         const fabricCode = match[1];
-        const colorCode = match[2];
+        // 将颜色编号转为整数再转字符串，去掉前导零（05 -> 5）
+        const colorCode = parseInt(match[2], 10).toString();
         
         // 尝试提取颜色名称（# 后面的部分，去掉布料编号）
         const colorNameMatch = itemTitle.match(/# \d+-\d+\s+(.+)$/);

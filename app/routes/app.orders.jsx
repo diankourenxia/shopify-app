@@ -1076,7 +1076,9 @@ export default function Orders() {
         let fabricCost = '';
         
         if (fabricCodeMatch && purchaseMeters > 0) {
-          const fullCode = `${fabricCodeMatch[1]}-${fabricCodeMatch[2]}`;
+          // 将颜色编号转为整数再转字符串，去掉前导零（05 -> 5）
+          const normalizedColorCode = parseInt(fabricCodeMatch[2], 10).toString();
+          const fullCode = `${fabricCodeMatch[1]}-${normalizedColorCode}`;
           const priceInfo = fabricPricesMap[fullCode];
           
           if (priceInfo) {
@@ -1086,8 +1088,8 @@ export default function Orders() {
           }
         }
 
-        // 处理布料型号：从商品标题提取
-        const fabricModel = fabricCodeMatch ? `${fabricCodeMatch[1]}-${fabricCodeMatch[2]}` : (item.variant?.title || 'Default Title');
+        // 处理布料型号：从商品标题提取（使用标准化的颜色编号）
+        const fabricModel = fabricCodeMatch ? `${fabricCodeMatch[1]}-${parseInt(fabricCodeMatch[2], 10).toString()}` : (item.variant?.title || 'Default Title');
 
         // 如果是当前订单的第一个有效商品，显示订单信息；否则留空
         const rowData = {
