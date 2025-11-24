@@ -1070,10 +1070,12 @@ export default function Orders() {
           return; // 跳过没有头部类型的商品
         }
 
-        // 从商品标题中提取布料编号（格式如 "Celina# 8823-02 Light Beige"）
+        // 从商品标题中提取布料编号（格式如 "Celina# 8823-02 Light Beige" 或 "Khaki 8823-5"）
         const itemTitle = item.title || '';
+        // 匹配 "数字-数字" 格式，可能前面有文字
         const fabricCodeMatch = itemTitle.match(/(\d+)-(\d+)/);
         let fabricCost = '';
+        let fabricUnitPrice = '';
         
         if (fabricCodeMatch && purchaseMeters > 0) {
           // 将颜色编号转为整数再转字符串，去掉前导零（05 -> 5）
@@ -1082,8 +1084,12 @@ export default function Orders() {
           const priceInfo = fabricPricesMap[fullCode];
           
           if (priceInfo) {
-            // 布料成本 = 布料采购米数 * 布料单价 + 布料采购米数 * 衬布单价
-            const cost = purchaseMeters * priceInfo.fabricPrice + purchaseMeters * priceInfo.liningPrice;
+            // 布料单价 = 布料颜色单价 + 内衬单价
+            const unitPrice = priceInfo.fabricPrice + priceInfo.liningPrice;
+            fabricUnitPrice = unitPrice.toFixed(2);
+            
+            // 布料成本 = 布料采购米数 * 布料单价
+            const cost = purchaseMeters * unitPrice;
             fabricCost = cost.toFixed(2);
           }
         }
@@ -1099,6 +1105,7 @@ export default function Orders() {
           '评论': validItemIndex === 0 ? (commentsMap[order.id] || '') : '',
           '布料型号': fabricModel,
           '布料采购米数': purchaseMetersStr,
+          '布料单价': fabricUnitPrice || '-',
           '布料成本': fabricCost || '-',
           '加工方式': headerType || '',
           '布料高度': fabricHeight ? Math.round(parseFloat(fabricHeight)).toString() : '',
