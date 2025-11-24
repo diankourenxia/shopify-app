@@ -61,3 +61,54 @@ model OrderTag {
   
   @@unique([orderId, tagId]) // 同一订单不能重复添加相同标签
 }
+
+// 布料材质模型
+model Fabric {
+  id          String        @id @default(uuid())
+  code        String        @unique // 布料编号，如 "8823"
+  name        String?       // 布料名称（可选）
+  description String?       // 布料描述
+  colors      FabricColor[] // 关联的颜色
+  prices      FabricPrice[] // 价格历史记录
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// 布料颜色模型
+model FabricColor {
+  id          String              @id @default(uuid())
+  fabricId    String              // 关联的布料ID
+  fabric      Fabric              @relation(fields: [fabricId], references: [id], onDelete: Cascade)
+  colorCode   String              // 颜色编号，如 "1", "2"
+  colorName   String?             // 颜色名称（可选）
+  fullCode    String              @unique // 完整编号，如 "8823-1"
+  prices      FabricColorPrice[]  // 该颜色的独立价格记录
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  
+  @@unique([fabricId, colorCode]) // 同一布料下颜色编号唯一
+}
+
+// 布料基础价格历史记录（应用于整个布料材质）
+model FabricPrice {
+  id              String   @id @default(uuid())
+  fabricId        String   // 关联的布料ID
+  fabric          Fabric   @relation(fields: [fabricId], references: [id], onDelete: Cascade)
+  fabricPrice     Float    // 布料价格（每米/码）
+  liningPrice     Float    // 内衬价格（每米/码）
+  effectiveDate   DateTime @default(now()) // 生效时间
+  createdAt       DateTime @default(now())
+  createdBy       String?  // 创建人
+}
+
+// 布料颜色独立价格历史记录（覆盖基础价格）
+model FabricColorPrice {
+  id              String      @id @default(uuid())
+  colorId         String      // 关联的颜色ID
+  color           FabricColor @relation(fields: [colorId], references: [id], onDelete: Cascade)
+  fabricPrice     Float       // 布料价格（每米/码）
+  liningPrice     Float       // 内衬价格（每米/码）
+  effectiveDate   DateTime    @default(now()) // 生效时间
+  createdAt       DateTime    @default(now())
+  createdBy       String?     // 创建人
+}
