@@ -222,6 +222,7 @@ export default function Fabrics() {
   const [selectedColor, setSelectedColor] = useState(null);
   const [priceHistory, setPriceHistory] = useState([]);
   const [selectedTab, setSelectedTab] = useState(0);
+  const [expandedFabrics, setExpandedFabrics] = useState(new Set());
 
   // 新建布料表单
   const [newFabric, setNewFabric] = useState({
@@ -362,58 +363,17 @@ export default function Fabrics() {
     });
   };
 
-  const fabricRows = fabrics.map(fabric => {
-    const latestPrice = fabric.prices[0];
-    return [
-      fabric.code,
-      fabric.name || '-',
-      latestPrice ? `¥${latestPrice.fabricPrice.toFixed(2)}` : '-',
-      latestPrice ? `¥${latestPrice.liningPrice.toFixed(2)}` : '-',
-      fabric.colors.length,
-      latestPrice ? formatDate(latestPrice.effectiveDate) : '-',
-      <InlineStack gap="200" key={`actions-${fabric.id}`}>
-        <Button
-          size="slim"
-          onClick={() => {
-            setSelectedFabric(fabric);
-            setSelectedColor(null);
-            setShowAddColorModal(true);
-            setNewColor({ colorCode: '', colorName: '' });
-          }}
-        >
-          添加颜色
-        </Button>
-        <Button
-          size="slim"
-          onClick={() => {
-            setSelectedFabric(fabric);
-            setSelectedColor(null);
-            setShowPriceModal(true);
-            setPriceForm({
-              fabricPrice: latestPrice?.fabricPrice || '',
-              liningPrice: latestPrice?.liningPrice || ''
-            });
-          }}
-        >
-          编辑价格
-        </Button>
-        <Button
-          size="slim"
-          variant="plain"
-          onClick={() => handleViewHistory('fabric', fabric.id)}
-        >
-          价格历史
-        </Button>
-        <Button
-          size="slim"
-          tone="critical"
-          onClick={() => handleDeleteFabric(fabric.id)}
-        >
-          删除
-        </Button>
-      </InlineStack>
-    ];
-  });
+  const toggleFabric = (fabricId) => {
+    setExpandedFabrics(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fabricId)) {
+        newSet.delete(fabricId);
+      } else {
+        newSet.add(fabricId);
+      }
+      return newSet;
+    });
+  };
 
   const tabs = [
     {
@@ -468,11 +428,153 @@ export default function Fabrics() {
                     </InlineStack>
 
                     {fabrics.length > 0 ? (
-                      <DataTable
-                        columnContentTypes={['text', 'text', 'text', 'text', 'numeric', 'text', 'text']}
-                        headings={['布料编号', '布料名称', '布料价格', '内衬价格', '颜色数量', '更新时间', '操作']}
-                        rows={fabricRows}
-                      />
+                      <BlockStack gap="400">
+                        {fabrics.map(fabric => {
+                          const latestPrice = fabric.prices[0];
+                          const isExpanded = expandedFabrics.has(fabric.id);
+                          
+                          return (
+                            <Card key={fabric.id}>
+                              <BlockStack gap="300">
+                                {/* 布料主信息 */}
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <InlineStack gap="400" blockAlign="center">
+                                    <Button
+                                      variant="plain"
+                                      onClick={() => toggleFabric(fabric.id)}
+                                      icon={isExpanded ? '▼' : '▶'}
+                                    >
+                                      {fabric.code}
+                                    </Button>
+                                    <Text variant="bodyMd">{fabric.name || '-'}</Text>
+                                    <Badge tone="info">{fabric.colors.length} 个颜色</Badge>
+                                  </InlineStack>
+                                  <InlineStack gap="400" blockAlign="center">
+                                    <BlockStack gap="100">
+                                      <Text variant="bodySm" tone="subdued">布料: ¥{latestPrice?.fabricPrice.toFixed(2) || '0.00'}</Text>
+                                      <Text variant="bodySm" tone="subdued">内衬: ¥{latestPrice?.liningPrice.toFixed(2) || '0.00'}</Text>
+                                    </BlockStack>
+                                    <InlineStack gap="200">
+                                      <Button
+                                        size="slim"
+                                        onClick={() => {
+                                          setSelectedFabric(fabric);
+                                          setSelectedColor(null);
+                                          setShowAddColorModal(true);
+                                          setNewColor({ colorCode: '', colorName: '' });
+                                        }}
+                                      >
+                                        添加颜色
+                                      </Button>
+                                      <Button
+                                        size="slim"
+                                        onClick={() => {
+                                          setSelectedFabric(fabric);
+                                          setSelectedColor(null);
+                                          setShowPriceModal(true);
+                                          setPriceForm({
+                                            fabricPrice: latestPrice?.fabricPrice || '',
+                                            liningPrice: latestPrice?.liningPrice || ''
+                                          });
+                                        }}
+                                      >
+                                        编辑基础价格
+                                      </Button>
+                                      <Button
+                                        size="slim"
+                                        variant="plain"
+                                        onClick={() => handleViewHistory('fabric', fabric.id)}
+                                      >
+                                        历史
+                                      </Button>
+                                      <Button
+                                        size="slim"
+                                        tone="critical"
+                                        onClick={() => handleDeleteFabric(fabric.id)}
+                                      >
+                                        删除
+                                      </Button>
+                                    </InlineStack>
+                                  </InlineStack>
+                                </InlineStack>
+
+                                {/* 展开的颜色列表 */}
+                                {isExpanded && fabric.colors.length > 0 && (
+                                  <div style={{ 
+                                    marginLeft: '40px', 
+                                    paddingLeft: '20px', 
+                                    borderLeft: '2px solid #e1e3e5' 
+                                  }}>
+                                    <BlockStack gap="300">
+                                      {fabric.colors.map(color => {
+                                        const colorPrice = color.prices[0];
+                                        const fabricPrice = fabric.prices[0];
+                                        const effectivePrice = colorPrice || fabricPrice;
+                                        
+                                        return (
+                                          <Card key={color.id} background="bg-surface-secondary">
+                                            <InlineStack align="space-between" blockAlign="center">
+                                              <InlineStack gap="400">
+                                                <Text variant="headingSm">{color.fullCode}</Text>
+                                                <Text variant="bodyMd" tone="subdued">
+                                                  {color.colorName || '未命名'}
+                                                </Text>
+                                                {colorPrice && <Badge tone="success">独立价格</Badge>}
+                                              </InlineStack>
+                                              <InlineStack gap="400" blockAlign="center">
+                                                <BlockStack gap="100">
+                                                  <Text variant="bodySm">布料: ¥{effectivePrice?.fabricPrice?.toFixed(2) || '0.00'}</Text>
+                                                  <Text variant="bodySm">内衬: ¥{effectivePrice?.liningPrice?.toFixed(2) || '0.00'}</Text>
+                                                </BlockStack>
+                                                <InlineStack gap="200">
+                                                  <Button
+                                                    size="slim"
+                                                    onClick={() => {
+                                                      setSelectedFabric(fabric);
+                                                      setSelectedColor(color);
+                                                      setShowPriceModal(true);
+                                                      setPriceForm({
+                                                        fabricPrice: colorPrice?.fabricPrice || fabricPrice?.fabricPrice || '',
+                                                        liningPrice: colorPrice?.liningPrice || fabricPrice?.liningPrice || ''
+                                                      });
+                                                    }}
+                                                  >
+                                                    设置价格
+                                                  </Button>
+                                                  <Button
+                                                    size="slim"
+                                                    variant="plain"
+                                                    onClick={() => handleViewHistory('color', color.id)}
+                                                  >
+                                                    历史
+                                                  </Button>
+                                                  <Button
+                                                    size="slim"
+                                                    tone="critical"
+                                                    onClick={() => handleDeleteColor(color.id)}
+                                                  >
+                                                    删除
+                                                  </Button>
+                                                </InlineStack>
+                                              </InlineStack>
+                                            </InlineStack>
+                                          </Card>
+                                        );
+                                      })}
+                                    </BlockStack>
+                                  </div>
+                                )}
+
+                                {isExpanded && fabric.colors.length === 0 && (
+                                  <div style={{ marginLeft: '40px', paddingLeft: '20px' }}>
+                                    <Text variant="bodyMd" tone="subdued">暂无颜色，点击"添加颜色"开始添加</Text>
+                                  </div>
+                                )}
+                              </BlockStack>
+                            </Card>
+                          );
+                        })}
+                      </BlockStack>
                     ) : (
                       <EmptyState
                         heading="暂无布料数据"
