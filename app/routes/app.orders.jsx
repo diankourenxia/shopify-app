@@ -1076,12 +1076,13 @@ export default function Orders() {
         const fabricCodeMatch = itemTitle.match(/(\d+)-(\d+)/);
         let fabricCost = '';
         let fabricUnitPrice = '';
-        
+        console.log(fabricCodeMatch, purchaseMeters)
+
         if (fabricCodeMatch && purchaseMeters > 0) {
           // 将颜色编号转为整数再转字符串，去掉前导零（05 -> 5）
           const normalizedColorCode = parseInt(fabricCodeMatch[2], 10).toString();
           const fullCode = `${fabricCodeMatch[1]}-${normalizedColorCode}`;
-          
+          console.log(11111, fabricPricesMap,fullCode)
           // 先尝试匹配标准化格式（8823-5）
           let priceInfo = fabricPricesMap[fullCode];
           
