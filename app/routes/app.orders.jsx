@@ -1103,17 +1103,22 @@ export default function Orders() {
           }
           
           if (priceInfo) {
-            // 获取衬布价格
-            const liningPrice = liningPricesMap[lining] || 0;
+            // 布料单价（仅布料）
+            fabricUnitPrice = priceInfo.fabricPrice.toFixed(2);
             
-            // 布料单价 = 布料颜色单价 + 衬布单价
-            const unitPrice = priceInfo.fabricPrice + liningPrice;
-            fabricUnitPrice = unitPrice.toFixed(2);
-            
-            // 布料成本 = 布料采购米数 * (布料单价 + 衬布单价)
-            const cost = purchaseMeters * unitPrice;
+            // 布料成本 = 布料采购米数 * 布料单价
+            const cost = purchaseMeters * priceInfo.fabricPrice;
             fabricCost = cost.toFixed(2);
           }
+        }
+
+        // 计算衬布成本
+        let liningUnitPrice = '';
+        let liningCost = '';
+        if (lining && liningPricesMap[lining]) {
+          liningUnitPrice = liningPricesMap[lining].toFixed(2);
+          const cost = purchaseMeters * liningPricesMap[lining];
+          liningCost = cost.toFixed(2);
         }
 
         // 处理布料型号：从商品标题提取（使用标准化的颜色编号）
@@ -1129,6 +1134,8 @@ export default function Orders() {
           '布料采购米数': purchaseMetersStr,
           '布料单价': fabricUnitPrice || '-',
           '布料成本': fabricCost || '-',
+          '衬布单价': liningUnitPrice || '-',
+          '衬布成本': liningCost || '-',
           '加工方式': headerType || '',
           '布料高度': fabricHeight ? Math.round(parseFloat(fabricHeight)).toString() : '',
           '墙宽': wallWidth ? Math.round(parseFloat(wallWidth)).toString() : '',

@@ -120,6 +120,108 @@ export const action = async ({ request }) => {
     }
   }
 
+  if (action === "scanFromOrders") {
+    try {
+      const { admin } = await authenticate.admin(request);
+      
+      // 获取所有订单
+      const ordersResponse = await admin.graphql(
+        `#graphql
+        query {
+          orders(first: 250, query: "tag:订单已导入") {
+            edges {
+              node {
+                id
+                lineItems(first: 100) {
+                  edges {
+                    node {
+                      id
+                      title
+                      customAttributes {
+                        key
+                        value
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }`
+      );
+
+      const ordersData = await ordersResponse.json();
+      const orders = ordersData.data?.orders?.edges || [];
+
+      // 提取所有衬布类型
+      const liningTypesSet = new Set();
+      
+      orders.forEach(orderEdge => {
+        const lineItems = orderEdge.node.lineItems.edges;
+        
+        lineItems.forEach(itemEdge => {
+          const item = itemEdge.node;
+          
+          // 从 customAttributes 中找到 dimensions
+          const dimensionsAttr = item.customAttributes?.find(
+            attr => attr.key === 'dimensions' || attr.key === '尺寸'
+          );
+          
+          if (dimensionsAttr?.value) {
+            // 解析尺寸信息,提取里料类型
+            const dimensionsText = dimensionsAttr.value;
+            const liningMatch = dimensionsText.match(/里料[:：]\s*([^\n,;]+)/);
+            
+            if (liningMatch && liningMatch[1]) {
+              const liningType = liningMatch[1].trim();
+              if (liningType && liningType !== '' && liningType !== 'null') {
+                liningTypesSet.add(liningType);
+              }
+            }
+          }
+        });
+      });
+
+      // 获取数据库中已存在的衬布类型
+      const existingLinings = await prisma.lining.findMany({
+        select: { type: true }
+      });
+      const existingTypes = new Set(existingLinings.map(l => l.type));
+
+      // 导入新的衬布类型
+      const newTypes = Array.from(liningTypesSet).filter(
+        type => !existingTypes.has(type)
+      );
+
+      const importedLinings = [];
+      for (const type of newTypes) {
+        const lining = await prisma.lining.create({
+          data: {
+            type,
+            price: 0, // 默认价格为0,需要手动设置
+            description: '从订单自动导入',
+            prices: {
+              create: {
+                price: 0,
+              }
+            }
+          }
+        });
+        importedLinings.push(lining);
+      }
+
+      return json({ 
+        success: true, 
+        imported: importedLinings.length,
+        types: importedLinings.map(l => l.type),
+        total: liningTypesSet.size,
+        existing: existingTypes.size
+      });
+    } catch (error) {
+      return json({ error: error.message }, { status: 400 });
+    }
+  }
+
   return json({ error: "未知操作" }, { status: 400 });
 };
 
@@ -133,6 +235,7 @@ export default function Linings() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedLining, setSelectedLining] = useState(null);
   const [priceHistory, setPriceHistory] = useState([]);
+  const [isScanning, setIsScanning] = useState(false);
 
   // 新建衬布表单
   const [newLining, setNewLining] = useState({
@@ -149,12 +252,24 @@ export default function Linings() {
   useEffect(() => {
     if (fetcher.data?.prices) {
       setPriceHistory(fetcher.data.prices);
+      setIsScanning(false);
     } else if (fetcher.data?.success && fetcher.data?.message) {
       alert(fetcher.data.message);
       window.location.reload();
+    } else if (fetcher.data?.success && fetcher.data?.imported !== undefined) {
+      // 扫描导入完成
+      setIsScanning(false);
+      if (fetcher.data.imported > 0) {
+        alert(`成功导入 ${fetcher.data.imported} 个新的衬布类型:\n${fetcher.data.types.join('\n')}\n\n请为它们设置价格。`);
+        window.location.reload();
+      } else {
+        alert(`扫描完成！\n总共发现 ${fetcher.data.total} 个衬布类型\n已存在 ${fetcher.data.existing} 个\n无新类型需要导入`);
+      }
     } else if (fetcher.data?.success) {
+      setIsScanning(false);
       window.location.reload();
     } else if (fetcher.data?.error) {
+      setIsScanning(false);
       alert(fetcher.data.error);
     }
   }, [fetcher.data]);
@@ -197,6 +312,15 @@ export default function Linings() {
     fetcher.submit(formData, { method: "POST" });
   };
 
+  const handleScanFromOrders = () => {
+    if (confirm('从订单中扫描衬布类型？\n\n这将会扫描所有已导入的订单,提取衬布类型并自动创建。\n新导入的衬布类型默认价格为0,需要手动设置。')) {
+      setIsScanning(true);
+      const formData = new FormData();
+      formData.append("action", "scanFromOrders");
+      fetcher.submit(formData, { method: "POST" });
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString('zh-CN', {
       year: 'numeric',
@@ -217,15 +341,24 @@ export default function Linings() {
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text variant="headingMd">衬布类型列表</Text>
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    setShowNewLiningModal(true);
-                    setNewLining({ type: '', price: '', description: '' });
-                  }}
-                >
-                  新建衬布类型
-                </Button>
+                <InlineStack gap="300">
+                  <Button
+                    onClick={handleScanFromOrders}
+                    loading={isScanning}
+                    disabled={isScanning}
+                  >
+                    {isScanning ? '扫描中...' : '从订单导入'}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      setShowNewLiningModal(true);
+                      setNewLining({ type: '', price: '', description: '' });
+                    }}
+                  >
+                    新建衬布类型
+                  </Button>
+                </InlineStack>
               </InlineStack>
 
               {linings.length > 0 ? (
