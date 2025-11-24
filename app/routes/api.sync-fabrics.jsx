@@ -86,10 +86,19 @@ export const action = async ({ request }) => {
       for (const [fullCode, colorInfo] of colorsFound) {
         if (colorInfo.fabricCode !== fabricCode) continue;
         
-        // 检查颜色是否已存在
-        const existingColor = await prisma.fabricColor.findUnique({
+        // 检查颜色是否已存在（检查标准化格式）
+        let existingColor = await prisma.fabricColor.findUnique({
           where: { fullCode }
         });
+        
+        // 如果标准化格式不存在，尝试查找带前导零的格式（如 8823-05）
+        if (!existingColor && colorInfo.colorCode.length < 2) {
+          const paddedCode = colorInfo.colorCode.padStart(2, '0');
+          const paddedFullCode = `${fabricCode}-${paddedCode}`;
+          existingColor = await prisma.fabricColor.findUnique({
+            where: { fullCode: paddedFullCode }
+          });
+        }
         
         if (!existingColor) {
           await prisma.fabricColor.create({

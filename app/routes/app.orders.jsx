@@ -1081,7 +1081,16 @@ export default function Orders() {
           // 将颜色编号转为整数再转字符串，去掉前导零（05 -> 5）
           const normalizedColorCode = parseInt(fabricCodeMatch[2], 10).toString();
           const fullCode = `${fabricCodeMatch[1]}-${normalizedColorCode}`;
-          const priceInfo = fabricPricesMap[fullCode];
+          
+          // 先尝试匹配标准化格式（8823-5）
+          let priceInfo = fabricPricesMap[fullCode];
+          
+          // 如果没找到，尝试带前导零的格式（8823-05）
+          if (!priceInfo && normalizedColorCode.length < 2) {
+            const paddedCode = normalizedColorCode.padStart(2, '0');
+            const paddedFullCode = `${fabricCodeMatch[1]}-${paddedCode}`;
+            priceInfo = fabricPricesMap[paddedFullCode];
+          }
           
           if (priceInfo) {
             // 布料单价 = 布料颜色单价 + 内衬单价
