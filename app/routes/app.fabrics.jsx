@@ -56,7 +56,6 @@ export const action = async ({ request }) => {
     const code = formData.get("code");
     const name = formData.get("name");
     const fabricPrice = parseFloat(formData.get("fabricPrice"));
-    const liningPrice = parseFloat(formData.get("liningPrice"));
 
     try {
       const fabric = await prisma.fabric.create({
@@ -66,7 +65,6 @@ export const action = async ({ request }) => {
           prices: {
             create: {
               fabricPrice,
-              liningPrice,
             }
           }
         }
@@ -104,14 +102,12 @@ export const action = async ({ request }) => {
   if (action === "updateFabricPrice") {
     const fabricId = formData.get("fabricId");
     const fabricPrice = parseFloat(formData.get("fabricPrice"));
-    const liningPrice = parseFloat(formData.get("liningPrice"));
 
     try {
       const price = await prisma.fabricPrice.create({
         data: {
           fabricId,
           fabricPrice,
-          liningPrice,
         }
       });
 
@@ -124,14 +120,12 @@ export const action = async ({ request }) => {
   if (action === "updateColorPrice") {
     const colorId = formData.get("colorId");
     const fabricPrice = parseFloat(formData.get("fabricPrice"));
-    const liningPrice = parseFloat(formData.get("liningPrice"));
 
     try {
       const price = await prisma.fabricColorPrice.create({
         data: {
           colorId,
           fabricPrice,
-          liningPrice,
         }
       });
 
@@ -228,8 +222,7 @@ export default function Fabrics() {
   const [newFabric, setNewFabric] = useState({
     code: '',
     name: '',
-    fabricPrice: '',
-    liningPrice: ''
+    fabricPrice: ''
   });
 
   // 新增颜色表单
@@ -240,8 +233,7 @@ export default function Fabrics() {
 
   // 价格编辑表单
   const [priceForm, setPriceForm] = useState({
-    fabricPrice: '',
-    liningPrice: ''
+    fabricPrice: ''
   });
 
   useEffect(() => {
@@ -309,7 +301,6 @@ export default function Fabrics() {
     formData.append("code", newFabric.code);
     formData.append("name", newFabric.name);
     formData.append("fabricPrice", newFabric.fabricPrice);
-    formData.append("liningPrice", newFabric.liningPrice);
     fetcher.submit(formData, { method: "POST" });
     setShowNewFabricModal(false);
   };
@@ -335,7 +326,6 @@ export default function Fabrics() {
       formData.append("fabricId", selectedFabric.id);
     }
     formData.append("fabricPrice", priceForm.fabricPrice);
-    formData.append("liningPrice", priceForm.liningPrice);
     fetcher.submit(formData, { method: "POST" });
     setShowPriceModal(false);
   };
@@ -412,7 +402,7 @@ export default function Fabrics() {
                           variant="primary"
                           onClick={() => {
                             setShowNewFabricModal(true);
-                            setNewFabric({ code: '', name: '', fabricPrice: '', liningPrice: '' });
+                            setNewFabric({ code: '', name: '', fabricPrice: '' });
                           }}
                         >
                           新建布料
@@ -450,10 +440,7 @@ export default function Fabrics() {
                                     <Badge tone="info">{fabric.colors.length} 个颜色</Badge>
                                   </InlineStack>
                                   <InlineStack gap="400" blockAlign="center">
-                                    <BlockStack gap="100">
-                                      <Text variant="bodySm" tone="subdued">布料: ¥{latestPrice?.fabricPrice.toFixed(2) || '0.00'}</Text>
-                                      <Text variant="bodySm" tone="subdued">内衬: ¥{latestPrice?.liningPrice.toFixed(2) || '0.00'}</Text>
-                                    </BlockStack>
+                                    <Text variant="headingMd">¥{latestPrice?.fabricPrice.toFixed(2) || '0.00'}/米</Text>
                                     <InlineStack gap="200">
                                       <Button
                                         size="slim"
@@ -473,8 +460,7 @@ export default function Fabrics() {
                                           setSelectedColor(null);
                                           setShowPriceModal(true);
                                           setPriceForm({
-                                            fabricPrice: latestPrice?.fabricPrice || '',
-                                            liningPrice: latestPrice?.liningPrice || ''
+                                            fabricPrice: latestPrice?.fabricPrice || ''
                                           });
                                         }}
                                       >
@@ -522,10 +508,7 @@ export default function Fabrics() {
                                                 {colorPrice && <Badge tone="success">独立价格</Badge>}
                                               </InlineStack>
                                               <InlineStack gap="400" blockAlign="center">
-                                                <BlockStack gap="100">
-                                                  <Text variant="bodySm">布料: ¥{effectivePrice?.fabricPrice?.toFixed(2) || '0.00'}</Text>
-                                                  <Text variant="bodySm">内衬: ¥{effectivePrice?.liningPrice?.toFixed(2) || '0.00'}</Text>
-                                                </BlockStack>
+                                                <Text variant="headingMd">¥{effectivePrice?.fabricPrice?.toFixed(2) || '0.00'}/米</Text>
                                                 <InlineStack gap="200">
                                                   <Button
                                                     size="slim"
@@ -534,8 +517,7 @@ export default function Fabrics() {
                                                       setSelectedColor(color);
                                                       setShowPriceModal(true);
                                                       setPriceForm({
-                                                        fabricPrice: colorPrice?.fabricPrice || fabricPrice?.fabricPrice || '',
-                                                        liningPrice: colorPrice?.liningPrice || fabricPrice?.liningPrice || ''
+                                                        fabricPrice: colorPrice?.fabricPrice || fabricPrice?.fabricPrice || ''
                                                       });
                                                     }}
                                                   >
@@ -606,10 +588,7 @@ export default function Fabrics() {
                                   </Text>
                                   {colorPrice && <Badge tone="success">独立价格</Badge>}
                                 </BlockStack>
-                                <BlockStack gap="200">
-                                  <Text>布料: ¥{effectivePrice?.fabricPrice.toFixed(2) || '-'}</Text>
-                                  <Text>内衬: ¥{effectivePrice?.liningPrice.toFixed(2) || '-'}</Text>
-                                </BlockStack>
+                                <Text variant="headingMd">¥{effectivePrice?.fabricPrice.toFixed(2) || '-'}/米</Text>
                                 <InlineStack gap="200">
                                   <Button
                                     size="slim"
@@ -618,8 +597,7 @@ export default function Fabrics() {
                                       setSelectedColor(color);
                                       setShowPriceModal(true);
                                       setPriceForm({
-                                        fabricPrice: effectivePrice?.fabricPrice || '',
-                                        liningPrice: effectivePrice?.liningPrice || ''
+                                        fabricPrice: effectivePrice?.fabricPrice || ''
                                       });
                                     }}
                                   >
@@ -663,10 +641,7 @@ export default function Fabrics() {
                                     </Text>
                                     {colorPrice && <Badge tone="success">独立价格</Badge>}
                                   </BlockStack>
-                                  <BlockStack gap="200">
-                                    <Text>布料: ¥{effectivePrice?.fabricPrice.toFixed(2) || '-'}</Text>
-                                    <Text>内衬: ¥{effectivePrice?.liningPrice.toFixed(2) || '-'}</Text>
-                                  </BlockStack>
+                                  <Text variant="headingMd">¥{effectivePrice?.fabricPrice.toFixed(2) || '-'}/米</Text>
                                   <InlineStack gap="200">
                                     <Button
                                       size="slim"
@@ -675,8 +650,7 @@ export default function Fabrics() {
                                         setSelectedColor(color);
                                         setShowPriceModal(true);
                                         setPriceForm({
-                                          fabricPrice: effectivePrice?.fabricPrice || '',
-                                          liningPrice: effectivePrice?.liningPrice || ''
+                                          fabricPrice: effectivePrice?.fabricPrice || ''
                                         });
                                       }}
                                     >
@@ -720,7 +694,7 @@ export default function Fabrics() {
         primaryAction={{
           content: '创建',
           onAction: handleCreateFabric,
-          disabled: !newFabric.code || !newFabric.fabricPrice || !newFabric.liningPrice
+          disabled: !newFabric.code || !newFabric.fabricPrice
         }}
         secondaryActions={[{
           content: '取消',
@@ -749,15 +723,6 @@ export default function Fabrics() {
               type="number"
               value={newFabric.fabricPrice}
               onChange={(value) => setNewFabric({ ...newFabric, fabricPrice: value })}
-              placeholder="0.00"
-              autoComplete="off"
-              requiredIndicator
-            />
-            <TextField
-              label="内衬价格（¥/米）"
-              type="number"
-              value={newFabric.liningPrice}
-              onChange={(value) => setNewFabric({ ...newFabric, liningPrice: value })}
               placeholder="0.00"
               autoComplete="off"
               requiredIndicator
@@ -811,7 +776,7 @@ export default function Fabrics() {
         primaryAction={{
           content: '保存',
           onAction: handleUpdatePrice,
-          disabled: !priceForm.fabricPrice || !priceForm.liningPrice
+          disabled: !priceForm.fabricPrice
         }}
         secondaryActions={[{
           content: '取消',
@@ -830,15 +795,6 @@ export default function Fabrics() {
               type="number"
               value={priceForm.fabricPrice}
               onChange={(value) => setPriceForm({ ...priceForm, fabricPrice: value })}
-              placeholder="0.00"
-              autoComplete="off"
-              requiredIndicator
-            />
-            <TextField
-              label="内衬价格（¥/米）"
-              type="number"
-              value={priceForm.liningPrice}
-              onChange={(value) => setPriceForm({ ...priceForm, liningPrice: value })}
               placeholder="0.00"
               autoComplete="off"
               requiredIndicator
@@ -873,10 +829,7 @@ export default function Fabrics() {
                         {formatDate(price.effectiveDate)}
                       </Text>
                     </InlineStack>
-                    <InlineStack gap="400">
-                      <Text>布料价格: ¥{price.fabricPrice.toFixed(2)}</Text>
-                      <Text>内衬价格: ¥{price.liningPrice.toFixed(2)}</Text>
-                    </InlineStack>
+                    <Text>布料价格: ¥{price.fabricPrice.toFixed(2)}/米</Text>
                   </BlockStack>
                 </Card>
               ))}

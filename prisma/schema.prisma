@@ -95,7 +95,6 @@ model FabricPrice {
   fabricId        String   // 关联的布料ID
   fabric          Fabric   @relation(fields: [fabricId], references: [id], onDelete: Cascade)
   fabricPrice     Float    // 布料价格（每米/码）
-  liningPrice     Float    // 内衬价格（每米/码）
   effectiveDate   DateTime @default(now()) // 生效时间
   createdAt       DateTime @default(now())
   createdBy       String?  // 创建人
@@ -107,8 +106,29 @@ model FabricColorPrice {
   colorId         String      // 关联的颜色ID
   color           FabricColor @relation(fields: [colorId], references: [id], onDelete: Cascade)
   fabricPrice     Float       // 布料价格（每米/码）
-  liningPrice     Float       // 内衬价格（每米/码）
   effectiveDate   DateTime    @default(now()) // 生效时间
   createdAt       DateTime    @default(now())
   createdBy       String?     // 创建人
+}
+
+// 衬布类型及价格管理
+model Lining {
+  id              String        @id @default(uuid())
+  type            String        @unique // 衬布类型名称，如 "No Lining", "Standard", "Blackout"
+  price           Float         // 衬布价格（每米/码）
+  description     String?       // 描述
+  prices          LiningPrice[] // 价格历史记录
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+// 衬布价格历史记录
+model LiningPrice {
+  id              String   @id @default(uuid())
+  liningId        String   // 关联的衬布ID
+  lining          Lining   @relation(fields: [liningId], references: [id], onDelete: Cascade)
+  price           Float    // 衬布价格（每米/码）
+  effectiveDate   DateTime @default(now()) // 生效时间
+  createdAt       DateTime @default(now())
+  createdBy       String?  // 创建人
 }

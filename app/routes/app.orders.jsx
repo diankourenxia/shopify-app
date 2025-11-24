@@ -922,11 +922,10 @@ export default function Orders() {
 
     // 获取布料价格数据
     const fabricPricesMap = {};
+    // 获取衬布价格数据
+    const liningPricesMap = {};
+    
     try {
-      const response = await fetch('/app/fabrics');
-      const html = await response.text();
-      // 从页面 loader 数据中提取布料价格
-      // 更好的方式是创建一个 API 端点
       const fabricsResponse = await fetch('/api/fabric-prices');
       if (fabricsResponse.ok) {
         const { fabrics } = await fabricsResponse.json();
@@ -939,8 +938,17 @@ export default function Orders() {
           });
         });
       }
+      
+      // 获取衬布价格
+      const liningsResponse = await fetch('/api/lining-prices');
+      if (liningsResponse.ok) {
+        const { linings } = await liningsResponse.json();
+        linings.forEach(lining => {
+          liningPricesMap[lining.type] = lining.price;
+        });
+      }
     } catch (error) {
-      console.error('获取布料价格失败:', error);
+      console.error('获取价格失败:', error);
     }
     
     // 准备Excel数据 - 每个商品一行
@@ -1095,11 +1103,14 @@ export default function Orders() {
           }
           
           if (priceInfo) {
-            // 布料单价 = 布料颜色单价 + 内衬单价
-            const unitPrice = priceInfo.fabricPrice + priceInfo.liningPrice;
+            // 获取衬布价格
+            const liningPrice = liningPricesMap[lining] || 0;
+            
+            // 布料单价 = 布料颜色单价 + 衬布单价
+            const unitPrice = priceInfo.fabricPrice + liningPrice;
             fabricUnitPrice = unitPrice.toFixed(2);
             
-            // 布料成本 = 布料采购米数 * 布料单价
+            // 布料成本 = 布料采购米数 * (布料单价 + 衬布单价)
             const cost = purchaseMeters * unitPrice;
             fabricCost = cost.toFixed(2);
           }

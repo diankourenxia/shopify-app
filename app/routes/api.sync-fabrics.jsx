@@ -74,7 +74,6 @@ export const action = async ({ request }) => {
             prices: {
               create: {
                 fabricPrice: 0,
-                liningPrice: 0,
               }
             }
           }
