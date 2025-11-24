@@ -244,13 +244,18 @@ export default function Fabrics() {
   });
 
   useEffect(() => {
-    if (fetcher.data?.success) {
-      // 重新加载数据
+    if (fetcher.data?.prices) {
+      // 获取价格历史数据
+      setPriceHistory(fetcher.data.prices);
+    } else if (fetcher.data?.success && fetcher.data?.message) {
+      // 删除操作或其他需要刷新的操作
+      alert(fetcher.data.message);
+      window.location.reload();
+    } else if (fetcher.data?.success) {
+      // 其他成功操作，重新加载数据
       window.location.reload();
     } else if (fetcher.data?.error) {
       alert(fetcher.data.error);
-    } else if (fetcher.data?.prices) {
-      setPriceHistory(fetcher.data.prices);
     }
   }, [fetcher.data]);
 
@@ -335,12 +340,16 @@ export default function Fabrics() {
   };
 
   const handleViewHistory = (type, id) => {
+    // 先清空旧数据并显示模态框
+    setPriceHistory([]);
+    setShowHistoryModal(true);
+    
+    // 然后获取新数据
     const formData = new FormData();
     formData.append("action", "getPriceHistory");
     formData.append("type", type);
     formData.append("id", id);
     fetcher.submit(formData, { method: "POST" });
-    setShowHistoryModal(true);
   };
 
   const formatDate = (dateString) => {
@@ -747,7 +756,9 @@ export default function Fabrics() {
         }]}
       >
         <Modal.Section>
-          {priceHistory.length > 0 ? (
+          {fetcher.state === 'submitting' || fetcher.state === 'loading' ? (
+            <Text>加载中...</Text>
+          ) : priceHistory.length > 0 ? (
             <BlockStack gap="300">
               {priceHistory.map((price, index) => (
                 <Card key={price.id}>
