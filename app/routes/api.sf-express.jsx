@@ -111,6 +111,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder) {
   }));
 
   return {
+    customerCode: "ICRME000SRN93",
     customerOrderNo: shopifyOrder.name,
     interProductCode: "INT0014", // 国际快递
     pickupType: "0", // 上门收件
@@ -238,17 +239,29 @@ export const action = async ({ request }) => {
       // 1. 创建顺丰运单
       const createResult = await createSfOrder(sfOrderData);
       
-      // 检查创建结果
-      if (!createResult || createResult.apiResponseCode !== "A1000") {
+      console.log('创建运单完整响应:', JSON.stringify(createResult, null, 2));
+      
+      // 检查创建结果 - 支持两种响应格式
+      const isSuccess = createResult?.apiResponseCode === "A1000" || 
+                       createResult?.success === "true" || 
+                       createResult?.ok === true;
+      
+      if (!createResult || !isSuccess) {
+        const errorMsg = createResult?.msg || 
+                        createResult?.apiErrorMsg || 
+                        createResult?.data?.msg || 
+                        "未知错误";
+        
         return json({ 
           error: "创建运单失败", 
-          details: createResult?.apiErrorMsg || "未知错误",
-          data: createResult
+          details: errorMsg,
+          fullResponse: createResult
         }, { status: 400 });
       }
 
-      // 提取运单号
-      const waybillNo = createResult.apiResultData?.msgData?.waybillNoInfoList?.[0]?.waybillNo;
+      // 提取运单号 - 支持多种响应格式
+      const waybillNo = createResult.apiResultData?.msgData?.waybillNoInfoList?.[0]?.waybillNo ||
+                       createResult.data?.waybillNo;
       
       if (!waybillNo) {
         return json({ 
