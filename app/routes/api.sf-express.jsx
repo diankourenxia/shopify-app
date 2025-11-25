@@ -266,39 +266,44 @@ export const action = async ({ request }) => {
       }
 
       // 提取运单号 - 支持多种响应格式
-      const waybillNo = createResult.apiResultData?.msgData?.waybillNoInfoList?.[0]?.waybillNo ||
-                       createResult.data?.waybillNo;
+      const waybillNo = createResult.data?.sfWaybillNo ||
+                       createResult.apiResultData?.msgData?.waybillNoInfoList?.[0]?.waybillNo;
       
       if (!waybillNo) {
         return json({ 
           error: "未获取到运单号", 
-          data: createResult 
+          fullResponse: createResult 
         }, { status: 400 });
       }
 
-      // 2. 获取打印URL
-      const printData = {
-        printWaybillNoDtoList: [
-          {
-            sfWaybillNo: waybillNo,
-          },
-        ],
-      };
-      
-      const printResult = await printSfOrder(printData);
+      // 提取打印URL - 优先使用创建接口返回的URL
+      let printUrl = createResult.data?.labelUrl || createResult.data?.invoiceUrl;
 
-      // 提取打印URL
-      let printUrl = null;
-      if (printResult?.apiResultData?.msgData?.files) {
-        printUrl = printResult.apiResultData.msgData.files[0]?.url;
+      // 如果创建接口没有返回打印URL，则调用打印接口
+      if (!printUrl) {
+        const printData = {
+          printWaybillNoDtoList: [
+            {
+              sfWaybillNo: waybillNo,
+            },
+          ],
+        };
+        
+        const printResult = await printSfOrder(printData);
+
+        // 提取打印URL
+        if (printResult?.apiResultData?.msgData?.files) {
+          printUrl = printResult.apiResultData.msgData.files[0]?.url;
+        }
       }
 
       return json({
         success: true,
         waybillNo: waybillNo,
         printUrl: printUrl,
-        createResult: createResult,
-        printResult: printResult,
+        labelUrl: createResult.data?.labelUrl,
+        invoiceUrl: createResult.data?.invoiceUrl,
+        childWaybillNos: createResult.data?.childWaybillNoList,
         message: `运单创建成功！运单号：${waybillNo}`,
       });
     }
