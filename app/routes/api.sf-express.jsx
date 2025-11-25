@@ -88,7 +88,7 @@ async function printSfOrder(printData) {
 /**
  * 从Shopify订单创建运单数据
  */
-function convertShopifyOrderToSfOrder(shopifyOrder) {
+function convertShopifyOrderToSfOrder(shopifyOrder, parcelQuantity = 1) {
   // 计算总重量
   const totalWeight = calculateTotalWeight(shopifyOrder.lineItems);
   
@@ -110,7 +110,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder) {
   const parcelInfoList = shopifyOrder.lineItems.edges.map(({ node: item }) => ({
     name: item.title,
     quantity: item.quantity,
-    amount:Math.max(10, Math.round(parseFloat(item.variant?.price || 1)/5)),
+    amount:Math.max(10, Math.round(parseFloat(item.variant?.price || 1))),
     currency: 'CNY',
     unit: "套",
   }));
@@ -120,8 +120,8 @@ function convertShopifyOrderToSfOrder(shopifyOrder) {
     customerOrderNo: shopifyOrder.name,
     interProductCode: "INT0014", // 国际快递
     pickupType: "0", // 上门收件
-    parcelQuantity: shopifyOrder.lineItems.edges.length,
-    parcelTotalWeight: totalWeight,
+    parcelQuantity: parcelQuantity, // 使用传入的包裹数量
+    parcelTotalWeight: totalWeight * parcelQuantity, // 总重量 = 单个重量 × 包裹数
     parcelWeightUnit: "KG",
     parcelTotalLength: "30",
     parcelTotalWidth: "20",
@@ -182,6 +182,12 @@ export const action = async ({ request }) => {
     if (action === "createAndPrint") {
       // 创建运单并打印
       const orderId = formData.get("orderId");
+      const parcelQuantity = parseInt(formData.get("parcelQuantity") || "1");
+      
+      // 验证包裹数量
+      if (parcelQuantity < 1 || parcelQuantity > 99) {
+        return json({ error: "包裹数量必须在 1-99 之间" }, { status: 400 });
+      }
       
       // 获取订单详情
       const response = await admin.graphql(
@@ -238,8 +244,8 @@ export const action = async ({ request }) => {
         return json({ error: "订单不存在" }, { status: 404 });
       }
 
-      // 转换订单数据
-      const sfOrderData = convertShopifyOrderToSfOrder(order);
+      // 转换订单数据，传入包裹数量
+      const sfOrderData = convertShopifyOrderToSfOrder(order, parcelQuantity);
 
       // 1. 创建顺丰运单
       const createResult = await createSfOrder(sfOrderData);

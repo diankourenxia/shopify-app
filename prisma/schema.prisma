@@ -44,6 +44,7 @@ model OrderStatus {
   sfLabelUrl     String?  // 面单打印链接
   sfInvoiceUrl   String?  // 发票打印链接
   sfCreatedAt    DateTime? // 运单创建时间
+  sfPrintCount   Int      @default(0) // 打印次数，用于生成递增后缀
   
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())

@@ -737,6 +737,9 @@ export default function Orders() {
   const tagFetcher = useFetcher();
   const sfFetcher = useFetcher(); // 顺丰快递打印
   const [printingOrderId, setPrintingOrderId] = useState(null); // 正在打印的订单ID
+  const [printModalOpen, setPrintModalOpen] = useState(false); // 打印弹窗
+  const [printOrderId, setPrintOrderId] = useState(null); // 要打印的订单ID
+  const [parcelQuantity, setParcelQuantity] = useState("1"); // 包裹数量
   const navigate = useNavigate();
   
   const [orders, setOrders] = useState(initialOrders);
@@ -1354,12 +1357,30 @@ export default function Orders() {
     commentFetcher.load(`/api/comments?orderId=${orderId}`);
   };
 
+  // 打开打印弹窗
+  const handleOpenPrintModal = (orderId) => {
+    setPrintOrderId(orderId);
+    setPrintModalOpen(true);
+    setParcelQuantity("1"); // 重置为默认值
+  };
+
   // 创建并打印运单
-  const handlePrintOrder = (orderId) => {
-    setPrintingOrderId(orderId);
+  const handlePrintOrder = () => {
+    if (!printOrderId) return;
+    
+    const quantity = parseInt(parcelQuantity) || 1;
+    if (quantity < 1 || quantity > 99) {
+      shopify.toast.show("包裹数量必须在 1-99 之间", { isError: true });
+      return;
+    }
+    
+    setPrintingOrderId(printOrderId);
+    setPrintModalOpen(false);
+    
     const formData = new FormData();
     formData.append("action", "createAndPrint");
-    formData.append("orderId", orderId);
+    formData.append("orderId", printOrderId);
+    formData.append("parcelQuantity", quantity.toString());
     sfFetcher.submit(formData, { 
       method: "POST", 
       action: "/api/sf-express" 
@@ -1870,7 +1891,7 @@ export default function Orders() {
       <ButtonGroup key={`actions-${order.id}`}>
         <Button
           size="slim"
-          onClick={() => handlePrintOrder(order.id)}
+          onClick={() => handleOpenPrintModal(order.id)}
           loading={printingOrderId === order.id}
           variant="primary"
         >
@@ -2062,6 +2083,42 @@ export default function Orders() {
           </Card>
         </Layout.Section>
       </Layout>
+
+      {/* 打印运单 Modal */}
+      <Modal
+        open={printModalOpen}
+        onClose={() => setPrintModalOpen(false)}
+        title="打印顺丰运单"
+        primaryAction={{
+          content: '确认打印',
+          onAction: handlePrintOrder,
+          loading: printingOrderId !== null,
+        }}
+        secondaryActions={[
+          {
+            content: '取消',
+            onAction: () => setPrintModalOpen(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <Text variant="bodyMd">
+              请输入需要打印的包裹数量：
+            </Text>
+            <TextField
+              label="包裹数量"
+              type="number"
+              value={parcelQuantity}
+              onChange={setParcelQuantity}
+              min={1}
+              max={99}
+              autoComplete="off"
+              helpText="输入 1-99 之间的数字，默认为 1"
+            />
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
 
       {/* 评论查询 Modal */}
       <Modal
