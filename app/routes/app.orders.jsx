@@ -723,6 +723,7 @@ export default function Orders() {
   const commentFetcher = useFetcher();
   const tagFetcher = useFetcher();
   const sfFetcher = useFetcher(); // 顺丰快递打印
+  const [printingOrderId, setPrintingOrderId] = useState(null); // 正在打印的订单ID
   const navigate = useNavigate();
   
   const [orders, setOrders] = useState(initialOrders);
@@ -800,6 +801,29 @@ export default function Orders() {
       shopify.toast.show(cacheFetcher.data.error, { duration: 3000, isError: true });
     }
   }, [cacheFetcher.data]);
+
+  // 处理顺丰打印结果
+  useEffect(() => {
+    if (sfFetcher.data) {
+      setPrintingOrderId(null); // 清除打印状态
+      
+      if (sfFetcher.data.success) {
+        shopify.toast.show(`运单创建成功！运单号：${sfFetcher.data.waybillNo}`, { 
+          duration: 5000 
+        });
+        
+        // 如果有打印URL，自动在新窗口打开
+        if (sfFetcher.data.printUrl) {
+          window.open(sfFetcher.data.printUrl, '_blank');
+        }
+      } else if (sfFetcher.data.error) {
+        shopify.toast.show(`打印失败：${sfFetcher.data.error}`, { 
+          duration: 5000, 
+          isError: true 
+        });
+      }
+    }
+  }, [sfFetcher.data]);
 
   // 处理评论查询结果
   useEffect(() => {
@@ -1293,6 +1317,18 @@ export default function Orders() {
     commentFetcher.load(`/api/comments?orderId=${orderId}`);
   };
 
+  // 创建并打印运单
+  const handlePrintOrder = (orderId) => {
+    setPrintingOrderId(orderId);
+    const formData = new FormData();
+    formData.append("action", "createAndPrint");
+    formData.append("orderId", orderId);
+    sfFetcher.submit(formData, { 
+      method: "POST", 
+      action: "/api/sf-express" 
+    });
+  };
+
   const getStatusBadge = (status) => {
     const badgeMap = {
       'FULFILLED': { status: 'success', children: '已发货' },
@@ -1767,6 +1803,14 @@ export default function Orders() {
       <ButtonGroup key={`actions-${order.id}`}>
         <Button
           size="slim"
+          onClick={() => handlePrintOrder(order.id)}
+          loading={printingOrderId === order.id}
+          variant="primary"
+        >
+          打印运单
+        </Button>
+        <Button
+          size="slim"
           url={`/app/orders/${orderId}`}
         >
           查看详情
@@ -1912,16 +1956,6 @@ export default function Orders() {
                   <Text variant="bodyMd" tone="subdued">
                     已选择 {selectedOrders.size} 个订单
                   </Text>
-                  <Button 
-                    onClick={() => {
-                      // 批量创建打印（暂不实现，提示用户）
-                      alert('批量打印功能开发中，请在订单详情页单独打印');
-                    }}
-                    disabled={selectedOrders.size === 0}
-                    loading={sfFetcher.state === "submitting"}
-                  >
-                    批量打印运单
-                  </Button>
                   <Button 
                     onClick={handleExportExcel} 
                     disabled={selectedOrders.size === 0}
