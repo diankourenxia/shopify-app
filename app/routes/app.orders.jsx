@@ -1895,7 +1895,7 @@ export default function Orders() {
           loading={printingOrderId === order.id}
           variant="primary"
         >
-          打印运单
+          {waybillMap[order.id] ? '重新打印' : '打印运单'}
         </Button>
         <Button
           size="slim"
