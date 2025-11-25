@@ -722,6 +722,7 @@ export default function Orders() {
   const cacheFetcher = useFetcher();
   const commentFetcher = useFetcher();
   const tagFetcher = useFetcher();
+  const sfFetcher = useFetcher(); // 顺丰快递打印
   const navigate = useNavigate();
   
   const [orders, setOrders] = useState(initialOrders);
@@ -1911,6 +1912,16 @@ export default function Orders() {
                   <Text variant="bodyMd" tone="subdued">
                     已选择 {selectedOrders.size} 个订单
                   </Text>
+                  <Button 
+                    onClick={() => {
+                      // 批量创建打印（暂不实现，提示用户）
+                      alert('批量打印功能开发中，请在订单详情页单独打印');
+                    }}
+                    disabled={selectedOrders.size === 0}
+                    loading={sfFetcher.state === "submitting"}
+                  >
+                    批量打印运单
+                  </Button>
                   <Button 
                     onClick={handleExportExcel} 
                     disabled={selectedOrders.size === 0}

@@ -1,4 +1,5 @@
-import { useLoaderData, useParams } from "@remix-run/react";
+import { useLoaderData, useParams, useFetcher } from "@remix-run/react";
+import { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -11,6 +12,8 @@ import {
   DataTable,
   Button,
   Link,
+  Modal,
+  Spinner,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -159,6 +162,44 @@ export const loader = async ({ request, params }) => {
 export default function OrderDetail() {
   const { order } = useLoaderData();
   const params = useParams();
+  const sfFetcher = useFetcher();
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printResult, setPrintResult] = useState(null);
+
+  // 处理打印结果
+  useEffect(() => {
+    if (sfFetcher.data) {
+      if (sfFetcher.data.success) {
+        setPrintResult(sfFetcher.data);
+        setShowPrintModal(true);
+        shopify.toast.show(`运单创建成功！运单号：${sfFetcher.data.waybillNo}`, { 
+          duration: 5000 
+        });
+        
+        // 如果有打印URL，自动在新窗口打开
+        if (sfFetcher.data.printUrl) {
+          window.open(sfFetcher.data.printUrl, '_blank');
+        }
+      } else if (sfFetcher.data.error) {
+        shopify.toast.show(`操作失败：${sfFetcher.data.error}`, { 
+          duration: 5000, 
+          isError: true 
+        });
+      }
+    }
+  }, [sfFetcher.data]);
+
+  // 创建并打印运单
+  const handleCreateAndPrint = () => {
+    const formData = new FormData();
+    formData.append("action", "createAndPrint");
+    formData.append("orderId", order.id);
+    sfFetcher.submit(formData, { 
+      method: "POST", 
+      action: "/api/sf-express" 
+    });
+  };
+
   const getStatusBadge = (status) => {
     const statusMap = {
       'FULFILLED': { status: 'success', children: '已发货' },
@@ -562,6 +603,13 @@ export default function OrderDetail() {
             <Card>
               <InlineStack gap="300">
                 <Button
+                  onClick={handleCreateAndPrint}
+                  loading={sfFetcher.state === "submitting"}
+                  variant="primary"
+                >
+                  创建运单并打印
+                </Button>
+                <Button
                   url={`shopify:admin/orders/${params.id}`}
                   target="_blank"
                 >
@@ -582,6 +630,60 @@ export default function OrderDetail() {
           </BlockStack>
         </Layout.Section>
       </Layout>
+
+      {/* 打印结果 Modal */}
+      <Modal
+        open={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        title="运单创建成功"
+        primaryAction={{
+          content: '关闭',
+          onAction: () => setShowPrintModal(false),
+        }}
+        secondaryActions={printResult?.printUrl ? [
+          {
+            content: '重新打开打印页面',
+            onAction: () => window.open(printResult.printUrl, '_blank'),
+          }
+        ] : []}
+      >
+        <Modal.Section>
+          {printResult && (
+            <BlockStack gap="400">
+              <Card>
+                <BlockStack gap="300">
+                  <Text variant="bodyMd">
+                    <strong>运单号：</strong>{printResult.waybillNo}
+                  </Text>
+                  {printResult.printUrl && (
+                    <Text variant="bodyMd">
+                      <strong>打印地址：</strong>
+                      <a 
+                        href={printResult.printUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ color: '#2c6ecb', textDecoration: 'underline' }}
+                      >
+                        {printResult.printUrl}
+                      </a>
+                    </Text>
+                  )}
+                </BlockStack>
+              </Card>
+              
+              <Text variant="bodyMd" tone="success">
+                ✅ 运单已创建成功！{printResult.printUrl ? '打印页面已在新窗口打开。' : ''}
+              </Text>
+              
+              {!printResult.printUrl && (
+                <Text variant="bodyMd" tone="subdued">
+                  请在顺丰系统中使用运单号查询并打印。
+                </Text>
+              )}
+            </BlockStack>
+          )}
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }
