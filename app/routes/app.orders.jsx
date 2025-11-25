@@ -808,14 +808,23 @@ export default function Orders() {
       setPrintingOrderId(null); // 清除打印状态
       
       if (sfFetcher.data.success) {
-        shopify.toast.show(`运单创建成功！运单号：${sfFetcher.data.waybillNo}`, { 
+        const waybillInfo = sfFetcher.data.childWaybillNos && sfFetcher.data.childWaybillNos.length > 0
+          ? `主运单：${sfFetcher.data.waybillNo}，子运单数量：${sfFetcher.data.childWaybillNos.length}`
+          : `运单号：${sfFetcher.data.waybillNo}`;
+        
+        shopify.toast.show(`运单创建成功！${waybillInfo}`, { 
           duration: 5000 
         });
         
-        // 如果有打印URL，自动在新窗口打开
-        if (sfFetcher.data.printUrl) {
-          window.open(sfFetcher.data.printUrl, '_blank');
+        // 自动打开面单打印页面
+        if (sfFetcher.data.labelUrl) {
+          window.open(sfFetcher.data.labelUrl, '_blank');
         }
+        
+        // 可选：同时打开发票打印页面（如果需要）
+        // if (sfFetcher.data.invoiceUrl) {
+        //   setTimeout(() => window.open(sfFetcher.data.invoiceUrl, '_blank'), 500);
+        // }
       } else if (sfFetcher.data.error) {
         shopify.toast.show(`打印失败：${sfFetcher.data.error}`, { 
           duration: 5000, 
