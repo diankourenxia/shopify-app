@@ -110,7 +110,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder) {
   const parcelInfoList = shopifyOrder.lineItems.edges.map(({ node: item }) => ({
     name: item.title,
     quantity: item.quantity,
-    amount: parseFloat(item.variant?.price || 0),
+    amount: Math.max(1, parseFloat(item.variant?.price || 1)),
     currency: shopifyOrder.totalPriceSet.shopMoney.currencyCode,
     unit: "个",
   }));
@@ -145,6 +145,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder) {
     // 支付信息
     paymentInfo: {
       payMethod: "1", // 寄方付
+      taxPayMethod: "1", // 税费支付方式
     },
     
     orderOperateType: "1", // 新增
