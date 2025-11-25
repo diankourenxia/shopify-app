@@ -110,7 +110,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder) {
   const parcelInfoList = shopifyOrder.lineItems.edges.map(({ node: item }) => ({
     name: item.title,
     quantity: item.quantity,
-    amount:Math.max(1, parseFloat(item.variant?.price || 1)),
+    amount:Math.max(1, Math.round(parseFloat(item.variant?.price || 1)/5)),
     currency: 'CNY',
     unit: "套",
   }));
@@ -127,7 +127,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder) {
     parcelTotalWidth: "20",
     parcelTotalHeight: "10",
     parcelVolumeUnit: "CM",
-    declaredValue: Math.round(parseFloat(shopifyOrder.totalPriceSet.shopMoney.amount)),
+    declaredValue: Math.round(parseFloat(shopifyOrder.totalPriceSet.shopMoney.amount/5)),
     declaredCurrency: 'CNY',
     // 发件人信息
     senderInfo: {
