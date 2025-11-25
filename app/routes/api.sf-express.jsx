@@ -251,10 +251,11 @@ export const action = async ({ request }) => {
       });
       
       const printCount = existingStatus?.sfPrintCount || 0;
-      const isReprint = printCount > 0;
       
-      // 如果是重新打印，在订单号后面加上递增后缀
-      const orderName = isReprint ? `${order.name}-${printCount}` : order.name;
+      // 始终在订单号后面加上递增后缀（防止重复）
+      const orderName = `${order.name}-${printCount + 1}`;
+      
+      console.log(`订单 ${order.name} 打印次数: ${printCount}, 使用订单号: ${orderName}`);
       
       // 转换订单数据，传入包裹数量和修改后的订单号
       const sfOrderData = convertShopifyOrderToSfOrder(order, parcelQuantity, orderName);
