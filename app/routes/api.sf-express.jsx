@@ -111,7 +111,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder) {
     name: item.title,
     quantity: item.quantity,
     amount:Math.max(1, parseFloat(item.variant?.price || 1)),
-    currency: 'RMB',
+    currency: 'CNY',
     unit: "套",
   }));
 
@@ -128,7 +128,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder) {
     parcelTotalHeight: "10",
     parcelVolumeUnit: "CM",
     declaredValue: Math.round(parseFloat(shopifyOrder.totalPriceSet.shopMoney.amount)),
-    declaredCurrency: 'RMB',
+    declaredCurrency: 'CNY',
     // 发件人信息
     senderInfo: {
       ...SENDER_CONFIG,
