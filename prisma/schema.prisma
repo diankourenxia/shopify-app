@@ -38,6 +38,13 @@ model OrderStatus {
   lineItemId  String?  
   status      String   // 自定义状态，例如: 待生产、生产中、暂停生产、待发货、已发货
   note        String?  // 备注信息
+  
+  // 顺丰快递运单信息
+  sfWaybillNo    String?  // 顺丰运单号
+  sfLabelUrl     String?  // 面单打印链接
+  sfInvoiceUrl   String?  // 发票打印链接
+  sfCreatedAt    DateTime? // 运单创建时间
+  
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 }

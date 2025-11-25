@@ -160,6 +160,7 @@ export const loader = async ({ request }) => {
   // 获取所有订单的自定义状态和备注
   let statusMap = {};
   let noteMap = {};
+  let waybillMap = {}; // 运单信息映射
   let allTags = [];
   let orderTagsMap = {};
   
@@ -170,6 +171,16 @@ export const loader = async ({ request }) => {
       const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
       statusMap[key] = status.status;
       noteMap[key] = status.note || '';
+      
+      // 保存运单信息
+      if (status.sfWaybillNo) {
+        waybillMap[status.orderId] = {
+          waybillNo: status.sfWaybillNo,
+          labelUrl: status.sfLabelUrl,
+          invoiceUrl: status.sfInvoiceUrl,
+          createdAt: status.sfCreatedAt,
+        };
+      }
     });
     
     // 确保预设标签存在
@@ -323,6 +334,7 @@ export const loader = async ({ request }) => {
       pageInfo,
       statusMap,
       noteMap,
+      waybillMap,
       allTags,
       orderTagsMap,
       fromCache: false,
@@ -711,6 +723,7 @@ export default function Orders() {
     pageInfo: initialPageInfo, 
     statusMap: initialStatusMap,
     noteMap: initialNoteMap,
+    waybillMap: initialWaybillMap,
     allTags: initialTags,
     orderTagsMap: initialOrderTagsMap,
     fromCache: initialFromCache,
@@ -730,6 +743,7 @@ export default function Orders() {
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
   const [statusMap, setStatusMap] = useState(initialStatusMap || {});
   const [noteMap, setNoteMap] = useState(initialNoteMap || {});
+  const [waybillMap, setWaybillMap] = useState(initialWaybillMap || {});
   const [allTags, setAllTags] = useState(initialTags || []);
   const [orderTagsMap, setOrderTagsMap] = useState(initialOrderTagsMap || {});
   const [searchQuery, setSearchQuery] = useState("");
@@ -805,6 +819,7 @@ export default function Orders() {
   // 处理顺丰打印结果
   useEffect(() => {
     if (sfFetcher.data) {
+      const orderId = printingOrderId;
       setPrintingOrderId(null); // 清除打印状态
       
       if (sfFetcher.data.success) {
@@ -815,6 +830,19 @@ export default function Orders() {
         shopify.toast.show(`运单创建成功！${waybillInfo}`, { 
           duration: 5000 
         });
+        
+        // 更新运单信息到状态
+        if (orderId) {
+          setWaybillMap(prev => ({
+            ...prev,
+            [orderId]: {
+              waybillNo: sfFetcher.data.waybillNo,
+              labelUrl: sfFetcher.data.labelUrl,
+              invoiceUrl: sfFetcher.data.invoiceUrl,
+              createdAt: new Date(),
+            }
+          }));
+        }
         
         // 自动打开面单打印页面
         if (sfFetcher.data.labelUrl) {
@@ -1809,6 +1837,36 @@ export default function Orders() {
         {order.note || '-'}
       </div>,
       formatDate(order.createdAt),
+      // 运单信息列
+      waybillMap[order.id] ? (
+        <div style={{ minWidth: '150px' }}>
+          <div style={{ marginBottom: '4px' }}>
+            <Text variant="bodyMd" as="span" fontWeight="bold">
+              {waybillMap[order.id].waybillNo}
+            </Text>
+          </div>
+          <ButtonGroup variant="segmented">
+            {waybillMap[order.id].labelUrl && (
+              <Button
+                size="micro"
+                onClick={() => window.open(waybillMap[order.id].labelUrl, '_blank')}
+              >
+                面单
+              </Button>
+            )}
+            {waybillMap[order.id].invoiceUrl && (
+              <Button
+                size="micro"
+                onClick={() => window.open(waybillMap[order.id].invoiceUrl, '_blank')}
+              >
+                发票
+              </Button>
+            )}
+          </ButtonGroup>
+        </div>
+      ) : (
+        <span>-</span>
+      ),
       <ButtonGroup key={`actions-${order.id}`}>
         <Button
           size="slim"
@@ -1859,6 +1917,7 @@ export default function Orders() {
     '支付状态',
     '备注',
     '创建时间',
+    '运单信息',
     '操作',
   ];
 

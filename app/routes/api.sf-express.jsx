@@ -296,6 +296,42 @@ export const action = async ({ request }) => {
         }
       }
 
+      // 保存运单信息到数据库
+      const prisma = (await import("../db.server")).default;
+      try {
+        // 查找或创建订单状态记录
+        const existing = await prisma.orderStatus.findFirst({
+          where: { orderId: orderId, lineItemId: null }
+        });
+
+        if (existing) {
+          await prisma.orderStatus.update({
+            where: { id: existing.id },
+            data: {
+              sfWaybillNo: waybillNo,
+              sfLabelUrl: createResult.data?.labelUrl,
+              sfInvoiceUrl: createResult.data?.invoiceUrl,
+              sfCreatedAt: new Date(),
+            }
+          });
+        } else {
+          await prisma.orderStatus.create({
+            data: {
+              orderId: orderId,
+              lineItemId: null,
+              status: "已发货",
+              sfWaybillNo: waybillNo,
+              sfLabelUrl: createResult.data?.labelUrl,
+              sfInvoiceUrl: createResult.data?.invoiceUrl,
+              sfCreatedAt: new Date(),
+            }
+          });
+        }
+      } catch (dbError) {
+        console.error("保存运单信息到数据库失败:", dbError);
+        // 不影响返回结果，只记录错误
+      }
+
       return json({
         success: true,
         waybillNo: waybillNo,
