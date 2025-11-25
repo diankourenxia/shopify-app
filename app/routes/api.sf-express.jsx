@@ -28,6 +28,9 @@ const SENDER_CONFIG = {
 async function createSfOrder(orderData) {
   try {
     console.log('调用创建运单接口:', `${SF_API_BASE_URL}/sf/create_order`);
+    console.log('=== 请求报文 ===');
+    console.log(JSON.stringify(orderData, null, 2));
+    console.log('=== 请求报文结束 ===');
     
     const response = await fetch(`${SF_API_BASE_URL}/sf/create_order`, {
       method: "POST",
@@ -42,7 +45,9 @@ async function createSfOrder(orderData) {
     }
 
     const data = await response.json();
-    console.log('创建运单响应:', data);
+    console.log('=== 响应报文 ===');
+    console.log(JSON.stringify(data, null, 2));
+    console.log('=== 响应报文结束 ===');
     
     return data;
   } catch (error) {
