@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 顺丰运单信息数据库迁移脚本
-# 用于在生产环境添加运单信息字段
+# 用于在生产环境添加运单信息字段和打印次数字段
 
 set -e
 
@@ -44,6 +44,7 @@ echo "  - sfWaybillNo: 顺丰运单号"
 echo "  - sfLabelUrl: 面单打印链接"
 echo "  - sfInvoiceUrl: 发票打印链接"
 echo "  - sfCreatedAt: 运单创建时间"
+echo "  - sfPrintCount: 打印次数（用于重新打印时生成递增后缀）"
 echo ""
 echo "请执行以下命令重启应用："
 echo "  pm2 restart shopify-app"

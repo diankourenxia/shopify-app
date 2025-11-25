@@ -88,7 +88,7 @@ async function printSfOrder(printData) {
 /**
  * 从Shopify订单创建运单数据
  */
-function convertShopifyOrderToSfOrder(shopifyOrder, parcelQuantity = 1) {
+function convertShopifyOrderToSfOrder(shopifyOrder, parcelQuantity = 1, customOrderName = null) {
   // 计算总重量
   const totalWeight = calculateTotalWeight(shopifyOrder.lineItems);
   
@@ -117,7 +117,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder, parcelQuantity = 1) {
 
   return {
     customerCode: "ICRME000SRN93",
-    customerOrderNo: shopifyOrder.name,
+    customerOrderNo: customOrderName || shopifyOrder.name, // 使用自定义订单号（如果提供）
     interProductCode: "INT0014", // 国际快递
     pickupType: "0", // 上门收件
     parcelQuantity: parcelQuantity, // 使用传入的包裹数量
@@ -244,8 +244,20 @@ export const action = async ({ request }) => {
         return json({ error: "订单不存在" }, { status: 404 });
       }
 
-      // 转换订单数据，传入包裹数量
-      const sfOrderData = convertShopifyOrderToSfOrder(order, parcelQuantity);
+      // 检查是否已有运单，确定打印次数
+      const prisma = (await import("../db.server")).default;
+      const existingStatus = await prisma.orderStatus.findFirst({
+        where: { orderId: orderId, lineItemId: null }
+      });
+      
+      const printCount = existingStatus?.sfPrintCount || 0;
+      const isReprint = printCount > 0;
+      
+      // 如果是重新打印，在订单号后面加上递增后缀
+      const orderName = isReprint ? `${order.name}-${printCount}` : order.name;
+      
+      // 转换订单数据，传入包裹数量和修改后的订单号
+      const sfOrderData = convertShopifyOrderToSfOrder(order, parcelQuantity, orderName);
 
       // 1. 创建顺丰运单
       const createResult = await createSfOrder(sfOrderData);
@@ -303,21 +315,17 @@ export const action = async ({ request }) => {
       }
 
       // 保存运单信息到数据库
-      const prisma = (await import("../db.server")).default;
+      const newPrintCount = printCount + 1;
       try {
-        // 查找或创建订单状态记录
-        const existing = await prisma.orderStatus.findFirst({
-          where: { orderId: orderId, lineItemId: null }
-        });
-
-        if (existing) {
+        if (existingStatus) {
           await prisma.orderStatus.update({
-            where: { id: existing.id },
+            where: { id: existingStatus.id },
             data: {
               sfWaybillNo: waybillNo,
               sfLabelUrl: createResult.data?.labelUrl,
               sfInvoiceUrl: createResult.data?.invoiceUrl,
               sfCreatedAt: new Date(),
+              sfPrintCount: newPrintCount,
             }
           });
         } else {
@@ -330,6 +338,7 @@ export const action = async ({ request }) => {
               sfLabelUrl: createResult.data?.labelUrl,
               sfInvoiceUrl: createResult.data?.invoiceUrl,
               sfCreatedAt: new Date(),
+              sfPrintCount: newPrintCount,
             }
           });
         }
