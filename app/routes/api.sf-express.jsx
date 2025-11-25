@@ -110,7 +110,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder) {
   const parcelInfoList = shopifyOrder.lineItems.edges.map(({ node: item }) => ({
     name: item.title,
     quantity: item.quantity,
-    amount:Math.max(1, parseFloat(item.variant?.price/5 || 1)),
+    amount:Math.max(1, parseFloat(item.variant?.price || 1)),
     currency: 'RMB',
     unit: "套",
   }));
