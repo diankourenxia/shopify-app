@@ -4,27 +4,27 @@ import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server";
+import { isRestrictedUser, getUserInfo } from "../utils/permissions.server";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
-  // 获取 shop 信息（账号名称）
-  const shop = session?.shop || "";
-  
-  // 判断是否为受限账号（包含 abc）
-  const isRestrictedUser = shop.toLowerCase().includes('abc');
+  // 判断是否为受限用户（基于邮箱）
+  const restricted = isRestrictedUser(session);
+  const userInfo = getUserInfo(session);
 
   return { 
     apiKey: process.env.SHOPIFY_API_KEY || "",
-    shop,
-    isRestrictedUser
+    shop: session?.shop,
+    isRestrictedUser: restricted,
+    userInfo
   };
 };
 
 export default function App() {
-  const { apiKey, shop, isRestrictedUser } = useLoaderData();
+  const { apiKey, shop, isRestrictedUser, userInfo } = useLoaderData();
 
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>

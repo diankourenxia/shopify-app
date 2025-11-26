@@ -24,7 +24,7 @@ export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
   // 检查权限，受限用户会被重定向到订单页面
-  requirePermission(session?.shop, 'admin');
+  requirePermission(session, 'admin');
   
   const prisma = (await import("../db.server")).default;
   
@@ -54,7 +54,7 @@ export const action = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
   // 检查权限
-  requirePermission(session?.shop, 'admin');
+  requirePermission(session, 'admin');
   
   const prisma = (await import("../db.server")).default;
   const formData = await request.formData();

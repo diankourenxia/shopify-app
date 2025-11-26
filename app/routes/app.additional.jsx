@@ -16,7 +16,7 @@ export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
   // 检查权限
-  requirePermission(session?.shop, 'admin');
+  requirePermission(session, 'admin');
   
   return null;
 };
