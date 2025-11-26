@@ -819,6 +819,11 @@ export default function Orders() {
   const [commentsOrderId, setCommentsOrderId] = useState(null);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [comments, setComments] = useState([]);
+  const [showBatchExportModal, setShowBatchExportModal] = useState(false);
+  const [batchExportStartDate, setBatchExportStartDate] = useState("");
+  const [batchExportEndDate, setBatchExportEndDate] = useState("");
+  const [batchExportStatus, setBatchExportStatus] = useState("all");
+  const [batchExporting, setBatchExporting] = useState(false);
 
   // 处理搜索结果和页面数据更新
   useEffect(() => {
@@ -1038,7 +1043,317 @@ export default function Orders() {
     }
   };
 
-  // 导出Excel
+  // 批量导出Excel（根据条件导出所有订单）
+  const handleBatchExport = async () => {
+    setBatchExporting(true);
+    
+    try {
+      // 获取所有订单数据（不分页）
+      let allOrders = [...orders]; // 从当前加载的订单开始
+      
+      // 应用日期筛选
+      if (batchExportStartDate) {
+        const start = new Date(batchExportStartDate);
+        start.setHours(0, 0, 0, 0);
+        allOrders = allOrders.filter(order => {
+          const orderDate = new Date(order.createdAt);
+          return orderDate >= start;
+        });
+      }
+      
+      if (batchExportEndDate) {
+        const end = new Date(batchExportEndDate);
+        end.setHours(23, 59, 59, 999);
+        allOrders = allOrders.filter(order => {
+          const orderDate = new Date(order.createdAt);
+          return orderDate <= end;
+        });
+      }
+      
+      // 应用自定义订单状态筛选
+      if (batchExportStatus !== "all") {
+        allOrders = allOrders.filter(order => {
+          const orderId = order.id.replace('gid://shopify/Order/', '');
+          const orderStatus = statusMap[orderId];
+          return orderStatus === batchExportStatus;
+        });
+      }
+      
+      if (allOrders.length === 0) {
+        alert('没有找到符合条件的订单');
+        setBatchExporting(false);
+        return;
+      }
+      
+      // 使用相同的导出逻辑
+      await exportOrdersToExcel(allOrders);
+      
+      // 关闭对话框
+      setShowBatchExportModal(false);
+      setBatchExportStartDate("");
+      setBatchExportEndDate("");
+      setBatchExportStatus("all");
+    } catch (error) {
+      console.error('批量导出失败:', error);
+      alert('导出失败，请重试');
+    } finally {
+      setBatchExporting(false);
+    }
+  };
+
+  // 导出订单到Excel的通用函数
+  const exportOrdersToExcel = async (ordersToExport) => {
+    // 查询所有订单的评论
+    const commentsMap = {};
+    await Promise.all(ordersToExport.map(async (order) => {
+      try {
+        const response = await fetch(`/api/comments?orderId=${order.id}`);
+        const data = await response.json();
+        if (data.comments && data.comments.length > 0) {
+          commentsMap[order.id] = data.comments.map(c => c.message).join('\n');
+        }
+      } catch (error) {
+        console.error(`Error fetching comments for order ${order.id}:`, error);
+      }
+    }));
+
+    // 获取布料价格数据
+    const fabricPricesMap = {};
+    const liningPricesMap = {};
+    
+    try {
+      const fabricsResponse = await fetch('/api/fabric-prices');
+      if (fabricsResponse.ok) {
+        const { fabrics } = await fabricsResponse.json();
+        fabrics.forEach(fabric => {
+          fabric.colors.forEach(color => {
+            const colorPrice = color.prices[0];
+            const fabricPrice = fabric.prices[0];
+            const effectivePrice = colorPrice || fabricPrice;
+            fabricPricesMap[color.fullCode] = effectivePrice;
+          });
+        });
+      }
+      
+      const liningsResponse = await fetch('/api/lining-prices');
+      if (liningsResponse.ok) {
+        const { linings } = await liningsResponse.json();
+        linings.forEach(lining => {
+          liningPricesMap[lining.type] = lining.price;
+        });
+      }
+    } catch (error) {
+      console.error('获取价格失败:', error);
+    }
+    
+    // 准备Excel数据
+    const excelData = [];
+    
+    ordersToExport.forEach(order => {
+      const orderId = order.id.replace('gid://shopify/Order/', '');
+      const orderDate = new Date(order.createdAt);
+      const deliveryDate = new Date(orderDate.getTime() + 9 * 24 * 60 * 60 * 1000);
+      const deliveryTime = deliveryDate.toLocaleDateString('zh-CN', { month: 'numeric', day: '2-digit' });
+      const orderNumber = order.name;
+      
+      let validItemIndex = 0;
+      
+      order.lineItems?.edges?.forEach(({ node: item }, index) => {
+        const dimensions = item.customAttributes 
+          ? parseDimensions(item.customAttributes, item.quantity, item.title)
+          : null;
+
+        let fabricHeight = '';
+        let widthFromDimensions = '';
+        let headerType = '';
+        let panels = '';
+        let multiplier = '';
+        let windows = '';
+        let isShaped = '';
+        let lining = '';
+        let tiebacks = '';
+        let processing = '';
+
+        const liningTypeAttr = item.customAttributes?.find(
+          attr => attr.key === '_Lining Type'
+        );
+        if (liningTypeAttr?.value) {
+          const liningValue = liningTypeAttr.value.toLowerCase();
+          if (liningValue === 'unlined' || liningValue.includes('lining type')) {
+            lining = '';
+          } else {
+            lining = liningTypeAttr.value.split('(')[0].trim();
+          }
+        }
+
+        if (dimensions) {
+          const parts = dimensions.props.children.map(child => child.props.children);
+          parts.forEach(part => {
+            if (part.includes('高:')) {
+              fabricHeight = part.replace('高:', '').replace('cm', '');
+            } else if (part.includes('宽:')) {
+              widthFromDimensions = part.replace('宽:', '').replace('cm', '');
+            } else if (part.includes('头部:')) {
+              headerType = part.replace('头部:', '').trim();
+            } else if (part.includes('高温定型:')) {
+              isShaped = part.replace('高温定型:', '').trim() === '需要' ? '是' : '否';
+            } else if (part.includes('绑带:')) {
+              tiebacks = part.replace('绑带:', '');
+            }
+          });
+        }
+
+        const quantity = item.quantity || 1;
+        panels = quantity.toString();
+        windows = '1';
+        processing = 'freshine';
+        
+        if (headerType.includes('韩褶-L型-2折') || headerType.includes('韩褶-7型-2折')) {
+          multiplier = '2';
+        } else if (headerType.includes('韩褶-L型-3折') || headerType.includes('韩褶-7型-3折')) {
+          multiplier = '2.5';
+        } else if (headerType.includes('穿杆带遮轨')) {
+          multiplier = '2';
+        } else if (headerType.includes('打孔')) {
+          multiplier = '2';
+        } else if (headerType.includes('背带式')) {
+          multiplier = '2.5';
+        } else if (headerType.includes('吊环挂钩')) {
+          multiplier = '2';
+        } else if (headerType.includes('蛇形帘')) {
+          multiplier = '2.5';
+        } else if (headerType.includes('韩褶+背带')) {
+          multiplier = '2';
+        } else if (headerType.includes('酒杯褶')) {
+          multiplier = '2.5';
+        } else if (headerType.includes('工字褶')) {
+          multiplier = '2.5';
+        } else {
+          multiplier = '2.5';
+        }
+
+        const height = parseFloat(fabricHeight) || 0;
+        const materialPerPiece = parseFloat(widthFromDimensions) || 0;
+        const panelsCount = quantity;
+        const windowsCount = 1;
+        const multiplierNum = parseFloat(multiplier) || 2.5;
+        
+        const wallWidth = materialPerPiece > 0 && multiplierNum > 0 
+          ? ((materialPerPiece / multiplierNum * panelsCount).toFixed(2))
+          : '';
+
+        let purchaseMeters = 0;
+        
+        if (height < 260) {
+          purchaseMeters = (materialPerPiece + 40) * panelsCount * windowsCount / 100;
+        } else if (height > 260) {
+          if (materialPerPiece < 260) {
+            purchaseMeters = (height + 40) * panelsCount * windowsCount / 100;
+          } else if (materialPerPiece >= 260 && materialPerPiece < 400) {
+            purchaseMeters = (height + 40) * (panelsCount + 1) * windowsCount / 100;
+          } else if (materialPerPiece >= 400 && materialPerPiece < 560) {
+            purchaseMeters = (height + 40) * (panelsCount + panelsCount) * windowsCount / 100;
+          } else if (materialPerPiece >= 560 && materialPerPiece < 700) {
+            purchaseMeters = (height + 40) * (panelsCount + panelsCount + 1) * windowsCount / 100;
+          } else if (materialPerPiece >= 700 && materialPerPiece < 840) {
+            purchaseMeters = (height + 40) * (panelsCount + panelsCount + panelsCount) * windowsCount / 100;
+          }
+        }
+
+        const purchaseMetersStr = purchaseMeters.toFixed(2);
+
+        if (!headerType) {
+          return;
+        }
+
+        const itemTitle = item.variant.title || '';
+        const fabricCodeMatch = itemTitle.match(/(\d+)-(\d+)/);
+        let fabricCost = '';
+        let fabricUnitPrice = '';
+
+        if (fabricCodeMatch && purchaseMeters > 0) {
+          const normalizedColorCode = parseInt(fabricCodeMatch[2], 10).toString();
+          const fullCode = `${fabricCodeMatch[1]}-${normalizedColorCode}`;
+          let priceInfo = fabricPricesMap[fullCode];
+          
+          if (!priceInfo && normalizedColorCode.length < 2) {
+            const paddedCode = normalizedColorCode.padStart(2, '0');
+            const paddedFullCode = `${fabricCodeMatch[1]}-${paddedCode}`;
+            priceInfo = fabricPricesMap[paddedFullCode];
+          }
+          
+          if (priceInfo) {
+            fabricUnitPrice = priceInfo.fabricPrice.toFixed(2);
+            const cost = purchaseMeters * priceInfo.fabricPrice;
+            fabricCost = cost.toFixed(2);
+          }
+        }
+
+        let liningUnitPrice = '';
+        let liningCost = '';
+        if (lining && liningPricesMap[lining]) {
+          liningUnitPrice = liningPricesMap[lining].toFixed(2);
+          const cost = purchaseMeters * liningPricesMap[lining];
+          liningCost = cost.toFixed(2);
+        }
+
+        const fabricModel = fabricCodeMatch ? `${fabricCodeMatch[1]}-${parseInt(fabricCodeMatch[2], 10).toString()}` : (item.variant?.title || 'Default Title');
+
+        const rowData = {
+          '交货时间': validItemIndex === 0 ? deliveryTime : '',
+          '订单编号': validItemIndex === 0 ? orderNumber : '',
+          '备注': validItemIndex === 0 ? (order.note || '') : '',
+          '评论': validItemIndex === 0 ? (commentsMap[order.id] || '') : '',
+          '高温定型费用': validItemIndex === 0 ? (heatSettingFeeMap[order.id]?.toString() || '') : '',
+          '布料型号': fabricModel,
+          '布料采购米数': purchaseMetersStr,
+          '布料单价': fabricUnitPrice || '-',
+          '布料成本': fabricCost || '-',
+          '衬布单价': liningUnitPrice || '-',
+          '衬布成本': liningCost || '-',
+          '加工方式': headerType || '',
+          '布料高度': fabricHeight ? Math.round(parseFloat(fabricHeight)).toString() : '',
+          '墙宽': wallWidth ? Math.round(parseFloat(wallWidth)).toString() : '',
+          '每片用料': widthFromDimensions ? Math.round(parseFloat(widthFromDimensions)).toString() : '',
+          '分片': panels,
+          '倍数': multiplier,
+          '窗户数量': windows,
+          '是否定型': isShaped,
+          '衬布': lining,
+          '绑带': tiebacks,
+          '加工': processing
+        };
+
+        excelData.push(rowData);
+        validItemIndex++;
+      });
+    });
+
+    // 创建工作簿
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '订单列表');
+
+    // 下载文件
+    let fileName = '批量导出订单';
+    if (batchExportStartDate || batchExportEndDate) {
+      const dateRange = `${batchExportStartDate || '起始'}至${batchExportEndDate || '现在'}`;
+      fileName += `_${dateRange}`;
+    }
+    if (batchExportStatus !== 'all') {
+      const statusLabels = {
+        'pending': '待处理',
+        'in_production': '生产中',
+        'shipped': '已发货',
+        'completed': '已完成'
+      };
+      fileName += `_${statusLabels[batchExportStatus] || batchExportStatus}`;
+    }
+    fileName += `_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  // 导出Excel（选中的订单）
   const handleExportExcel = async () => {
     if (selectedOrders.size === 0) {
       alert('请先选择要导出的订单');
@@ -1080,7 +1395,7 @@ export default function Orders() {
       return;
     }
     
-    // 查询所有订单的评论
+    // 使用通用导出函数，但使用旧的文件名格式
     const commentsMap = {};
     await Promise.all(selectedOrdersData.map(async (order) => {
       try {
@@ -2237,7 +2552,13 @@ export default function Orders() {
                     disabled={selectedOrders.size === 0}
                     variant="primary"
                   >
-                    导出Excel
+                    导出选中订单
+                  </Button>
+                  <Button 
+                    onClick={() => setShowBatchExportModal(true)}
+                    tone="success"
+                  >
+                    批量导出订单
                   </Button>
                 </InlineStack>
               </InlineStack>
@@ -2351,6 +2672,70 @@ export default function Orders() {
               <p>该订单目前没有任何评论</p>
             </EmptyState>
           )}
+        </Modal.Section>
+      </Modal>
+
+      {/* 批量导出对话框 */}
+      <Modal
+        open={showBatchExportModal}
+        onClose={() => {
+          setShowBatchExportModal(false);
+          setBatchExportStartDate("");
+          setBatchExportEndDate("");
+          setBatchExportStatus("all");
+        }}
+        title="批量导出订单"
+        primaryAction={{
+          content: '导出',
+          onAction: handleBatchExport,
+          loading: batchExporting,
+        }}
+        secondaryActions={[
+          {
+            content: '取消',
+            onAction: () => {
+              setShowBatchExportModal(false);
+              setBatchExportStartDate("");
+              setBatchExportEndDate("");
+              setBatchExportStatus("all");
+            },
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <Text variant="bodyMd">
+              选择时间范围和订单状态，导出所有符合条件的订单
+            </Text>
+            <TextField
+              label="开始日期"
+              type="date"
+              value={batchExportStartDate}
+              onChange={setBatchExportStartDate}
+              autoComplete="off"
+              helpText="留空表示不限制开始时间"
+            />
+            <TextField
+              label="结束日期"
+              type="date"
+              value={batchExportEndDate}
+              onChange={setBatchExportEndDate}
+              autoComplete="off"
+              helpText="留空表示不限制结束时间"
+            />
+            <Select
+              label="订单状态"
+              options={[
+                { label: '全部订单状态', value: 'all' },
+                { label: '待处理', value: 'pending' },
+                { label: '生产中', value: 'in_production' },
+                { label: '已发货', value: 'shipped' },
+                { label: '已完成', value: 'completed' },
+              ]}
+              value={batchExportStatus}
+              onChange={setBatchExportStatus}
+            />
+          </BlockStack>
         </Modal.Section>
       </Modal>
     </Page>
