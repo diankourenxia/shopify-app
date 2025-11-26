@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import {
   Page,
@@ -156,6 +156,49 @@ export default function Index() {
   const { shop, sessionInfo, shopInfo, currentStaffMember } = useLoaderData();
   const fetcher = useFetcher();
   const shopify = useAppBridge();
+  const [appBridgeUser, setAppBridgeUser] = useState(null);
+  
+  // 通过 App Bridge 获取用户信息（前端方式）
+  useEffect(() => {
+    async function fetchUserFromAppBridge() {
+      try {
+        // App Bridge 提供的用户信息
+        const userInfo = {
+          shopOrigin: shopify.config.shop,
+          apiKey: shopify.config.apiKey,
+          // 注意：App Bridge 本身不直接提供用户详细信息
+          // 但可以通过 sessionToken 解码获取
+        };
+        
+        // 尝试通过 idToken 获取用户信息
+        if (shopify.idToken) {
+          try {
+            const token = await shopify.idToken();
+            // 解码 JWT token (简单解析，生产环境应使用库)
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(atob(base64));
+            
+            setAppBridgeUser({
+              ...userInfo,
+              tokenPayload: payload,
+              userId: payload.sub,
+              shopId: payload.dest?.split('/')?.[4],
+            });
+          } catch (e) {
+            console.log('Could not decode token:', e);
+            setAppBridgeUser(userInfo);
+          }
+        } else {
+          setAppBridgeUser(userInfo);
+        }
+      } catch (error) {
+        console.error('Error fetching user from App Bridge:', error);
+      }
+    }
+    
+    fetchUserFromAppBridge();
+  }, [shopify]);
   const isLoading =
     ["loading", "submitting"].includes(fetcher.state) &&
     fetcher.formMethod === "POST";
@@ -237,7 +280,7 @@ export default function Index() {
                       {sessionInfo?.onlineAccessInfo && (
                         <>
                           <Text as="p" variant="bodyMd" fontWeight="semibold" tone="success">
-                            当前访问用户信息 (在线 Token):
+                            ✅ 当前访问用户信息 (在线 Token - 服务器端):
                           </Text>
                           <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>
                             <code>{JSON.stringify(sessionInfo.onlineAccessInfo, null, 2)}</code>
@@ -245,9 +288,22 @@ export default function Index() {
                         </>
                       )}
                       
+                      {appBridgeUser && (
+                        <>
+                          <Text as="p" variant="bodyMd" fontWeight="semibold" tone="info">
+                            🌐 App Bridge 用户信息 (前端获取):
+                          </Text>
+                          <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+                            <code>{JSON.stringify(appBridgeUser, null, 2)}</code>
+                          </pre>
+                        </>
+                      )}
+                      
                       {!sessionInfo?.onlineAccessInfo && sessionInfo?.isOnline === false && (
                         <Text as="p" variant="bodyMd" tone="warning">
-                          ⚠️ 当前使用离线访问令牌，无法获取具体访问用户信息
+                          ⚠️ 当前使用离线访问令牌，服务器端无法获取具体访问用户信息
+                          <br />
+                          💡 已启用在线令牌，请重新安装应用或等待令牌更新
                         </Text>
                       )}
                       
