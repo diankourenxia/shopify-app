@@ -1,5 +1,51 @@
 import { authenticate } from "../shopify.server";
 
+// GET 请求 - 获取缓存数据
+export const loader = async ({ request }) => {
+  try {
+    const { getOrdersFromCache } = await import("../services/cache.server");
+    const cacheData = await getOrdersFromCache();
+    
+    if (!cacheData) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        orders: [],
+        message: '缓存为空或已过期'
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    }
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      orders: cacheData.orders,
+      pageInfo: cacheData.pageInfo,
+      fromCache: true
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (error) {
+    console.error('读取缓存失败:', error);
+    return new Response(JSON.stringify({ 
+      success: false,
+      orders: [],
+      message: '读取缓存失败: ' + error.message
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+};
+
+// POST 请求 - 更新缓存
 export const action = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
   

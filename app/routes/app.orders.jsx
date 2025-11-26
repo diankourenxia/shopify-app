@@ -1049,16 +1049,17 @@ export default function Orders() {
     
     try {
       // 从缓存获取所有订单数据
-      const cacheResponse = await fetch('/api/cache-update?action=get');
+      const cacheResponse = await fetch('/api/cache-update');
       const cacheData = await cacheResponse.json();
       
-      if (!cacheData.orders || cacheData.orders.length === 0) {
-        alert('缓存中没有订单数据，请先等待数据加载完成');
+      if (!cacheData.success || !cacheData.orders || cacheData.orders.length === 0) {
+        alert('暂无订单数据。系统会自动在后台加载订单数据，请稍后再试。\n\n提示：如果长时间没有数据，请刷新页面。');
         setBatchExporting(false);
         return;
       }
       
       let allOrders = [...cacheData.orders];
+      console.log(`从缓存获取了 ${allOrders.length} 个订单`);
       
       // 应用日期筛选
       if (batchExportStartDate) {
@@ -1089,12 +1090,12 @@ export default function Orders() {
       }
       
       if (allOrders.length === 0) {
-        alert('没有找到符合条件的订单');
+        alert('没有找到符合筛选条件的订单。\n\n请检查：\n1. 日期范围是否正确\n2. 订单状态筛选是否过于严格');
         setBatchExporting(false);
         return;
       }
       
-      console.log(`准备导出 ${allOrders.length} 个订单`);
+      console.log(`准备导出 ${allOrders.length} 个符合条件的订单`);
       
       // 使用相同的导出逻辑
       await exportOrdersToExcel(allOrders);
@@ -1106,7 +1107,7 @@ export default function Orders() {
       setBatchExportStatus("all");
     } catch (error) {
       console.error('批量导出失败:', error);
-      alert('导出失败: ' + error.message);
+      alert('导出失败: ' + error.message + '\n\n请刷新页面后重试。');
     } finally {
       setBatchExporting(false);
     }
