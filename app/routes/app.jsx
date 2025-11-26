@@ -42,8 +42,8 @@ export default function App() {
             <Link to="/app/fabrics">布料管理</Link>
             <Link to="/app/linings">衬布管理</Link>
             <Link to="/app/tags">标签管理</Link>
-            <Link to="/app/orders/demo">订单管理(演示)</Link>
-            <Link to="/app/additional">Additional page</Link>
+            {/* <Link to="/app/orders/demo">订单管理(演示)</Link> */}
+            {/* <Link to="/app/additional">Additional page</Link> */}
             {isSuperAdmin && (
               <Link to="/app/permissions">权限管理</Link>
             )}
