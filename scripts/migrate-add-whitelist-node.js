@@ -5,8 +5,10 @@
  * 使用方法: node scripts/migrate-add-whitelist-node.js
  */
 
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+import sqlite3 from 'sqlite3';
+import path from 'path';
+
+const sqlite = sqlite3.verbose();
 
 // 数据库路径
 const DB_PATH = '/var/www/shopify-app/prisma/prod.sqlite';
@@ -34,7 +36,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "WhitelistUser_email_key" ON "WhitelistUser"("
 `;
 
 // 连接数据库并执行迁移
-const db = new sqlite3.Database(DB_PATH, (err) => {
+const db = new sqlite.Database(DB_PATH, (err) => {
   if (err) {
     console.error('❌ 连接数据库失败:', err.message);
     process.exit(1);

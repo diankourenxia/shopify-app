@@ -23,11 +23,12 @@
 
 ## 数据库迁移
 
-### 方法1：使用 Node.js 脚本（推荐）
+### 方法1：使用 Prisma 脚本（推荐）
 
 ```bash
 # 在服务器上执行
-node /var/www/shopify-app/scripts/migrate-add-whitelist-node.js
+cd /var/www/shopify-app
+node scripts/migrate-add-whitelist-prisma.js
 ```
 
 ### 方法2：使用 Shell 脚本
@@ -62,6 +63,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS "WhitelistUser_email_key" ON "WhitelistUser"("
 
 # 退出
 .quit
+```
+
+### 方法4：使用 Prisma CLI（开发环境）
+
+```bash
+# 生成迁移文件
+npx prisma migrate dev --name add_whitelist_users
+
+# 或者直接推送架构变更（生产环境慎用）
+npx prisma db push
 ```
 
 ## 使用指南
