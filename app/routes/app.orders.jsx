@@ -1945,6 +1945,9 @@ export default function Orders() {
   return (
     <Page>
       <style dangerouslySetInnerHTML={{__html: `
+        .Polaris-Page {
+          max-width: 100% !important;
+        }
         .Polaris-DataTable--condensed {
           max-height: 1000px !important;
           overflow-y: scroll !important;
