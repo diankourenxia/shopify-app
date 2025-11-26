@@ -58,7 +58,6 @@ export const action = async ({ request }) => {
   // 检查权限
   await requirePermission(session, 'admin', prisma);
   
-  const prisma = (await import("../db.server")).default;
   const formData = await request.formData();
   const action = formData.get("action");
 
