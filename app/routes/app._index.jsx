@@ -21,6 +21,8 @@ export const loader = async ({ request }) => {
   
   // 获取店铺详细信息
   let shopInfo = null;
+  let currentStaffMember = null;
+  
   try {
     const response = await admin.graphql(`
       query {
@@ -50,6 +52,24 @@ export const loader = async ({ request }) => {
     console.error('Error fetching shop info:', error);
   }
   
+  // 尝试获取当前登录的员工信息（仅在线访问令牌可用）
+  try {
+    const staffResponse = await admin.graphql(`
+      query {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            createdAt
+          }
+        }
+      }
+    `);
+    const staffData = await staffResponse.json();
+    currentStaffMember = staffData.data?.currentAppInstallation;
+  } catch (error) {
+    console.error('Error fetching staff info:', error);
+  }
+  
   return json({ 
     shop: session?.shop || "Unknown Shop",
     sessionInfo: {
@@ -58,9 +78,12 @@ export const loader = async ({ request }) => {
       state: session?.state,
       isOnline: session?.isOnline,
       scope: session?.scope,
-      accessToken: session?.accessToken ? '***' : null, // 隐藏 token
+      accessToken: session?.accessToken ? '***' : null,
+      // 在线 token 才有的用户信息
+      onlineAccessInfo: session?.onlineAccessInfo || null,
     },
-    shopInfo
+    shopInfo,
+    currentStaffMember
   });
 };
 
@@ -130,7 +153,7 @@ export const action = async ({ request }) => {
 };
 
 export default function Index() {
-  const { shop, sessionInfo, shopInfo } = useLoaderData();
+  const { shop, sessionInfo, shopInfo, currentStaffMember } = useLoaderData();
   const fetcher = useFetcher();
   const shopify = useAppBridge();
   const isLoading =
@@ -211,11 +234,37 @@ export default function Index() {
                         <code>{JSON.stringify(sessionInfo, null, 2)}</code>
                       </pre>
                       
+                      {sessionInfo?.onlineAccessInfo && (
+                        <>
+                          <Text as="p" variant="bodyMd" fontWeight="semibold" tone="success">
+                            当前访问用户信息 (在线 Token):
+                          </Text>
+                          <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+                            <code>{JSON.stringify(sessionInfo.onlineAccessInfo, null, 2)}</code>
+                          </pre>
+                        </>
+                      )}
+                      
+                      {!sessionInfo?.onlineAccessInfo && sessionInfo?.isOnline === false && (
+                        <Text as="p" variant="bodyMd" tone="warning">
+                          ⚠️ 当前使用离线访问令牌，无法获取具体访问用户信息
+                        </Text>
+                      )}
+                      
                       {shopInfo && (
                         <>
                           <Text as="p" variant="bodyMd" fontWeight="semibold">Shop 详细信息:</Text>
                           <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>
                             <code>{JSON.stringify(shopInfo, null, 2)}</code>
+                          </pre>
+                        </>
+                      )}
+                      
+                      {currentStaffMember && (
+                        <>
+                          <Text as="p" variant="bodyMd" fontWeight="semibold">App 安装信息:</Text>
+                          <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+                            <code>{JSON.stringify(currentStaffMember, null, 2)}</code>
                           </pre>
                         </>
                       )}
