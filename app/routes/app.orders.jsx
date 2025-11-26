@@ -160,6 +160,7 @@ export const loader = async ({ request }) => {
   // 获取所有订单的自定义状态和备注
   let statusMap = {};
   let noteMap = {};
+  let heatSettingFeeMap = {}; // 高温定型费用映射
   let waybillMap = {}; // 运单信息映射
   let allTags = [];
   let orderTagsMap = {};
@@ -171,6 +172,11 @@ export const loader = async ({ request }) => {
       const key = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
       statusMap[key] = status.status;
       noteMap[key] = status.note || '';
+      
+      // 保存高温定型费用
+      if (status.heatSettingFee !== null && status.heatSettingFee !== undefined) {
+        heatSettingFeeMap[status.orderId] = status.heatSettingFee;
+      }
       
       // 保存运单信息
       if (status.sfWaybillNo) {
@@ -334,6 +340,7 @@ export const loader = async ({ request }) => {
       pageInfo,
       statusMap,
       noteMap,
+      heatSettingFeeMap,
       waybillMap,
       allTags,
       orderTagsMap,
@@ -574,6 +581,50 @@ export const action = async ({ request }) => {
     }
   }
 
+  // 处理高温定型费用更新
+  if (action === "updateHeatSettingFee") {
+    const prisma = (await import("../db.server")).default;
+    const orderId = formData.get("orderId");
+    const feeValue = formData.get("fee");
+
+    if (!orderId) {
+      return json({ error: "缺少订单ID" }, { status: 400 });
+    }
+
+    const fee = feeValue === "" || feeValue === null ? null : parseFloat(feeValue);
+    
+    if (fee !== null && (isNaN(fee) || fee < 0)) {
+      return json({ error: "无效的费用金额" }, { status: 400 });
+    }
+
+    try {
+      const existing = await prisma.orderStatus.findFirst({
+        where: { orderId, lineItemId: null }
+      });
+
+      if (existing) {
+        await prisma.orderStatus.update({
+          where: { id: existing.id },
+          data: { heatSettingFee: fee }
+        });
+      } else {
+        await prisma.orderStatus.create({
+          data: { 
+            orderId, 
+            lineItemId: null, 
+            status: "未发货",
+            heatSettingFee: fee 
+          }
+        });
+      }
+
+      return json({ success: true, fee });
+    } catch (error) {
+      console.error("更新高温定型费用失败:", error);
+      return json({ error: "更新失败", details: error.message }, { status: 500 });
+    }
+  }
+
   if (action === "search") {
     const after = formData.get("after");
     const before = formData.get("before");
@@ -723,6 +774,7 @@ export default function Orders() {
     pageInfo: initialPageInfo, 
     statusMap: initialStatusMap,
     noteMap: initialNoteMap,
+    heatSettingFeeMap: initialHeatSettingFeeMap,
     waybillMap: initialWaybillMap,
     allTags: initialTags,
     orderTagsMap: initialOrderTagsMap,
@@ -736,6 +788,7 @@ export default function Orders() {
   const commentFetcher = useFetcher();
   const tagFetcher = useFetcher();
   const sfFetcher = useFetcher(); // 顺丰快递打印
+  const heatSettingFeeFetcher = useFetcher(); // 高温定型费用更新
   const [printingOrderId, setPrintingOrderId] = useState(null); // 正在打印的订单ID
   const [printModalOpen, setPrintModalOpen] = useState(false); // 打印弹窗
   const [printOrderId, setPrintOrderId] = useState(null); // 要打印的订单ID
@@ -746,6 +799,7 @@ export default function Orders() {
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
   const [statusMap, setStatusMap] = useState(initialStatusMap || {});
   const [noteMap, setNoteMap] = useState(initialNoteMap || {});
+  const [heatSettingFeeMap, setHeatSettingFeeMap] = useState(initialHeatSettingFeeMap || {});
   const [waybillMap, setWaybillMap] = useState(initialWaybillMap || {});
   const [allTags, setAllTags] = useState(initialTags || []);
   const [orderTagsMap, setOrderTagsMap] = useState(initialOrderTagsMap || {});
@@ -883,6 +937,23 @@ export default function Orders() {
       setCommentsLoading(false);
     }
   }, [commentFetcher.state]);
+
+  // 处理高温定型费用更新结果
+  useEffect(() => {
+    if (heatSettingFeeFetcher.data?.success) {
+      const { fee } = heatSettingFeeFetcher.data;
+      // 从提交的formData中获取orderId
+      const orderId = heatSettingFeeFetcher.formData?.get("orderId");
+      if (orderId) {
+        setHeatSettingFeeMap(prev => ({
+          ...prev,
+          [orderId]: fee
+        }));
+      }
+    } else if (heatSettingFeeFetcher.data?.error) {
+      shopify.toast.show(heatSettingFeeFetcher.data.error, { duration: 3000, isError: true });
+    }
+  }, [heatSettingFeeFetcher.data]);
 
   // 当loader数据更新时重置loading状态（仅在初始加载和URL导航时）
   useEffect(() => {
@@ -1208,6 +1279,7 @@ export default function Orders() {
           '订单编号': validItemIndex === 0 ? orderNumber : '',
           '备注': validItemIndex === 0 ? (order.note || '') : '',
           '评论': validItemIndex === 0 ? (commentsMap[order.id] || '') : '',
+          '高温定型费用': validItemIndex === 0 ? (heatSettingFeeMap[order.id]?.toString() || '') : '',
           '布料型号': fabricModel,
           '布料采购米数': purchaseMetersStr,
           '布料单价': fabricUnitPrice || '-',
@@ -1384,6 +1456,17 @@ export default function Orders() {
     sfFetcher.submit(formData, { 
       method: "POST", 
       action: "/api/sf-express" 
+    });
+  };
+
+  // 更新高温定型费用
+  const handleUpdateHeatSettingFee = (orderId, value) => {
+    const formData = new FormData();
+    formData.append("action", "updateHeatSettingFee");
+    formData.append("orderId", orderId);
+    formData.append("fee", value);
+    heatSettingFeeFetcher.submit(formData, { 
+      method: "POST" 
     });
   };
 
@@ -1858,6 +1941,29 @@ export default function Orders() {
         {order.note || '-'}
       </div>,
       formatDate(order.createdAt),
+      // 高温定型费用列
+      <div style={{ minWidth: '120px' }}>
+        <TextField
+          value={heatSettingFeeMap[order.id]?.toString() || ""}
+          onChange={(value) => {
+            // 实时更新本地状态
+            setHeatSettingFeeMap(prev => ({
+              ...prev,
+              [order.id]: value === "" ? null : parseFloat(value) || 0
+            }));
+          }}
+          onBlur={(e) => {
+            // 失焦时保存到数据库
+            const value = e.target.value;
+            handleUpdateHeatSettingFee(order.id, value);
+          }}
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="0.00"
+          autoComplete="off"
+        />
+      </div>,
       // 运单信息列
       waybillMap[order.id] ? (
         <div style={{ minWidth: '150px' }}>
@@ -1938,6 +2044,7 @@ export default function Orders() {
     '支付状态',
     '备注',
     '创建时间',
+    '高温定型费用',
     '运单信息',
     '操作',
   ];
