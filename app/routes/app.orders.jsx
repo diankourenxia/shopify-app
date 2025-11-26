@@ -1048,8 +1048,17 @@ export default function Orders() {
     setBatchExporting(true);
     
     try {
-      // 获取所有订单数据（不分页）
-      let allOrders = [...orders]; // 从当前加载的订单开始
+      // 从缓存获取所有订单数据
+      const cacheResponse = await fetch('/api/cache-update?action=get');
+      const cacheData = await cacheResponse.json();
+      
+      if (!cacheData.orders || cacheData.orders.length === 0) {
+        alert('缓存中没有订单数据，请先等待数据加载完成');
+        setBatchExporting(false);
+        return;
+      }
+      
+      let allOrders = [...cacheData.orders];
       
       // 应用日期筛选
       if (batchExportStartDate) {
@@ -1085,6 +1094,8 @@ export default function Orders() {
         return;
       }
       
+      console.log(`准备导出 ${allOrders.length} 个订单`);
+      
       // 使用相同的导出逻辑
       await exportOrdersToExcel(allOrders);
       
@@ -1095,7 +1106,7 @@ export default function Orders() {
       setBatchExportStatus("all");
     } catch (error) {
       console.error('批量导出失败:', error);
-      alert('导出失败，请重试');
+      alert('导出失败: ' + error.message);
     } finally {
       setBatchExporting(false);
     }
