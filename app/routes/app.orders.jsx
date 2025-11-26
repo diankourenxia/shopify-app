@@ -807,6 +807,9 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
   const [financialFilter, setFinancialFilter] = useState("all");
+  const [customStatusFilter, setCustomStatusFilter] = useState("all"); // 自定义订单状态筛选
+  const [startDate, setStartDate] = useState(""); // 开始日期
+  const [endDate, setEndDate] = useState(""); // 结束日期
   const [isLoading, setIsLoading] = useState(false);
   const [currentPageAfter, setCurrentPageAfter] = useState(currentAfter);
   const [currentPageBefore, setCurrentPageBefore] = useState(currentBefore);
@@ -991,6 +994,9 @@ export default function Orders() {
     setStatusFilter("all");
     setTagFilter("all");
     setFinancialFilter("all");
+    setCustomStatusFilter("all");
+    setStartDate("");
+    setEndDate("");
     setOrders(initialOrders);
     setPageInfo(initialPageInfo);
     setCurrentPageAfter(null);
@@ -1039,7 +1045,40 @@ export default function Orders() {
       return;
     }
 
-    const selectedOrdersData = orders.filter(order => selectedOrders.has(order.id));
+    let selectedOrdersData = orders.filter(order => selectedOrders.has(order.id));
+    
+    // 应用日期筛选
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      selectedOrdersData = selectedOrdersData.filter(order => {
+        const orderDate = new Date(order.createdAt);
+        return orderDate >= start;
+      });
+    }
+    
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      selectedOrdersData = selectedOrdersData.filter(order => {
+        const orderDate = new Date(order.createdAt);
+        return orderDate <= end;
+      });
+    }
+    
+    // 应用自定义订单状态筛选
+    if (customStatusFilter !== "all") {
+      selectedOrdersData = selectedOrdersData.filter(order => {
+        const orderId = order.id.replace('gid://shopify/Order/', '');
+        const orderStatus = statusMap[orderId];
+        return orderStatus === customStatusFilter;
+      });
+    }
+    
+    if (selectedOrdersData.length === 0) {
+      alert('根据筛选条件没有找到符合的订单');
+      return;
+    }
     
     // 查询所有订单的评论
     const commentsMap = {};
@@ -1309,8 +1348,22 @@ export default function Orders() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '订单列表');
 
-    // 下载文件
-    const fileName = `订单列表_${new Date().toISOString().split('T')[0]}.xlsx`;
+    // 下载文件 - 文件名包含筛选条件
+    let fileName = '订单列表';
+    if (startDate || endDate) {
+      const dateRange = `${startDate || '起始'}至${endDate || '现在'}`;
+      fileName += `_${dateRange}`;
+    }
+    if (customStatusFilter !== 'all') {
+      const statusLabels = {
+        'pending': '待处理',
+        'in_production': '生产中',
+        'shipped': '已发货',
+        'completed': '已完成'
+      };
+      fileName += `_${statusLabels[customStatusFilter] || customStatusFilter}`;
+    }
+    fileName += `_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
 
@@ -2094,7 +2147,7 @@ export default function Orders() {
 
               {/* 搜索和筛选 */}
               <InlineStack gap="300" align="space-between">
-                <InlineStack gap="300">
+                <InlineStack gap="300" wrap={true}>
                   <Button
                     onClick={() => {
                       const formData = new FormData();
@@ -2114,13 +2167,11 @@ export default function Orders() {
                     autoComplete="off"
                   />
                   <Select
-                    label="状态筛选"
+                    label="发货状态"
                     options={[
-                      { label: '全部状态', value: 'all' },
+                      { label: '全部发货状态', value: 'all' },
                       { label: '已发货', value: 'FULFILLED' },
                       { label: '未发货', value: 'UNFULFILLED' },
-                      { label: '已支付', value: 'PAID' },
-                      { label: '待支付', value: 'PENDING' },
                     ]}
                     value={statusFilter}
                     onChange={setStatusFilter}
@@ -2143,6 +2194,32 @@ export default function Orders() {
                     ]}
                     value={financialFilter}
                     onChange={setFinancialFilter}
+                  />
+                  <Select
+                    label="订单状态"
+                    options={[
+                      { label: '全部订单状态', value: 'all' },
+                      { label: '待处理', value: 'pending' },
+                      { label: '生产中', value: 'in_production' },
+                      { label: '已发货', value: 'shipped' },
+                      { label: '已完成', value: 'completed' },
+                    ]}
+                    value={customStatusFilter}
+                    onChange={setCustomStatusFilter}
+                  />
+                  <TextField
+                    label="开始日期"
+                    type="date"
+                    value={startDate}
+                    onChange={setStartDate}
+                    autoComplete="off"
+                  />
+                  <TextField
+                    label="结束日期"
+                    type="date"
+                    value={endDate}
+                    onChange={setEndDate}
+                    autoComplete="off"
                   />
                   <Button onClick={() => handleSearch()} loading={isLoading}>
                     搜索
