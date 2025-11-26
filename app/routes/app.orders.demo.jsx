@@ -20,6 +20,7 @@ import {
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
+import { requirePermission } from "../utils/permissions.server";
 
 // 模拟订单数据
 const mockOrders = [
@@ -77,7 +78,10 @@ const mockOrders = [
 ];
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  
+  // 检查权限
+  requirePermission(session?.shop, 'admin');
   
   return {
     orders: mockOrders,
@@ -91,7 +95,11 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  
+  // 检查权限
+  requirePermission(session?.shop, 'admin');
+  
   const formData = await request.formData();
   const action = formData.get("action");
   const searchQuery = formData.get("searchQuery");

@@ -8,13 +8,23 @@ import { authenticate } from "../shopify.server";
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  
+  // 获取 shop 信息（账号名称）
+  const shop = session?.shop || "";
+  
+  // 判断是否为受限账号（包含 abc）
+  const isRestrictedUser = shop.toLowerCase().includes('abc');
 
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+  return { 
+    apiKey: process.env.SHOPIFY_API_KEY || "",
+    shop,
+    isRestrictedUser
+  };
 };
 
 export default function App() {
-  const { apiKey } = useLoaderData();
+  const { apiKey, shop, isRestrictedUser } = useLoaderData();
 
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>
@@ -23,11 +33,15 @@ export default function App() {
           Home
         </Link>
         <Link to="/app/orders">订单管理</Link>
-        <Link to="/app/fabrics">布料管理</Link>
-        <Link to="/app/linings">衬布管理</Link>
-        <Link to="/app/tags">标签管理</Link>
-        <Link to="/app/orders/demo">订单管理(演示)</Link>
-        <Link to="/app/additional">Additional page</Link>
+        {!isRestrictedUser && (
+          <>
+            <Link to="/app/fabrics">布料管理</Link>
+            <Link to="/app/linings">衬布管理</Link>
+            <Link to="/app/tags">标签管理</Link>
+            <Link to="/app/orders/demo">订单管理(演示)</Link>
+            <Link to="/app/additional">Additional page</Link>
+          </>
+        )}
       </NavMenu>
       <Outlet />
     </AppProvider>

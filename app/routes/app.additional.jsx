@@ -9,6 +9,17 @@ import {
   BlockStack,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
+import { authenticate } from "../shopify.server";
+import { requirePermission } from "../utils/permissions.server";
+
+export const loader = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  
+  // 检查权限
+  requirePermission(session?.shop, 'admin');
+  
+  return null;
+};
 
 export default function AdditionalPage() {
   return (

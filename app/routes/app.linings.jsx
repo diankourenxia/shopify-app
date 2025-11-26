@@ -16,9 +16,13 @@ import {
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
+import { requirePermission } from "../utils/permissions.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  
+  // 检查权限，受限用户会被重定向到订单页面
+  requirePermission(session?.shop, 'admin');
   
   const prisma = (await import("../db.server")).default;
   
@@ -37,7 +41,10 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  
+  // 检查权限
+  requirePermission(session?.shop, 'admin');
   const prisma = (await import("../db.server")).default;
   const formData = await request.formData();
   const action = formData.get("action");

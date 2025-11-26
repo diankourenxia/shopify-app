@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useFetcher } from "@remix-run/react";
+import { useFetcher, useLoaderData } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -14,11 +14,54 @@ import {
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
+import { json } from "@remix-run/node";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-
-  return null;
+  const { session, admin } = await authenticate.admin(request);
+  
+  // 获取店铺详细信息
+  let shopInfo = null;
+  try {
+    const response = await admin.graphql(`
+      query {
+        shop {
+          name
+          email
+          myshopifyDomain
+          currencyCode
+          primaryDomain {
+            url
+            host
+          }
+          plan {
+            displayName
+          }
+          billingAddress {
+            country
+            province
+            city
+          }
+        }
+      }
+    `);
+    const data = await response.json();
+    shopInfo = data.data?.shop;
+  } catch (error) {
+    console.error('Error fetching shop info:', error);
+  }
+  
+  return json({ 
+    shop: session?.shop || "Unknown Shop",
+    sessionInfo: {
+      id: session?.id,
+      shop: session?.shop,
+      state: session?.state,
+      isOnline: session?.isOnline,
+      scope: session?.scope,
+      accessToken: session?.accessToken ? '***' : null, // 隐藏 token
+    },
+    shopInfo
+  });
 };
 
 export const action = async ({ request }) => {
@@ -87,6 +130,7 @@ export const action = async ({ request }) => {
 };
 
 export default function Index() {
+  const { shop, sessionInfo, shopInfo } = useLoaderData();
   const fetcher = useFetcher();
   const shopify = useAppBridge();
   const isLoading =
@@ -118,7 +162,12 @@ export default function Index() {
               <BlockStack gap="500">
                 <BlockStack gap="200">
                   <Text as="h2" variant="headingMd">
-                    Congrats on creating a new Shopify app 🎉
+                   Welcome, {shopInfo?.name || shop}
+                  </Text>
+                  <Text variant="bodyMd" as="p" tone="subdued">
+                    Store: {shopInfo?.myshopifyDomain || shop}
+                    {shopInfo?.email && ` • Email: ${shopInfo.email}`}
+                    {shopInfo?.plan?.displayName && ` • Plan: ${shopInfo.plan.displayName}`}
                   </Text>
                   <Text variant="bodyMd" as="p">
                     This embedded app template uses{" "}
@@ -147,20 +196,34 @@ export default function Index() {
                 </BlockStack>
                 <BlockStack gap="200">
                   <Text as="h3" variant="headingMd">
-                    Get started with products
+                    账号信息 (调试)
                   </Text>
-                  <Text as="p" variant="bodyMd">
-                    Generate a product with GraphQL and get the JSON output for
-                    that product. Learn more about the{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      productCreate
-                    </Link>{" "}
-                    mutation in our API references.
-                  </Text>
+                  <Box
+                    padding="400"
+                    background="bg-surface-secondary"
+                    borderWidth="025"
+                    borderRadius="200"
+                    borderColor="border"
+                  >
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">Session 信息:</Text>
+                      <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+                        <code>{JSON.stringify(sessionInfo, null, 2)}</code>
+                      </pre>
+                      
+                      {shopInfo && (
+                        <>
+                          <Text as="p" variant="bodyMd" fontWeight="semibold">Shop 详细信息:</Text>
+                          <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+                            <code>{JSON.stringify(shopInfo, null, 2)}</code>
+                          </pre>
+                        </>
+                      )}
+                    </BlockStack>
+                  </Box>
+                </BlockStack>
+                <BlockStack gap="200">
+                              
                 </BlockStack>
                 <InlineStack gap="300">
                   <Button loading={isLoading} onClick={generateProduct}>
