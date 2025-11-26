@@ -15,8 +15,10 @@ import { requirePermission } from "../utils/permissions.server";
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
+  const prisma = (await import("../db.server")).default;
+  
   // 检查权限
-  requirePermission(session, 'admin');
+  await requirePermission(session, 'admin', prisma);
   
   return null;
 };

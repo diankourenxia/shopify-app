@@ -307,23 +307,7 @@ export default function Index() {
                         </Text>
                       )}
                       
-                      {shopInfo && (
-                        <>
-                          <Text as="p" variant="bodyMd" fontWeight="semibold">Shop 详细信息:</Text>
-                          <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>
-                            <code>{JSON.stringify(shopInfo, null, 2)}</code>
-                          </pre>
-                        </>
-                      )}
-                      
-                      {currentStaffMember && (
-                        <>
-                          <Text as="p" variant="bodyMd" fontWeight="semibold">App 安装信息:</Text>
-                          <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>
-                            <code>{JSON.stringify(currentStaffMember, null, 2)}</code>
-                          </pre>
-                        </>
-                      )}
+                     
                     </BlockStack>
                   </Box>
                 </BlockStack>

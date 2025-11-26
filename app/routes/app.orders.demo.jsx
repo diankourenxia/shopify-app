@@ -80,8 +80,10 @@ const mockOrders = [
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
+  const prisma = (await import("../db.server")).default;
+  
   // 检查权限
-  requirePermission(session, 'admin');
+  await requirePermission(session, 'admin', prisma);
   
   return {
     orders: mockOrders,
@@ -97,8 +99,10 @@ export const loader = async ({ request }) => {
 export const action = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
+  const prisma = (await import("../db.server")).default;
+  
   // 检查权限
-  requirePermission(session, 'admin');
+  await requirePermission(session, 'admin', prisma);
   
   const formData = await request.formData();
   const action = formData.get("action");

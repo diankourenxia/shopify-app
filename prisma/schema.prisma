@@ -143,3 +143,15 @@ model LiningPrice {
   createdAt       DateTime @default(now())
   createdBy       String?  // 创建人
 }
+
+// 白名单用户（拥有管理员权限）
+model WhitelistUser {
+  id          String   @id @default(uuid())
+  email       String   @unique // 邮箱地址
+  name        String?  // 用户名称
+  description String?  // 备注说明
+  isActive    Boolean  @default(true) // 是否启用
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?  // 创建人
+}

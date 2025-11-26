@@ -23,10 +23,10 @@ import { requirePermission } from "../utils/permissions.server";
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
-  // 检查权限，受限用户会被重定向到订单页面
-  requirePermission(session, 'admin');
-  
   const prisma = (await import("../db.server")).default;
+  
+  // 检查权限，受限用户会被重定向到订单页面
+  await requirePermission(session, 'admin', prisma);
   
   // 获取所有布料及其最新价格
   const fabrics = await prisma.fabric.findMany({
@@ -53,8 +53,10 @@ export const loader = async ({ request }) => {
 export const action = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
+  const prisma = (await import("../db.server")).default;
+  
   // 检查权限
-  requirePermission(session, 'admin');
+  await requirePermission(session, 'admin', prisma);
   
   const prisma = (await import("../db.server")).default;
   const formData = await request.formData();

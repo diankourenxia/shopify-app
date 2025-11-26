@@ -4,27 +4,31 @@ import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server";
-import { isRestrictedUser, getUserInfo } from "../utils/permissions.server";
+import { isRestrictedUser, getUserInfo, isSuperAdmin } from "../utils/permissions.server";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
-  // 判断是否为受限用户（基于邮箱）
-  const restricted = isRestrictedUser(session);
-  const userInfo = getUserInfo(session);
+  const prisma = (await import("../db.server")).default;
+  
+  // 判断是否为受限用户（基于邮箱和白名单）
+  const restricted = await isRestrictedUser(session, prisma);
+  const userInfo = await getUserInfo(session, prisma);
+  const superAdmin = isSuperAdmin(session);
 
   return { 
     apiKey: process.env.SHOPIFY_API_KEY || "",
     shop: session?.shop,
     isRestrictedUser: restricted,
+    isSuperAdmin: superAdmin,
     userInfo
   };
 };
 
 export default function App() {
-  const { apiKey, shop, isRestrictedUser, userInfo } = useLoaderData();
+  const { apiKey, shop, isRestrictedUser, isSuperAdmin, userInfo } = useLoaderData();
 
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>
@@ -40,6 +44,9 @@ export default function App() {
             <Link to="/app/tags">标签管理</Link>
             <Link to="/app/orders/demo">订单管理(演示)</Link>
             <Link to="/app/additional">Additional page</Link>
+            {isSuperAdmin && (
+              <Link to="/app/permissions">权限管理</Link>
+            )}
           </>
         )}
       </NavMenu>
