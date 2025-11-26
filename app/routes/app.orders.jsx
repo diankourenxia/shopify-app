@@ -37,8 +37,12 @@ export const loader = async ({ request }) => {
     const { saveOrdersToCache } = await import("../services/cache.server");
     const prisma = (await import("../db.server")).default;
     
-    // 直接从Shopify获取实时数据，不使用缓存显示
-    const { admin } = await authenticate.admin(request);
+    // 认证检查
+    const { admin, session } = await authenticate.admin(request);
+    
+    if (!admin) {
+      throw new Error('认证失败：无法获取 admin 实例');
+    }
   
   // 获取订单列表
   const query = before 
@@ -166,6 +170,7 @@ export const loader = async ({ request }) => {
   let orderTagsMap = {};
   
   try {
+    // 获取订单状态
     const orderStatuses = await prisma.orderStatus.findMany();
     orderStatuses.forEach(status => {
       // 支持按 lineItem 级别的状态：key = "orderId:lineItemId"，若无 lineItemId 则 fallback 到 orderId
@@ -188,7 +193,12 @@ export const loader = async ({ request }) => {
         };
       }
     });
-    
+  } catch (dbError) {
+    console.error('数据库查询错误（orderStatus）:', dbError);
+    // 不中断流程，使用空数据继续
+  }
+  
+  try {
     // 确保预设标签存在
     const presetTags = [
       { name: '小样', color: '#3b82f6', description: '小样订单（价格$1.99）' },
@@ -198,14 +208,19 @@ export const loader = async ({ request }) => {
     ];
     
     for (const presetTag of presetTags) {
-      const existing = await prisma.tag.findUnique({
-        where: { name: presetTag.name }
-      });
-      
-      if (!existing) {
-        await prisma.tag.create({
-          data: presetTag
+      try {
+        const existing = await prisma.tag.findUnique({
+          where: { name: presetTag.name }
         });
+        
+        if (!existing) {
+          await prisma.tag.create({
+            data: presetTag
+          });
+        }
+      } catch (tagError) {
+        console.error(`创建标签失败（${presetTag.name}）:`, tagError);
+        // 继续处理其他标签
       }
     }
     
@@ -213,7 +228,12 @@ export const loader = async ({ request }) => {
     allTags = await prisma.tag.findMany({
       orderBy: { name: 'asc' }
     });
-    
+  } catch (tagError) {
+    console.error('标签操作错误:', tagError);
+    allTags = [];
+  }
+  
+  try {
     // 创建标签名称到ID的映射
     const tagNameToId = {};
     allTags.forEach(tag => {
@@ -235,96 +255,101 @@ export const loader = async ({ request }) => {
     
     // 自动为订单打标签
     for (const order of orders) {
-      const orderId = order.id.replace('gid://shopify/Order/', '');
-      const existingTags = orderTagsMap[orderId] || [];
-      const existingTagNames = existingTags.map(t => t.name);
-      
-      // 检测订单类型并添加标签
-      const tagsToAdd = [];
-      
-      // 检测小样订单
-      const isSampleOrder = order.lineItems?.edges?.every(({ node: item }) => {
-        const price = parseFloat(item.variant?.price || '0');
-        return price === 1.99;
-      });
-      
-      if (isSampleOrder && !existingTagNames.includes('小样')) {
-        tagsToAdd.push('小样');
-      }
-      
-      // 检测产品类型
-      let hasRomanShade = false;
-      let hasCurtain = false;
-      let hasHardware = false;
-      
-      order.lineItems?.edges?.forEach(({ node: item }) => {
-        const title = item.title?.toLowerCase() || '';
+      try {
+        const orderId = order.id.replace('gid://shopify/Order/', '');
+        const existingTags = orderTagsMap[orderId] || [];
+        const existingTagNames = existingTags.map(t => t.name);
         
-        // 检测罗马帘
-        if (title.includes('roman')) {
-          hasRomanShade = true;
+        // 检测订单类型并添加标签
+        const tagsToAdd = [];
+        
+        // 检测小样订单
+        const isSampleOrder = order.lineItems?.edges?.every(({ node: item }) => {
+          const price = parseFloat(item.variant?.price || '0');
+          return price === 1.99;
+        });
+        
+        if (isSampleOrder && !existingTagNames.includes('小样')) {
+          tagsToAdd.push('小样');
         }
         
-        // 检测当前商品是否为硬件（使用单词边界匹配）
-        const hardwarePattern = /\b(rod|bracket|finial|ring|clip|hook)\b/i;
-        const isCurrentItemHardware = hardwarePattern.test(item.title || '');
+        // 检测产品类型
+        let hasRomanShade = false;
+        let hasCurtain = false;
+        let hasHardware = false;
         
-        if (isCurrentItemHardware) {
-          hasHardware = true;
-        }
-        
-        // 如果当前商品不是罗马帘也不是硬件，且有头部类型，则认为是布帘
-        if (!title.includes('roman') && !isCurrentItemHardware) {
-          const hasHeader = item.customAttributes?.some(attr => 
-            attr.key.includes('Header') || attr.key.includes('Pleat')
-          );
-          if (hasHeader) {
-            hasCurtain = true;
+        order.lineItems?.edges?.forEach(({ node: item }) => {
+          const title = item.title?.toLowerCase() || '';
+          
+          // 检测罗马帘
+          if (title.includes('roman')) {
+            hasRomanShade = true;
           }
-        }
-      });
-      
-      if (hasRomanShade && !existingTagNames.includes('罗马帘')) {
-        tagsToAdd.push('罗马帘');
-      }
-      
-      if (hasCurtain && !existingTagNames.includes('布帘')) {
-        tagsToAdd.push('布帘');
-      }
-      
-      if (hasHardware && !existingTagNames.includes('硬件')) {
-        tagsToAdd.push('硬件');
-      }
-      
-      // 添加新标签
-      for (const tagName of tagsToAdd) {
-        const tagId = tagNameToId[tagName];
-        if (tagId) {
-          try {
-            const newOrderTag = await prisma.orderTag.create({
-              data: {
-                orderId,
-                tagId
-              },
-              include: { tag: true }
-            });
-            
-            if (!orderTagsMap[orderId]) {
-              orderTagsMap[orderId] = [];
-            }
-            orderTagsMap[orderId].push(newOrderTag.tag);
-          } catch (error) {
-            // 如果已存在则忽略（P2002 unique constraint violation）
-            if (error.code !== 'P2002') {
-              console.error(`Error adding tag ${tagName} to order ${orderId}:`, error);
+          
+          // 检测当前商品是否为硬件（使用单词边界匹配）
+          const hardwarePattern = /\b(rod|bracket|finial|ring|clip|hook)\b/i;
+          const isCurrentItemHardware = hardwarePattern.test(item.title || '');
+          
+          if (isCurrentItemHardware) {
+            hasHardware = true;
+          }
+          
+          // 如果当前商品不是罗马帘也不是硬件，且有头部类型，则认为是布帘
+          if (!title.includes('roman') && !isCurrentItemHardware) {
+            const hasHeader = item.customAttributes?.some(attr => 
+              attr.key.includes('Header') || attr.key.includes('Pleat')
+            );
+            if (hasHeader) {
+              hasCurtain = true;
             }
           }
+        });
+        
+        if (hasRomanShade && !existingTagNames.includes('罗马帘')) {
+          tagsToAdd.push('罗马帘');
         }
+        
+        if (hasCurtain && !existingTagNames.includes('布帘')) {
+          tagsToAdd.push('布帘');
+        }
+        
+        if (hasHardware && !existingTagNames.includes('硬件')) {
+          tagsToAdd.push('硬件');
+        }
+        
+        // 添加新标签
+        for (const tagName of tagsToAdd) {
+          const tagId = tagNameToId[tagName];
+          if (tagId) {
+            try {
+              const newOrderTag = await prisma.orderTag.create({
+                data: {
+                  orderId,
+                  tagId
+                },
+                include: { tag: true }
+              });
+              
+              if (!orderTagsMap[orderId]) {
+                orderTagsMap[orderId] = [];
+              }
+              orderTagsMap[orderId].push(newOrderTag.tag);
+            } catch (tagCreateError) {
+              // 忽略重复标签错误
+              if (!tagCreateError.message?.includes('Unique constraint')) {
+                console.error(`添加标签失败（订单${orderId}，标签${tagName}）:`, tagCreateError);
+              }
+            }
+          }
+        }
+      } catch (autoTagError) {
+        console.error('自动标签处理错误:', autoTagError);
+        // 继续处理下一个订单
       }
     }
-  } catch (dbError) {
-    console.error('Database error when fetching order statuses:', dbError);
-    // 如果数据库查询失败，继续执行但使用空的 statusMap
+  } catch (orderTagError) {
+    console.error('订单标签查询错误:', orderTagError);
+    // 使用空映射继续
   }
 
   // 在后台保存数据到缓存（不影响显示）
@@ -351,7 +376,21 @@ export const loader = async ({ request }) => {
   } catch (error) {
     console.error('Loader error:', error);
     console.error('Error stack:', error.stack);
-    throw error;
+    
+    // 返回友好的错误信息
+    return json({
+      error: '加载订单数据失败',
+      message: error.message,
+      orders: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+      statusMap: {},
+      noteMap: {},
+      heatSettingFeeMap: {},
+      waybillMap: {},
+      allTags: [],
+      orderTagsMap: {},
+      fromCache: false
+    }, { status: 500 });
   }
 };
 
