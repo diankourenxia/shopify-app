@@ -275,6 +275,17 @@ export const action = async ({ request }) => {
       
       console.log(`订单 ${order.name} 打印次数: ${printCount}, 使用订单号: ${orderName}`);
       
+      // 获取前端传递的选中包裹id
+      const selectedLineItemIds = [];
+      for (const entry of formData.entries()) {
+        if (entry[0] === "lineItemIds[]") selectedLineItemIds.push(entry[1]);
+      }
+
+      // 过滤订单商品，仅保留选中的包裹
+      if (selectedLineItemIds.length > 0) {
+        order.lineItems.edges = order.lineItems.edges.filter(({ node }) => selectedLineItemIds.includes(node.id));
+      }
+
       // 转换订单数据，传入包裹数量和修改后的订单号
       const sfOrderData = convertShopifyOrderToSfOrder(order, parcelQuantity, orderName);
 

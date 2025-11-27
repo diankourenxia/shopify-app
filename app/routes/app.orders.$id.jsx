@@ -165,6 +165,11 @@ export default function OrderDetail() {
   const sfFetcher = useFetcher();
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printResult, setPrintResult] = useState(null);
+  // 包裹勾选状态，初始为金额>0的商品id
+  const initialCheckedIds = order.lineItems.edges
+    .filter(({ node: item }) => parseFloat(item.variant?.price || item.discountedUnitPriceSet?.shopMoney?.amount || 0) > 0)
+    .map(({ node: item }) => item.id);
+  const [checkedIds, setCheckedIds] = useState(initialCheckedIds);
 
   // 处理打印结果
   useEffect(() => {
@@ -194,6 +199,7 @@ export default function OrderDetail() {
     const formData = new FormData();
     formData.append("action", "createAndPrint");
     formData.append("orderId", order.id);
+    checkedIds.forEach(id => formData.append("lineItemIds[]", id));
     sfFetcher.submit(formData, { 
       method: "POST", 
       action: "/api/sf-express" 
@@ -384,6 +390,9 @@ export default function OrderDetail() {
     ];
   });
 
+  // 包裹勾选区，只显示金额>0的商品
+  const printableLineItems = order.lineItems.edges.filter(({ node: item }) => parseFloat(item.variant?.price || item.discountedUnitPriceSet?.shopMoney?.amount || 0) > 0);
+
   return (
     <Page>
       <TitleBar 
@@ -501,6 +510,32 @@ export default function OrderDetail() {
                   headings={['商品名称', 'SKU', '数量', '尺寸(cm)', '原价', '售价', '小计']}
                   rows={lineItemRows}
                 />
+                {/* 包裹勾选区 */}
+                <div style={{ marginTop: 16 }}>
+                  <Text variant="bodyMd"><strong>选择要打印的包裹：</strong></Text>
+                  {printableLineItems.length === 0 ? (
+                    <Text variant="bodyMd" tone="subdued">无可打印包裹（所有商品金额为0）</Text>
+                  ) : (
+                    <BlockStack gap="200">
+                      {printableLineItems.map(({ node: item }) => (
+                        <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={checkedIds.includes(item.id)}
+                            onChange={e => {
+                              setCheckedIds(ids =>
+                                e.target.checked
+                                  ? [...ids, item.id]
+                                  : ids.filter(id => id !== item.id)
+                              );
+                            }}
+                          />
+                          <span>{item.title}（数量: {item.quantity}，单价: {formatCurrency(item.variant?.price || item.discountedUnitPriceSet?.shopMoney?.amount, item.discountedUnitPriceSet?.shopMoney?.currencyCode || 'CNY')}）</span>
+                        </label>
+                      ))}
+                    </BlockStack>
+                  )}
+                </div>
               </BlockStack>
             </Card>
 
