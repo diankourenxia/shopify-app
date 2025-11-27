@@ -520,38 +520,6 @@ export default function OrderDetail() {
               </BlockStack>
             </Card>
 
-            {/* 包裹勾选区 */}
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  选择要打印的包裹
-                </Text>
-                {printableLineItems.length === 0 ? (
-                  <Text variant="bodyMd" tone="subdued">无可打印包裹（所有商品金额为0）</Text>
-                ) : (
-                  <BlockStack gap="300">
-                    {printableLineItems.map(({ node: item }) => (
-                      <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={checkedIds.includes(item.id)}
-                          onChange={e => {
-                            setCheckedIds(ids =>
-                              e.target.checked
-                                ? [...ids, item.id]
-                                : ids.filter(id => id !== item.id)
-                            );
-                          }}
-                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
-                        />
-                        <span>{item.title}（数量: {item.quantity}，单价: {formatCurrency(item.variant?.price || item.discountedUnitPriceSet?.shopMoney?.amount, item.discountedUnitPriceSet?.shopMoney?.currencyCode || 'CNY')}）</span>
-                      </label>
-                    ))}
-                  </BlockStack>
-                )}
-              </BlockStack>
-            </Card>
-
             {/* 价格明细 */}
             <Card>
               <BlockStack gap="400">
@@ -649,31 +617,67 @@ export default function OrderDetail() {
 
             {/* 操作按钮 */}
             <Card>
-              <InlineStack gap="300">
-                <Button
-                  onClick={handleCreateAndPrint}
-                  loading={sfFetcher.state === "submitting"}
-                  variant="primary"
-                >
-                  创建运单并打印
-                </Button>
-                <Button
-                  url={`shopify:admin/orders/${params.id}`}
-                  target="_blank"
-                >
-                  在Shopify中查看
-                </Button>
-                <Button
-                  url={`shopify:admin/orders/${params.id}/edit`}
-                  target="_blank"
-                  variant="secondary"
-                >
-                  编辑订单
-                </Button>
-                <Link url="/app/orders">
-                  <Button variant="plain">返回订单列表</Button>
-                </Link>
-              </InlineStack>
+              <BlockStack gap="400">
+                {/* 包裹选择区 */}
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    选择要打印的包裹
+                  </Text>
+                  {printableLineItems.length === 0 ? (
+                    <Text variant="bodyMd" tone="subdued">无可打印包裹（所有商品金额为0）</Text>
+                  ) : (
+                    <BlockStack gap="200">
+                      {printableLineItems.map(({ node: item }) => (
+                        <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={checkedIds.includes(item.id)}
+                            onChange={e => {
+                              setCheckedIds(ids =>
+                                e.target.checked
+                                  ? [...ids, item.id]
+                                  : ids.filter(id => id !== item.id)
+                              );
+                            }}
+                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                          />
+                          <span>{item.title}（数量: {item.quantity}，单价: {formatCurrency(item.discountedUnitPriceSet?.shopMoney?.amount || item.variant?.price, item.discountedUnitPriceSet?.shopMoney?.currencyCode || 'CNY')}）</span>
+                        </label>
+                      ))}
+                    </BlockStack>
+                  )}
+                </BlockStack>
+
+                <Divider />
+
+                {/* 操作按钮 */}
+                <InlineStack gap="300">
+                  <Button
+                    onClick={handleCreateAndPrint}
+                    loading={sfFetcher.state === "submitting"}
+                    variant="primary"
+                    disabled={checkedIds.length === 0}
+                  >
+                    创建运单并打印
+                  </Button>
+                  <Button
+                    url={`shopify:admin/orders/${params.id}`}
+                    target="_blank"
+                  >
+                    在Shopify中查看
+                  </Button>
+                  <Button
+                    url={`shopify:admin/orders/${params.id}/edit`}
+                    target="_blank"
+                    variant="secondary"
+                  >
+                    编辑订单
+                  </Button>
+                  <Link url="/app/orders">
+                    <Button variant="plain">返回订单列表</Button>
+                  </Link>
+                </InlineStack>
+              </BlockStack>
             </Card>
           </BlockStack>
         </Layout.Section>
