@@ -510,32 +510,38 @@ export default function OrderDetail() {
                   headings={['商品名称', 'SKU', '数量', '尺寸(cm)', '原价', '售价', '小计']}
                   rows={lineItemRows}
                 />
-                {/* 包裹勾选区 */}
-                <div style={{ marginTop: 16 }}>
-                  <Text variant="bodyMd"><strong>选择要打印的包裹：</strong></Text>
-                  {printableLineItems.length === 0 ? (
-                    <Text variant="bodyMd" tone="subdued">无可打印包裹（所有商品金额为0）</Text>
-                  ) : (
-                    <BlockStack gap="200">
-                      {printableLineItems.map(({ node: item }) => (
-                        <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <input
-                            type="checkbox"
-                            checked={checkedIds.includes(item.id)}
-                            onChange={e => {
-                              setCheckedIds(ids =>
-                                e.target.checked
-                                  ? [...ids, item.id]
-                                  : ids.filter(id => id !== item.id)
-                              );
-                            }}
-                          />
-                          <span>{item.title}（数量: {item.quantity}，单价: {formatCurrency(item.variant?.price || item.discountedUnitPriceSet?.shopMoney?.amount, item.discountedUnitPriceSet?.shopMoney?.currencyCode || 'CNY')}）</span>
-                        </label>
-                      ))}
-                    </BlockStack>
-                  )}
-                </div>
+              </BlockStack>
+            </Card>
+
+            {/* 包裹勾选区 */}
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  选择要打印的包裹
+                </Text>
+                {printableLineItems.length === 0 ? (
+                  <Text variant="bodyMd" tone="subdued">无可打印包裹（所有商品金额为0）</Text>
+                ) : (
+                  <BlockStack gap="300">
+                    {printableLineItems.map(({ node: item }) => (
+                      <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={checkedIds.includes(item.id)}
+                          onChange={e => {
+                            setCheckedIds(ids =>
+                              e.target.checked
+                                ? [...ids, item.id]
+                                : ids.filter(id => id !== item.id)
+                            );
+                          }}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                        <span>{item.title}（数量: {item.quantity}，单价: {formatCurrency(item.variant?.price || item.discountedUnitPriceSet?.shopMoney?.amount, item.discountedUnitPriceSet?.shopMoney?.currencyCode || 'CNY')}）</span>
+                      </label>
+                    ))}
+                  </BlockStack>
+                )}
               </BlockStack>
             </Card>
 
