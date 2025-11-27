@@ -114,7 +114,6 @@ function convertShopifyOrderToSfOrder(shopifyOrder, parcelQuantity = 1, customOr
     "Arden Adjustable Ripple Fold Curtain Track": "塑料窗帘轨道",
     "Riven Adjustable Curtain Track": "塑料窗帘轨道",
     "Kaelen Custom Motorized Curtain Track": "塑料窗帘轨道",
-    "聚酯纤维窗帘": "聚酯纤维窗帘",
     // 其他产品可继续补充
   };
 
@@ -123,7 +122,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder, parcelQuantity = 1, customOr
     .map(({ node: item }) => {
       const price = parseFloat(item.variant?.price || 0);
       if (price === 0) return null; // 金额为0过滤
-      const mappedName = PRODUCT_NAME_MAP[item.title] || item.title;
+      const mappedName = PRODUCT_NAME_MAP[item.title] || '聚酯纤维窗帘';
       return {
         name: mappedName,
         quantity: item.quantity,
