@@ -106,14 +106,33 @@ function convertShopifyOrderToSfOrder(shopifyOrder, parcelQuantity = 1, customOr
     cargoType: 1,
   };
 
-  // 构建包裹信息列表
-  const parcelInfoList = shopifyOrder.lineItems.edges.map(({ node: item }) => ({
-    name: item.title,
-    quantity: item.quantity,
-    amount:Math.max(10, Math.round(parseFloat(item.variant?.price || 1))),
-    currency: 'CNY',
-    unit: "套",
-  }));
+  // 产品名称映射表
+  const PRODUCT_NAME_MAP = {
+    "Collins Single Decorative Custom Curtain Rods": "铁窗帘杆",
+    "Collins Double Decorative Custom Curtain Rods": "铁窗帘杆",
+    "Noah Custom Curtain Rod with Wall Brackets": "铁窗帘杆",
+    "Arden Adjustable Ripple Fold Curtain Track": "塑料窗帘轨道",
+    "Riven Adjustable Curtain Track": "塑料窗帘轨道",
+    "Kaelen Custom Motorized Curtain Track": "塑料窗帘轨道",
+    "聚酯纤维窗帘": "聚酯纤维窗帘",
+    // 其他产品可继续补充
+  };
+
+  // 构建包裹信息列表，过滤金额为0并映射名称
+  const parcelInfoList = shopifyOrder.lineItems.edges
+    .map(({ node: item }) => {
+      const price = parseFloat(item.variant?.price || 0);
+      if (price === 0) return null; // 金额为0过滤
+      const mappedName = PRODUCT_NAME_MAP[item.title] || item.title;
+      return {
+        name: mappedName,
+        quantity: item.quantity,
+        amount: Math.max(10, Math.round(price)), // 顺丰要求最低申报10元
+        currency: 'CNY',
+        unit: "套",
+      };
+    })
+    .filter(Boolean);
 
   return {
     customerCode: "ICRME000SRN93",
