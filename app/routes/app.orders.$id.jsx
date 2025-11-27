@@ -391,7 +391,14 @@ export default function OrderDetail() {
   });
 
   // 包裹勾选区，只显示金额>0的商品
-  const printableLineItems = order.lineItems.edges.filter(({ node: item }) => parseFloat(item.variant?.price || item.discountedUnitPriceSet?.shopMoney?.amount || 0) > 0);
+  const printableLineItems = order.lineItems.edges.filter(({ node: item }) => {
+    const price = parseFloat(item.discountedUnitPriceSet?.shopMoney?.amount || item.variant?.price || 0);
+    console.log('商品:', item.title, '价格:', price);
+    return price > 0;
+  });
+  
+  console.log('可打印商品数量:', printableLineItems.length);
+  console.log('已选中商品ID:', checkedIds);
 
   return (
     <Page>
