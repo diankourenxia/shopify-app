@@ -832,6 +832,7 @@ export default function Orders() {
   const [printModalOpen, setPrintModalOpen] = useState(false); // 打印弹窗
   const [printOrderId, setPrintOrderId] = useState(null); // 要打印的订单ID
   const [parcelQuantity, setParcelQuantity] = useState("1"); // 包裹数量
+  const [selectedLineItems, setSelectedLineItems] = useState([]); // 选中的商品ID
   const navigate = useNavigate();
   
   const [orders, setOrders] = useState(initialOrders);
@@ -1853,6 +1854,20 @@ export default function Orders() {
     setPrintOrderId(orderId);
     setPrintModalOpen(true);
     setParcelQuantity("1"); // 重置为默认值
+    
+    // 获取该订单的商品，过滤金额>0的商品并默认全选
+    const order = orders.find(o => o.id === orderId);
+    if (order?.lineItems?.edges) {
+      const printableItems = order.lineItems.edges
+        .filter(({ node }) => {
+          const price = parseFloat(node.discountedUnitPriceSet?.shopMoney?.amount || node.variant?.price || 0);
+          return price > 0;
+        })
+        .map(({ node }) => node.id);
+      setSelectedLineItems(printableItems);
+    } else {
+      setSelectedLineItems([]);
+    }
   };
 
   // 创建并打印运单
@@ -1865,6 +1880,11 @@ export default function Orders() {
       return;
     }
     
+    if (selectedLineItems.length === 0) {
+      shopify.toast.show("请至少选择一个商品", { isError: true });
+      return;
+    }
+    
     setPrintingOrderId(printOrderId);
     setPrintModalOpen(false);
     
@@ -1872,6 +1892,7 @@ export default function Orders() {
     formData.append("action", "createAndPrint");
     formData.append("orderId", printOrderId);
     formData.append("parcelQuantity", quantity.toString());
+    selectedLineItems.forEach(id => formData.append("lineItemIds[]", id));
     sfFetcher.submit(formData, { 
       method: "POST", 
       action: "/api/sf-express" 
@@ -2675,6 +2696,40 @@ export default function Orders() {
               autoComplete="off"
               helpText="输入 1-99 之间的数字，默认为 1"
             />
+            
+            {/* 商品选择区 */}
+            {printOrderId && (() => {
+              const order = orders.find(o => o.id === printOrderId);
+              const printableItems = order?.lineItems?.edges?.filter(({ node }) => {
+                const price = parseFloat(node.discountedUnitPriceSet?.shopMoney?.amount || node.variant?.price || 0);
+                return price > 0;
+              }) || [];
+              
+              return printableItems.length > 0 ? (
+                <BlockStack gap="300">
+                  <Text variant="headingSm">选择要打印的商品：</Text>
+                  <BlockStack gap="200">
+                    {printableItems.map(({ node: item }) => (
+                      <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedLineItems.includes(item.id)}
+                          onChange={e => {
+                            setSelectedLineItems(ids =>
+                              e.target.checked
+                                ? [...ids, item.id]
+                                : ids.filter(id => id !== item.id)
+                            );
+                          }}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                        <span>{item.title}（数量: {item.quantity}）</span>
+                      </label>
+                    ))}
+                  </BlockStack>
+                </BlockStack>
+              ) : null;
+            })()}
           </BlockStack>
         </Modal.Section>
       </Modal>
