@@ -15,10 +15,9 @@ import {
   RadioButton,
   Divider,
   Box,
-  Collapsible,
   Select,
+  DataTable,
 } from "@shopify/polaris";
-import { ChevronDownIcon, ChevronUpIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import {
   createManualImport,
@@ -366,9 +365,6 @@ export default function ImportCenter() {
   const [showManualModal, setShowManualModal] = useState(false);
   const [showExcelModal, setShowExcelModal] = useState(false);
   
-  // 展开状态 - 记录哪些导入记录被展开
-  const [expandedImports, setExpandedImports] = useState(new Set());
-  
   // 筛选状态
   const [typeFilter, setTypeFilter] = useState("all");
   const [customStatusFilter, setCustomStatusFilter] = useState("all");
@@ -471,19 +467,6 @@ export default function ImportCenter() {
     MANUAL: "手动",
     EXCEL: "Excel",
   };
-
-  // 切换展开状态
-  const toggleExpand = useCallback((importId) => {
-    setExpandedImports(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(importId)) {
-        newSet.delete(importId);
-      } else {
-        newSet.add(importId);
-      }
-      return newSet;
-    });
-  }, []);
 
   // 处理状态更新
   const handleStatusChange = useCallback((orderType, lineId, newStatus) => {
@@ -592,6 +575,96 @@ export default function ImportCenter() {
     return result;
   }, [imports, typeFilter, customStatusFilter, localStatusMap]);
 
+  // 获取所有行数据（扁平化）
+  const getAllLines = useCallback(() => {
+    const allLines = [];
+    filteredImports.forEach(importItem => {
+      const lines = getImportLines(importItem);
+      lines.forEach(line => {
+        allLines.push({
+          line,
+          importItem,
+          orderType: importItem.orderType,
+        });
+      });
+    });
+    return allLines;
+  }, [filteredImports, getImportLines]);
+
+  // 渲染行详细信息（简洁版）
+  const renderLineInfo = (orderType, line) => {
+    const InfoRow = ({ label, value }) => (
+      value ? (
+        <div style={{ fontSize: '0.875rem', marginBottom: '2px' }}>
+          <span style={{ color: '#6d7175' }}>{label}:</span> {value}
+        </div>
+      ) : null
+    );
+
+    switch (orderType) {
+      case "DRAPERY":
+        return (
+          <div style={{ lineHeight: '1.4' }}>
+            <InfoRow label="布料型号" value={line.fabricModel} />
+            <InfoRow label="采购米数" value={line.purchaseMeters?.toFixed(2)} />
+            <InfoRow label="加工方式" value={line.processingMethod} />
+            <InfoRow label="成品高度" value={line.finishedHeightCm ? `${line.finishedHeightCm}cm` : null} />
+            <InfoRow label="墙宽" value={line.wallWidthCm ? `${line.wallWidthCm}cm` : null} />
+            <InfoRow label="每片用料" value={line.fabricPerPanel} />
+            <InfoRow label="分片" value={line.panelCount} />
+            <InfoRow label="倍数" value={line.fullnessRatio} />
+            <InfoRow label="窗户数量" value={line.windowCount} />
+            <InfoRow label="是否定型" value={line.isHeatSet === true ? "是" : line.isHeatSet === false ? "否" : null} />
+            <InfoRow label="衬布" value={line.lining} />
+            <InfoRow label="绑带" value={line.tieback} />
+          </div>
+        );
+
+      case "ROMAN_SHADE":
+        return (
+          <div style={{ lineHeight: '1.4' }}>
+            <InfoRow label="订单状态" value={line.orderStatus} />
+            <InfoRow label="布料型号" value={line.fabricModel} />
+            <InfoRow label="采购米数" value={line.purchaseMeters?.toFixed(2)} />
+            <InfoRow label="窗帘类型" value={line.curtainType} />
+            <InfoRow label="窗户宽度" value={line.windowWidthCm ? `${line.windowWidthCm}cm` : null} />
+            <InfoRow label="窗户高度" value={line.windowHeightCm ? `${line.windowHeightCm}cm` : null} />
+            <InfoRow label="窗帘数量" value={line.curtainCount} />
+            <InfoRow label="房间号" value={line.roomNumber} />
+            <InfoRow label="衬布" value={line.lining} />
+            <InfoRow label="包边" value={line.edging} />
+            <InfoRow label="控制方式" value={line.controlType} />
+            <InfoRow label="安装方式" value={line.mountingType} />
+            <InfoRow label="打孔方式" value={line.grommetOption} />
+          </div>
+        );
+
+      case "TRACK":
+        return (
+          <div style={{ lineHeight: '1.4' }}>
+            <InfoRow label="轨道型号" value={line.trackModel} />
+            <InfoRow label="尺寸" value={line.size} />
+            <InfoRow label="数量" value={line.quantity} />
+            <InfoRow label="开合方式" value={line.openingType} />
+          </div>
+        );
+
+      case "ROMAN_ROD":
+        return (
+          <div style={{ lineHeight: '1.4' }}>
+            <InfoRow label="颜色" value={line.color} />
+            <InfoRow label="装饰头名称" value={line.finialName} />
+            <InfoRow label="尺寸" value={line.size} />
+            <InfoRow label="数量" value={line.quantity} />
+            <InfoRow label="静音环" value={line.needSilentRing === true ? "是" : line.needSilentRing === false ? "否" : null} />
+          </div>
+        );
+
+      default:
+        return <span>-</span>;
+    }
+  };
+
   const openManualModal = useCallback(() => {
     setManualFormValues({});
     setShowManualModal(true);
@@ -674,168 +747,149 @@ export default function ImportCenter() {
         </Layout.Section>
 
         <Layout.Section>
-          <BlockStack gap="400">
-            <Text variant="headingMd">导入记录 ({filteredImports.length})</Text>
-            
-            {filteredImports.length === 0 ? (
-              <Card>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
+                <Text variant="headingMd">导入订单列表</Text>
+                <Text variant="bodySm" tone="subdued">
+                  共 {getAllLines().length} 条记录
+                </Text>
+              </InlineStack>
+              
+              {getAllLines().length === 0 ? (
                 <Text tone="subdued">暂无导入记录</Text>
-              </Card>
-            ) : (
-              filteredImports.map((importItem) => {
-                const lines = getImportLines(importItem);
-                const isExpanded = expandedImports.has(importItem.id);
-                
-                return (
-                  <Card key={importItem.id}>
-                    <BlockStack gap="300">
-                      {/* 导入记录头部 */}
-                      <InlineStack align="space-between" blockAlign="center">
-                        <InlineStack gap="300" blockAlign="center">
-                          <Badge tone={importItem.orderType === "DRAPERY" ? "info" : importItem.orderType === "ROMAN_SHADE" ? "warning" : importItem.orderType === "TRACK" ? "success" : "attention"}>
-                            {typeLabelMap[importItem.orderType] || importItem.orderType}
-                          </Badge>
-                          <Badge tone={importItem.sourceType === "MANUAL" ? "info" : "success"}>
-                            {sourceLabelMap[importItem.sourceType] || importItem.sourceType}
-                          </Badge>
-                          {renderStatus(importItem.status)}
-                        </InlineStack>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <DataTable
+                    columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
+                    headings={['类型', '订单号', '详细信息', '标签', '订单状态', '备注', '导入时间', '来源']}
+                    rows={getAllLines().map(({ line, importItem, orderType }) => {
+                      const lineKey = `${orderType}:${line.id}`;
+                      const currentStatus = localStatusMap[lineKey] || "";
+                      const currentNote = localNoteMap[lineKey] || "";
+                      const lineTags = localTagsMap[lineKey] || [];
+                      const availableTags = allTags.filter(
+                        tag => !lineTags.some(t => t.id === tag.id)
+                      );
+
+                      return [
+                        // 类型
+                        <Badge 
+                          key={`type-${line.id}`}
+                          tone={orderType === "DRAPERY" ? "info" : orderType === "ROMAN_SHADE" ? "warning" : orderType === "TRACK" ? "success" : "attention"}
+                        >
+                          {typeLabelMap[orderType]}
+                        </Badge>,
                         
-                        <InlineStack gap="200" blockAlign="center">
-                          <Text variant="bodySm" tone="subdued">
-                            {new Date(importItem.createdAt).toLocaleString("zh-CN")}
-                          </Text>
-                          <Text variant="bodySm">
-                            {importItem.successRows}/{importItem.totalRows} 条
-                          </Text>
-                          <Button
-                            variant="plain"
-                            onClick={() => toggleExpand(importItem.id)}
-                            icon={isExpanded ? ChevronUpIcon : ChevronDownIcon}
-                          >
-                            {isExpanded ? "收起" : "展开详情"}
-                          </Button>
-                        </InlineStack>
-                      </InlineStack>
-
-                      {importItem.fileName && (
-                        <Text variant="bodySm" tone="subdued">
-                          文件: {importItem.fileName}
-                        </Text>
-                      )}
-
-                      {/* 展开的详细内容 */}
-                      <Collapsible open={isExpanded} id={`import-${importItem.id}`}>
-                        <Box paddingBlockStart="300">
-                          <Divider />
-                          <Box paddingBlockStart="300">
-                            {lines.length === 0 ? (
-                              <Text tone="subdued">暂无数据</Text>
-                            ) : (
-                              <BlockStack gap="400">
-                                {lines.map((line, index) => {
-                                  const lineKey = `${importItem.orderType}:${line.id}`;
-                                  const currentStatus = localStatusMap[lineKey] || "";
-                                  const currentNote = localNoteMap[lineKey] || "";
-                                  const lineTags = localTagsMap[lineKey] || [];
-                                  const availableTags = allTags.filter(
-                                    tag => !lineTags.some(t => t.id === tag.id)
-                                  );
-                                  
-                                  return (
-                                    <Box key={line.id} padding="300" background="bg-surface-secondary" borderRadius="200">
-                                      <BlockStack gap="300">
-                                        {/* 基本信息 */}
-                                        {renderLineDetail(importItem.orderType, line, index)}
-                                        
-                                        <Divider />
-                                        
-                                        {/* 状态和备注管理 */}
-                                        <InlineStack gap="300" wrap>
-                                          <Box minWidth="150px">
-                                            <Select
-                                              label="订单状态"
-                                              options={STATUS_OPTIONS}
-                                              value={currentStatus}
-                                              onChange={(value) => handleStatusChange(importItem.orderType, line.id, value)}
-                                            />
-                                          </Box>
-                                          <Box minWidth="200px" maxWidth="300px">
-                                            <TextField
-                                              label="备注"
-                                              value={currentNote}
-                                              onChange={(value) => handleNoteChange(importItem.orderType, line.id, value)}
-                                              onBlur={() => handleNoteBlur(importItem.orderType, line.id)}
-                                              autoComplete="off"
-                                              multiline={1}
-                                            />
-                                          </Box>
-                                        </InlineStack>
-                                        
-                                        {/* 标签管理 */}
-                                        <BlockStack gap="200">
-                                          <Text variant="bodySm" fontWeight="semibold">标签</Text>
-                                          <InlineStack gap="200" wrap>
-                                            {lineTags.map(tag => (
-                                              <Badge
-                                                key={tag.id}
-                                                tone="info"
-                                              >
-                                                <InlineStack gap="100" blockAlign="center">
-                                                  <span style={{ 
-                                                    width: 8, 
-                                                    height: 8, 
-                                                    borderRadius: '50%', 
-                                                    backgroundColor: tag.color,
-                                                    display: 'inline-block'
-                                                  }} />
-                                                  {tag.name}
-                                                  <Button
-                                                    variant="plain"
-                                                    size="micro"
-                                                    onClick={() => handleRemoveTag(importItem.orderType, line.id, tag.id)}
-                                                  >
-                                                    ✕
-                                                  </Button>
-                                                </InlineStack>
-                                              </Badge>
-                                            ))}
-                                            {availableTags.length > 0 && (
-                                              <Select
-                                                label="添加标签"
-                                                labelHidden
-                                                options={[
-                                                  { label: "+ 添加标签", value: "" },
-                                                  ...availableTags.map(tag => ({
-                                                    label: tag.name,
-                                                    value: tag.id,
-                                                  }))
-                                                ]}
-                                                value=""
-                                                onChange={(tagId) => {
-                                                  if (tagId) {
-                                                    handleAddTag(importItem.orderType, line.id, tagId);
-                                                  }
-                                                }}
-                                              />
-                                            )}
-                                          </InlineStack>
-                                        </BlockStack>
-                                      </BlockStack>
-                                    </Box>
-                                  );
-                                })}
-                              </BlockStack>
-                            )}
-                          </Box>
-                        </Box>
-                      </Collapsible>
-                    </BlockStack>
-                  </Card>
-                );
-              })
-            )}
-          </BlockStack>
+                        // 订单号
+                        <Text key={`order-${line.id}`} variant="bodyMd" fontWeight="semibold">
+                          {line.orderNumber || "-"}
+                        </Text>,
+                        
+                        // 详细信息
+                        <div key={`detail-${line.id}`} style={{ maxWidth: '350px' }}>
+                          {renderLineInfo(orderType, line)}
+                        </div>,
+                        
+                        // 标签
+                        <div key={`tags-${line.id}`} style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '150px' }}>
+                          {lineTags.map(tag => (
+                            <div key={tag.id} style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              backgroundColor: tag.color + '20',
+                              border: `1px solid ${tag.color}`,
+                              fontSize: '0.75rem'
+                            }}>
+                              <span style={{ color: tag.color, fontWeight: '500' }}>{tag.name}</span>
+                              <button
+                                onClick={() => handleRemoveTag(orderType, line.id, tag.id)}
+                                style={{ 
+                                  background: 'none', 
+                                  border: 'none', 
+                                  color: tag.color, 
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                  lineHeight: 1
+                                }}
+                                title="移除标签"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          {availableTags.length > 0 && (
+                            <select
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleAddTag(orderType, line.id, e.target.value);
+                                  e.target.value = '';
+                                }
+                              }}
+                              style={{ 
+                                fontSize: '0.75rem',
+                                padding: '2px 4px',
+                                borderRadius: '3px',
+                                border: '1px solid #ccc',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value="">+ 添加</option>
+                              {availableTags.map(tag => (
+                                <option key={tag.id} value={tag.id}>{tag.name}</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>,
+                        
+                        // 订单状态
+                        <div key={`status-${line.id}`} style={{ minWidth: '120px' }}>
+                          <Select
+                            label=""
+                            labelHidden
+                            options={STATUS_OPTIONS}
+                            value={currentStatus}
+                            onChange={(value) => handleStatusChange(orderType, line.id, value)}
+                          />
+                        </div>,
+                        
+                        // 备注
+                        <div key={`note-${line.id}`} style={{ minWidth: '150px' }}>
+                          <TextField
+                            label=""
+                            labelHidden
+                            value={currentNote}
+                            onChange={(value) => handleNoteChange(orderType, line.id, value)}
+                            onBlur={() => handleNoteBlur(orderType, line.id)}
+                            autoComplete="off"
+                            multiline={2}
+                            placeholder="添加备注..."
+                          />
+                        </div>,
+                        
+                        // 导入时间
+                        <Text key={`time-${line.id}`} variant="bodySm" tone="subdued">
+                          {new Date(line.createdAt).toLocaleString("zh-CN")}
+                        </Text>,
+                        
+                        // 来源
+                        <Badge 
+                          key={`source-${line.id}`}
+                          tone={importItem.sourceType === "MANUAL" ? "info" : "success"}
+                        >
+                          {sourceLabelMap[importItem.sourceType]}
+                        </Badge>,
+                      ];
+                    })}
+                    hoverable
+                  />
+                </div>
+              )}
+            </BlockStack>
+          </Card>
         </Layout.Section>
       </Layout>
 
@@ -1342,142 +1396,5 @@ function renderManualFields(orderType, valueGetter, changeGetter) {
 
     default:
       return null;
-  }
-}
-
-function renderStatus(status) {
-  const toneMap = {
-    COMPLETED: "success",
-    FAILED: "critical",
-    PENDING: "attention",
-  };
-  const labelMap = {
-    COMPLETED: "完成",
-    FAILED: "失败",
-    PENDING: "处理中",
-  };
-  return <Badge tone={toneMap[status] || "info"}>{labelMap[status] || status}</Badge>;
-}
-
-// 渲染单行详情
-function renderLineDetail(orderType, line, index) {
-  const InfoItem = ({ label, value }) => (
-    value ? (
-      <Box minWidth="100px">
-        <BlockStack gap="100">
-          <Text variant="bodySm" tone="subdued">{label}</Text>
-          <Text variant="bodyMd" fontWeight="semibold">{value}</Text>
-        </BlockStack>
-      </Box>
-    ) : null
-  );
-
-  switch (orderType) {
-    case "DRAPERY":
-      return (
-        <BlockStack gap="300">
-          <InlineStack gap="200" blockAlign="center">
-            <Text variant="headingSm">#{index + 1}</Text>
-            <Badge>{line.orderNumber || "无订单号"}</Badge>
-          </InlineStack>
-          
-          <InlineStack gap="400" wrap>
-            <InfoItem label="布料型号" value={line.fabricModel} />
-            <InfoItem label="采购米数" value={line.purchaseMeters?.toFixed(2)} />
-            <InfoItem label="加工方式" value={line.processingMethod} />
-          </InlineStack>
-          
-          <InlineStack gap="400" wrap>
-            <InfoItem label="成品高度" value={line.finishedHeightCm ? `${line.finishedHeightCm}cm` : null} />
-            <InfoItem label="墙宽" value={line.wallWidthCm ? `${line.wallWidthCm}cm` : null} />
-            <InfoItem label="每片用料" value={line.fabricPerPanel?.toString()} />
-          </InlineStack>
-          
-          <InlineStack gap="400" wrap>
-            <InfoItem label="分片" value={line.panelCount?.toString()} />
-            <InfoItem label="倍数" value={line.fullnessRatio?.toString()} />
-            <InfoItem label="窗户数量" value={line.windowCount?.toString()} />
-          </InlineStack>
-          
-          <InlineStack gap="400" wrap>
-            <InfoItem label="是否定型" value={line.isHeatSet === true ? "是" : line.isHeatSet === false ? "否" : null} />
-            <InfoItem label="衬布" value={line.lining} />
-            <InfoItem label="绑带" value={line.tieback} />
-          </InlineStack>
-        </BlockStack>
-      );
-
-    case "ROMAN_SHADE":
-      return (
-        <BlockStack gap="300">
-          <InlineStack gap="200" blockAlign="center">
-            <Text variant="headingSm">#{index + 1}</Text>
-            <Badge>{line.orderNumber || "无订单号"}</Badge>
-            {line.orderStatus && <Badge tone="info">{line.orderStatus}</Badge>}
-          </InlineStack>
-          
-          <InlineStack gap="400" wrap>
-            <InfoItem label="布料型号" value={line.fabricModel} />
-            <InfoItem label="采购米数" value={line.purchaseMeters?.toFixed(2)} />
-            <InfoItem label="窗帘类型" value={line.curtainType} />
-          </InlineStack>
-          
-          <InlineStack gap="400" wrap>
-            <InfoItem label="窗户宽度" value={line.windowWidthCm ? `${line.windowWidthCm}cm` : null} />
-            <InfoItem label="窗户高度" value={line.windowHeightCm ? `${line.windowHeightCm}cm` : null} />
-            <InfoItem label="窗帘数量" value={line.curtainCount?.toString()} />
-          </InlineStack>
-          
-          <InlineStack gap="400" wrap>
-            <InfoItem label="房间号" value={line.roomNumber} />
-            <InfoItem label="衬布" value={line.lining} />
-            <InfoItem label="包边" value={line.edging} />
-          </InlineStack>
-          
-          <InlineStack gap="400" wrap>
-            <InfoItem label="控制方式" value={line.controlType} />
-            <InfoItem label="安装方式" value={line.mountingType} />
-            <InfoItem label="打孔方式" value={line.grommetOption} />
-          </InlineStack>
-        </BlockStack>
-      );
-
-    case "TRACK":
-      return (
-        <BlockStack gap="300">
-          <InlineStack gap="200" blockAlign="center">
-            <Text variant="headingSm">#{index + 1}</Text>
-            <Badge>{line.orderNumber || "无订单号"}</Badge>
-          </InlineStack>
-          
-          <InlineStack gap="400" wrap>
-            <InfoItem label="轨道型号" value={line.trackModel} />
-            <InfoItem label="尺寸" value={line.size} />
-            <InfoItem label="数量" value={line.quantity?.toString()} />
-            <InfoItem label="开合方式" value={line.openingType} />
-          </InlineStack>
-        </BlockStack>
-      );
-
-    case "ROMAN_ROD":
-      return (
-        <BlockStack gap="300">
-          <InlineStack gap="200" blockAlign="center">
-            <Text variant="headingSm">#{index + 1}</Text>
-            <Badge>{line.orderNumber || "无订单号"}</Badge>
-          </InlineStack>
-          
-          <InlineStack gap="400" wrap>
-            <InfoItem label="颜色" value={line.color} />
-            <InfoItem label="装饰头名称" value={line.finialName} />
-            <InfoItem label="尺寸" value={line.size} />
-            <InfoItem label="数量" value={line.quantity?.toString()} />
-            <InfoItem label="静音环" value={line.needSilentRing === true ? "是" : line.needSilentRing === false ? "否" : null} />
-          </InlineStack>
-        </BlockStack>
-      );
-
-    default:
-      return <Text tone="subdued">未知类型</Text>;
   }
 }
