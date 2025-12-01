@@ -13,23 +13,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum CustomOrderType {
-  DRAPERY
-  ROMAN_SHADE
-  TRACK
-  ROMAN_ROD
-}
-
-enum ImportSourceType {
-  MANUAL
-  EXCEL
-}
-
-enum ImportStatus {
-  PENDING
-  COMPLETED
-  FAILED
-}
+// SQLite 不支持 enum，使用 String 代替
+// CustomOrderType: DRAPERY, ROMAN_SHADE, TRACK, ROMAN_ROD
+// ImportSourceType: MANUAL, EXCEL
+// ImportStatus: PENDING, COMPLETED, FAILED
 
 model Session {
   id            String    @id
@@ -175,16 +162,16 @@ model WhitelistUser {
 }
 
 model CustomOrderImport {
-  id             String           @id @default(uuid())
-  orderType      CustomOrderType
-  sourceType     ImportSourceType @default(EXCEL)
+  id             String   @id @default(uuid())
+  orderType      String   // DRAPERY, ROMAN_SHADE, TRACK, ROMAN_ROD
+  sourceType     String   @default("EXCEL") // MANUAL, EXCEL
   fileName       String?
-  status         ImportStatus     @default(PENDING)
-  totalRows      Int              @default(0)
-  successRows    Int              @default(0)
-  failedRows     Int              @default(0)
+  status         String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  totalRows      Int      @default(0)
+  successRows    Int      @default(0)
+  failedRows     Int      @default(0)
   createdBy      String?
-  createdAt      DateTime         @default(now())
+  createdAt      DateTime @default(now())
   completedAt    DateTime?
   errorMessage   String?
 
