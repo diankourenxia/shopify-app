@@ -37,6 +37,7 @@ export default function App() {
           Home
         </Link>
         <Link to="/app/orders">订单管理</Link>
+        <Link to="/app/imports">订单导入</Link>
         {!isRestrictedUser && (
           <>
             <Link to="/app/fabrics">布料管理</Link>
