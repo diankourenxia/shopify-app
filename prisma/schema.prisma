@@ -59,13 +59,14 @@ model OrderStatus {
 }
 
 model Tag {
-  id          String      @id @default(uuid())
-  name        String      @unique // 标签名称，唯一
-  color       String      @default("#808080") // 标签颜色，用于显示
-  description String?     // 标签描述
-  orderTags   OrderTag[]  // 关联的订单
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String          @id @default(uuid())
+  name           String          @unique // 标签名称，唯一
+  color          String          @default("#808080") // 标签颜色，用于显示
+  description    String?         // 标签描述
+  orderTags      OrderTag[]      // 关联的订单
+  importLineTags ImportLineTag[] // 关联的导入订单行
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model OrderTag {
@@ -199,7 +200,10 @@ model DraperyImportLine {
   lining             String?
   tieback            String?
   rawPayload         Json?
+  status             String?  // 自定义状态: 待生产、生产中、暂停生产、待发货、已发货
+  note               String?  // 备注信息
   createdAt          DateTime           @default(now())
+  tags               ImportLineTag[]    @relation("DraperyLineTags")
 
   @@index([orderNumber])
 }
@@ -223,7 +227,10 @@ model RomanShadeImportLine {
   mountingType       String? // 内嵌/外装
   grommetOption      String? // 打孔/免打孔
   rawPayload         Json?
+  status             String?  // 自定义状态: 待生产、生产中、暂停生产、待发货、已发货
+  note               String?  // 备注信息
   createdAt          DateTime           @default(now())
+  tags               ImportLineTag[]    @relation("RomanShadeLineTags")
 
   @@index([orderNumber])
 }
@@ -238,7 +245,10 @@ model TrackImportLine {
   quantity       Int?
   openingType    String? // 单开/双开
   rawPayload     Json?
+  status         String?  // 自定义状态: 待生产、生产中、暂停生产、待发货、已发货
+  note           String?  // 备注信息
   createdAt      DateTime          @default(now())
+  tags           ImportLineTag[]   @relation("TrackLineTags")
 
   @@index([orderNumber])
 }
@@ -254,7 +264,37 @@ model RomanRodImportLine {
   quantity       Int?
   needSilentRing Boolean?
   rawPayload     Json?
+  status         String?  // 自定义状态: 待生产、生产中、暂停生产、待发货、已发货
+  note           String?  // 备注信息
   createdAt      DateTime          @default(now())
+  tags           ImportLineTag[]   @relation("RomanRodLineTags")
 
   @@index([orderNumber])
+}
+
+// 导入订单行的标签关联
+model ImportLineTag {
+  id                  String               @id @default(uuid())
+  tagId               String
+  tag                 Tag                  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  // 关联到不同类型的导入行（只会有一个非空）
+  draperyLineId       String?
+  draperyLine         DraperyImportLine?   @relation("DraperyLineTags", fields: [draperyLineId], references: [id], onDelete: Cascade)
+  
+  romanShadeLineId    String?
+  romanShadeLine      RomanShadeImportLine? @relation("RomanShadeLineTags", fields: [romanShadeLineId], references: [id], onDelete: Cascade)
+  
+  trackLineId         String?
+  trackLine           TrackImportLine?     @relation("TrackLineTags", fields: [trackLineId], references: [id], onDelete: Cascade)
+  
+  romanRodLineId      String?
+  romanRodLine        RomanRodImportLine?  @relation("RomanRodLineTags", fields: [romanRodLineId], references: [id], onDelete: Cascade)
+  
+  createdAt           DateTime             @default(now())
+
+  @@unique([tagId, draperyLineId])
+  @@unique([tagId, romanShadeLineId])
+  @@unique([tagId, trackLineId])
+  @@unique([tagId, romanRodLineId])
 }
