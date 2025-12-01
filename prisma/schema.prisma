@@ -13,6 +13,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CustomOrderType {
+  DRAPERY
+  ROMAN_SHADE
+  TRACK
+  ROMAN_ROD
+}
+
+enum ImportSourceType {
+  MANUAL
+  EXCEL
+}
+
+enum ImportStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 model Session {
   id            String    @id
   shop          String
@@ -154,4 +172,102 @@ model WhitelistUser {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdBy   String?  // 创建人
+}
+
+model CustomOrderImport {
+  id             String           @id @default(uuid())
+  orderType      CustomOrderType
+  sourceType     ImportSourceType @default(EXCEL)
+  fileName       String?
+  status         ImportStatus     @default(PENDING)
+  totalRows      Int              @default(0)
+  successRows    Int              @default(0)
+  failedRows     Int              @default(0)
+  createdBy      String?
+  createdAt      DateTime         @default(now())
+  completedAt    DateTime?
+  errorMessage   String?
+
+  draperyLines    DraperyImportLine[]
+  romanShadeLines RomanShadeImportLine[]
+  trackLines      TrackImportLine[]
+  romanRodLines   RomanRodImportLine[]
+}
+
+model DraperyImportLine {
+  id                 String             @id @default(uuid())
+  importId           String
+  import             CustomOrderImport  @relation(fields: [importId], references: [id], onDelete: Cascade)
+  orderNumber        String
+  fabricModel        String?
+  purchaseMeters     Float?
+  processingMethod   String?
+  finishedHeightCm   Float?
+  wallWidthCm        Float?
+  fabricPerPanel     Float?
+  panelCount         Int?
+  fullnessRatio      Float?
+  windowCount        Int?
+  isHeatSet          Boolean? // 是否定型
+  lining             String?
+  tieback            String?
+  rawPayload         Json?
+  createdAt          DateTime           @default(now())
+
+  @@index([orderNumber])
+}
+
+model RomanShadeImportLine {
+  id                 String             @id @default(uuid())
+  importId           String
+  import             CustomOrderImport  @relation(fields: [importId], references: [id], onDelete: Cascade)
+  orderNumber        String
+  orderStatus        String?
+  fabricModel        String?
+  purchaseMeters     Float?
+  curtainType        String?
+  windowWidthCm      Float?
+  windowHeightCm     Float?
+  curtainCount       Int?
+  roomNumber         String?
+  lining             String?
+  edging             String?
+  controlType        String? // 无拉/电动/有绳
+  mountingType       String? // 内嵌/外装
+  grommetOption      String? // 打孔/免打孔
+  rawPayload         Json?
+  createdAt          DateTime           @default(now())
+
+  @@index([orderNumber])
+}
+
+model TrackImportLine {
+  id             String            @id @default(uuid())
+  importId       String
+  import         CustomOrderImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  orderNumber    String
+  trackModel     String?
+  size           String?
+  quantity       Int?
+  openingType    String? // 单开/双开
+  rawPayload     Json?
+  createdAt      DateTime          @default(now())
+
+  @@index([orderNumber])
+}
+
+model RomanRodImportLine {
+  id             String            @id @default(uuid())
+  importId       String
+  import         CustomOrderImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  orderNumber    String
+  color          String?
+  finialName     String?
+  size           String?
+  quantity       Int?
+  needSilentRing Boolean?
+  rawPayload     Json?
+  createdAt      DateTime          @default(now())
+
+  @@index([orderNumber])
 }
