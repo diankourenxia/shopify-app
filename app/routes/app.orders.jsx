@@ -1188,16 +1188,32 @@ export default function Orders() {
 
       // 遍历订单商品
       order.lineItems?.edges?.forEach(({ node: item }) => {
-        const title = item.title?.toLowerCase() || '';
+        const title = item.title || '';
+        const titleLower = title.toLowerCase();
         const quantity = item.quantity || 1;
         const customAttributes = item.customAttributes || [];
         
-        // 检查是否是罗马帘
-        const isRomanShade = title.includes('roman') && !title.includes('rod');
+        // 检查是否是礼品-眼罩 (Free Ice Silk Eye Mask)
+        if (titleLower.includes('free ice silk eye mask') || titleLower.includes('eye mask')) {
+          orderData.eyeMask = '需要';
+          return; // 跳过礼品，不计入其他统计
+        }
+        
+        // 检查是否是礼品-束带 (Free Magnetic Tiebacks)
+        if (titleLower.includes('free magnetic tieback')) {
+          orderData.giftBand = '需要';
+          return; // 跳过礼品，不计入其他统计
+        }
+        
+        // 检查是否是罗马帘（包含 roman 但不包含 rod）
+        const isRomanShade = titleLower.includes('roman') && !titleLower.includes('rod');
         // 检查是否是轨道
-        const isTrack = title.includes('track') || title.includes('轨道');
+        const isTrack = titleLower.includes('track') || titleLower.includes('轨道');
         // 检查是否是罗马杆
-        const isRomanRod = title.includes('roman rod') || title.includes('罗马杆');
+        const isRomanRod = titleLower.includes('roman rod') || titleLower.includes('罗马杆');
+        // 检查是否是布帘（curtain 或 drape）
+        const isCurtain = (titleLower.includes('curtain') || titleLower.includes('drape')) && 
+                          !isRomanShade && !isTrack && !isRomanRod;
         
         if (isRomanShade) {
           orderData.romanShadeCount += quantity;
@@ -1205,9 +1221,9 @@ export default function Orders() {
           orderData.trackCount += quantity;
         } else if (isRomanRod) {
           orderData.romanRodCount += quantity;
-        } else {
-          // 默认当作窗帘处理
-          // 检查 customAttributes 中的头部类型
+        } else if (isCurtain) {
+          // 只有布帘才统计窗帘片数
+          // 检查 customAttributes 中的头部类型和绑带
           let headerType = '';
           let hasTieback = false;
           
@@ -1216,7 +1232,7 @@ export default function Orders() {
             const value = attr.value?.toLowerCase() || '';
             
             if (key.includes('header')) {
-              headerType = attr.value;
+              headerType = attr.value || '';
             }
             if (key.includes('tieback') && value !== 'no need' && value !== 'no' && value !== '') {
               hasTieback = true;
@@ -1236,15 +1252,9 @@ export default function Orders() {
           if (headerType.toLowerCase().includes('flat panel')) {
             orderData.rings = '需要';
           }
-        }
-        
-        // 检查是否是其他配件（价格不是主要产品的）
-        const price = parseFloat(item.variant?.price || 0);
-        if (price > 0 && price < 10 && !isRomanShade && !isTrack && !isRomanRod) {
-          // 可能是配件
-          if (!title.includes('curtain') && !title.includes('drape')) {
-            orderData.otherAccessories.push(`${item.title} x${quantity}`);
-          }
+        } else {
+          // 其他配件
+          orderData.otherAccessories.push(`${title} x${quantity}`);
         }
       });
 
