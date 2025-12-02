@@ -1153,6 +1153,144 @@ export default function Orders() {
     }
   };
 
+  // 导出备货单
+  const handleExportStockList = async () => {
+    if (selectedOrders.size === 0) {
+      alert('请先选择要导出的订单');
+      return;
+    }
+
+    const selectedOrdersData = orders.filter(order => selectedOrders.has(order.id));
+    
+    if (selectedOrdersData.length === 0) {
+      alert('没有找到选中的订单数据');
+      return;
+    }
+
+    // 按订单号分组汇总
+    const stockData = [];
+
+    selectedOrdersData.forEach(order => {
+      const orderNumber = order.name;
+      const orderData = {
+        orderNumber,
+        curtainPanels: 0,        // 窗帘片数
+        tiebacks: 0,             // 绑带数
+        buttons: 0,              // 扣子
+        eyeMask: '',             // 礼品-眼罩
+        giftBand: '',            // 礼品-束带
+        rings: '',               // 环（夹子）
+        romanShadeCount: 0,      // 罗马帘数量
+        romanRodCount: 0,        // 罗马杆数量
+        trackCount: 0,           // 轨道数量
+        otherAccessories: [],    // 其他配件
+      };
+
+      // 遍历订单商品
+      order.lineItems?.edges?.forEach(({ node: item }) => {
+        const title = item.title?.toLowerCase() || '';
+        const quantity = item.quantity || 1;
+        const customAttributes = item.customAttributes || [];
+        
+        // 检查是否是罗马帘
+        const isRomanShade = title.includes('roman') && !title.includes('rod');
+        // 检查是否是轨道
+        const isTrack = title.includes('track') || title.includes('轨道');
+        // 检查是否是罗马杆
+        const isRomanRod = title.includes('roman rod') || title.includes('罗马杆');
+        
+        if (isRomanShade) {
+          orderData.romanShadeCount += quantity;
+        } else if (isTrack) {
+          orderData.trackCount += quantity;
+        } else if (isRomanRod) {
+          orderData.romanRodCount += quantity;
+        } else {
+          // 默认当作窗帘处理
+          // 检查 customAttributes 中的头部类型
+          let headerType = '';
+          let hasTieback = false;
+          
+          customAttributes.forEach(attr => {
+            const key = attr.key?.toLowerCase() || '';
+            const value = attr.value?.toLowerCase() || '';
+            
+            if (key.includes('header')) {
+              headerType = attr.value;
+            }
+            if (key.includes('tieback') && value !== 'no need' && value !== 'no' && value !== '') {
+              hasTieback = true;
+            }
+          });
+          
+          // 窗帘片数
+          orderData.curtainPanels += quantity;
+          
+          // 绑带和扣子
+          if (hasTieback) {
+            orderData.tiebacks += quantity;
+            orderData.buttons += quantity;
+          }
+          
+          // 环（夹子）- Flat Panel 需要
+          if (headerType.toLowerCase().includes('flat panel')) {
+            orderData.rings = '需要';
+          }
+        }
+        
+        // 检查是否是其他配件（价格不是主要产品的）
+        const price = parseFloat(item.variant?.price || 0);
+        if (price > 0 && price < 10 && !isRomanShade && !isTrack && !isRomanRod) {
+          // 可能是配件
+          if (!title.includes('curtain') && !title.includes('drape')) {
+            orderData.otherAccessories.push(`${item.title} x${quantity}`);
+          }
+        }
+      });
+
+      stockData.push(orderData);
+    });
+
+    // 生成Excel数据
+    const excelData = stockData.map(order => ({
+      '订单编号': order.orderNumber,
+      '窗帘片数': order.curtainPanels || '',
+      '绑带数': order.tiebacks || '',
+      '扣子': order.buttons || '',
+      '礼品-眼罩': order.eyeMask || '',
+      '礼品-束带': order.giftBand || '',
+      '环（夹子）': order.rings || '',
+      '罗马帘数量': order.romanShadeCount || '',
+      '罗马杆数量': order.romanRodCount || '',
+      '轨道数量': order.trackCount || '',
+      '其他配件': order.otherAccessories.join(', ') || '',
+    }));
+
+    // 创建工作簿
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '备货单');
+
+    // 设置列宽
+    ws['!cols'] = [
+      { wch: 15 },  // 订单编号
+      { wch: 10 },  // 窗帘片数
+      { wch: 10 },  // 绑带数
+      { wch: 10 },  // 扣子
+      { wch: 12 },  // 礼品-眼罩
+      { wch: 12 },  // 礼品-束带
+      { wch: 12 },  // 环（夹子）
+      { wch: 12 },  // 罗马帘数量
+      { wch: 12 },  // 罗马杆数量
+      { wch: 10 },  // 轨道数量
+      { wch: 30 },  // 其他配件
+    ];
+
+    // 下载文件
+    const fileName = `备货单_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
   // 导出订单到Excel的通用函数
   const exportOrdersToExcel = async (ordersToExport) => {
     // 查询所有订单的评论
@@ -2631,6 +2769,13 @@ export default function Orders() {
                     tone="success"
                   >
                     批量导出订单
+                  </Button>
+                  <Button 
+                    onClick={handleExportStockList}
+                    disabled={selectedOrders.size === 0}
+                    tone="critical"
+                  >
+                    导出备货单
                   </Button>
                 </InlineStack>
               </InlineStack>

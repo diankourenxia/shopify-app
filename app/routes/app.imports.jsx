@@ -18,7 +18,6 @@ import {
   Select,
   DataTable,
 } from "@shopify/polaris";
-import * as XLSX from 'xlsx';
 import { authenticate } from "../shopify.server";
 import {
   createManualImport,
@@ -714,113 +713,6 @@ export default function ImportCenter() {
     statusFetcher.submit(formData, { method: "POST" });
   }, [statusFetcher]);
 
-  // 导出备货单
-  const handleExportStock = useCallback(() => {
-    const allLines = getAllLines();
-    if (allLines.length === 0) {
-      alert('没有可导出的数据');
-      return;
-    }
-
-    // 按订单号分组汇总
-    const orderMap = new Map();
-
-    allLines.forEach(({ line, orderType }) => {
-      const orderNumber = line.orderNumber || '未知订单';
-      
-      if (!orderMap.has(orderNumber)) {
-        orderMap.set(orderNumber, {
-          orderNumber,
-          curtainPanels: 0,        // 窗帘片数
-          tiebacks: 0,             // 绑带数
-          buttons: 0,              // 扣子
-          eyeMask: 0,              // 礼品-眼罩
-          束带: 0,                 // 礼品-束带
-          rings: '',               // 环（夹子）
-          romanShadeCount: 0,      // 罗马帘数量
-          romanRodCount: 0,        // 罗马杆数量
-          trackCount: 0,           // 轨道数量
-          otherAccessories: [],    // 其他配件
-        });
-      }
-
-      const order = orderMap.get(orderNumber);
-
-      switch (orderType) {
-        case 'DRAPERY':
-          // 布帘：窗帘片数
-          const panels = line.panelCount || line.windowCount || 1;
-          order.curtainPanels += panels;
-          
-          // 绑带：如果有绑带需求
-          if (line.tieback && line.tieback !== '无' && line.tieback !== '') {
-            order.tiebacks += panels;
-            order.buttons += panels;
-          }
-          
-          // 检查加工方式是否为 flat panel（需要环/夹子）
-          if (line.processingMethod && line.processingMethod.toLowerCase().includes('flat panel')) {
-            order.rings = '需要';
-          }
-          break;
-
-        case 'ROMAN_SHADE':
-          // 罗马帘数量
-          order.romanShadeCount += line.curtainCount || 1;
-          break;
-
-        case 'TRACK':
-          // 轨道数量
-          order.trackCount += line.quantity || 1;
-          break;
-
-        case 'ROMAN_ROD':
-          // 罗马杆数量
-          order.romanRodCount += line.quantity || 1;
-          break;
-      }
-    });
-
-    // 生成Excel数据
-    const excelData = Array.from(orderMap.values()).map(order => ({
-      '订单编号': order.orderNumber,
-      '窗帘片数': order.curtainPanels || '',
-      '绑带数': order.tiebacks || '',
-      '扣子': order.buttons || '',
-      '礼品-眼罩': order.eyeMask || '',
-      '礼品-束带': order.束带 || '',
-      '环（夹子）': order.rings || '',
-      '罗马帘数量': order.romanShadeCount || '',
-      '罗马杆数量': order.romanRodCount || '',
-      '轨道数量': order.trackCount || '',
-      '其他配件': order.otherAccessories.join(', ') || '',
-    }));
-
-    // 创建工作簿
-    const ws = XLSX.utils.json_to_sheet(excelData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '备货单');
-
-    // 设置列宽
-    ws['!cols'] = [
-      { wch: 15 },  // 订单编号
-      { wch: 10 },  // 窗帘片数
-      { wch: 10 },  // 绑带数
-      { wch: 10 },  // 扣子
-      { wch: 12 },  // 礼品-眼罩
-      { wch: 12 },  // 礼品-束带
-      { wch: 12 },  // 环（夹子）
-      { wch: 12 },  // 罗马帘数量
-      { wch: 12 },  // 罗马杆数量
-      { wch: 10 },  // 轨道数量
-      { wch: 30 },  // 其他配件
-    ];
-
-    // 下载文件
-    const fileName = `备货单_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-  }, [getAllLines]);
-
   return (
     <Page title="订单导入中心" subtitle="支持布帘/罗马帘/轨道/罗马杆的手动录入与Excel导入">
       <style dangerouslySetInnerHTML={{__html: `
@@ -853,9 +745,6 @@ export default function ImportCenter() {
                   </Button>
                   <Button onClick={openExcelModal}>
                     Excel 导入
-                  </Button>
-                  <Button onClick={handleExportStock} tone="success">
-                    导出备货单
                   </Button>
                 </InlineStack>
                 
