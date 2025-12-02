@@ -1172,6 +1172,7 @@ export default function Orders() {
 
     selectedOrdersData.forEach(order => {
       const orderNumber = order.name;
+      const orderId = order.id.replace('gid://shopify/Order/', '');
       const orderData = {
         orderNumber,
         curtainPanels: 0,        // 窗帘片数
@@ -1194,15 +1195,13 @@ export default function Orders() {
         const quantity = item.quantity || 1;
         const customAttributes = item.customAttributes || [];
         
-        // 收集 lineItem 中的备注信息
-        customAttributes.forEach(attr => {
-          const key = attr.key?.toLowerCase() || '';
-          const value = attr.value || '';
-          // 检查是否是备注字段
-          if ((key.includes('note') || key.includes('remark') || key.includes('备注') || key.includes('comment')) && value.trim()) {
-            orderData.lineItemNotes.push(`${title}: ${value}`);
-          }
-        });
+        // 收集 lineItem 的自定义备注（从数据库的 OrderStatus 表）
+        const lineItemId = item.id?.replace('gid://shopify/LineItem/', '') || '';
+        const noteKey = lineItemId ? `${orderId}:${lineItemId}` : orderId;
+        const itemNote = noteMap[noteKey];
+        if (itemNote && itemNote.trim()) {
+          orderData.lineItemNotes.push(`${title}: ${itemNote}`);
+        }
         
         // 检查是否是礼品-眼罩 (Free Ice Silk Eye Mask)
         if (titleLower.includes('free ice silk eye mask') || titleLower.includes('eye mask')) {
