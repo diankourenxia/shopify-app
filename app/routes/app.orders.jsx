@@ -1184,6 +1184,7 @@ export default function Orders() {
         romanRodCount: 0,        // 罗马杆数量
         trackCount: 0,           // 轨道数量
         otherAccessories: [],    // 其他配件
+        lineItemNotes: [],       // lineItem备注集合
       };
 
       // 遍历订单商品
@@ -1192,6 +1193,16 @@ export default function Orders() {
         const titleLower = title.toLowerCase();
         const quantity = item.quantity || 1;
         const customAttributes = item.customAttributes || [];
+        
+        // 收集 lineItem 中的备注信息
+        customAttributes.forEach(attr => {
+          const key = attr.key?.toLowerCase() || '';
+          const value = attr.value || '';
+          // 检查是否是备注字段
+          if ((key.includes('note') || key.includes('remark') || key.includes('备注') || key.includes('comment')) && value.trim()) {
+            orderData.lineItemNotes.push(`${title}: ${value}`);
+          }
+        });
         
         // 检查是否是礼品-眼罩 (Free Ice Silk Eye Mask)
         if (titleLower.includes('free ice silk eye mask') || titleLower.includes('eye mask')) {
@@ -1276,6 +1287,7 @@ export default function Orders() {
       '罗马杆数量': order.romanRodCount || '',
       '轨道数量': order.trackCount || '',
       '其他配件': order.otherAccessories.join(', ') || '',
+      '备注': order.lineItemNotes.join('; ') || '',
     }));
 
     // 创建工作簿
@@ -1296,6 +1308,7 @@ export default function Orders() {
       { wch: 12 },  // 罗马杆数量
       { wch: 10 },  // 轨道数量
       { wch: 30 },  // 其他配件
+      { wch: 50 },  // 备注
     ];
 
     // 下载文件
