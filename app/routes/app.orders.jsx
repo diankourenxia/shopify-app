@@ -1196,8 +1196,8 @@ export default function Orders() {
         const customAttributes = item.customAttributes || [];
         
         // 收集 lineItem 的自定义备注（从数据库的 OrderStatus 表）
-        const lineItemId = item.id?.replace('gid://shopify/LineItem/', '') || '';
-        const noteKey = lineItemId ? `${orderId}:${lineItemId}` : orderId;
+        // noteMap 的 key 格式是 "orderId:lineItemId"，其中 lineItemId 是完整的 Shopify ID
+        const noteKey = `${orderId}:${item.id}`;
         const itemNote = noteMap[noteKey];
         if (itemNote && itemNote.trim()) {
           orderData.lineItemNotes.push(`${title}: ${itemNote}`);
@@ -1989,14 +1989,11 @@ export default function Orders() {
     const currentStatus = statusMap[orderId] || '';
     const currentNote = noteMap[orderId] || '';
     
-    if (!currentStatus) {
-      return; // 如果没有设置状态，不保存备注
-    }
-    
+    // 即使没有状态也保存备注
     const formData = new FormData();
     formData.append("action", "updateStatus");
     formData.append("orderId", orderId);
-    formData.append("status", currentStatus);
+    formData.append("status", currentStatus || '待处理'); // 如果没有状态，使用默认状态
     formData.append("note", currentNote);
     statusFetcher.submit(formData, { method: "POST" });
   };
