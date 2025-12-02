@@ -1207,13 +1207,15 @@ export default function Orders() {
         
         // 检查是否是罗马帘（包含 roman 但不包含 rod）
         const isRomanShade = titleLower.includes('roman') && !titleLower.includes('rod');
-        // 检查是否是轨道
-        const isTrack = titleLower.includes('track') || titleLower.includes('轨道');
+        // 检查是否是轨道（包含 track 但不是 track runner 配件）
+        const isTrack = (titleLower.includes('track') || titleLower.includes('轨道')) && 
+                        !titleLower.includes('runner');
         // 检查是否是罗马杆
         const isRomanRod = titleLower.includes('roman rod') || titleLower.includes('罗马杆');
         // 检查是否是布帘（curtain 或 drape）
         const isCurtain = (titleLower.includes('curtain') || titleLower.includes('drape')) && 
-                          !isRomanShade && !isTrack && !isRomanRod;
+                          !isRomanShade && !isTrack && !isRomanRod &&
+                          !titleLower.includes('runner'); // 排除 curtain track runner
         
         if (isRomanShade) {
           orderData.romanShadeCount += quantity;
