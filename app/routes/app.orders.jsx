@@ -1011,20 +1011,22 @@ export default function Orders() {
 
   // 当loader数据更新时重置loading状态（仅在初始加载和URL导航时）
   useEffect(() => {
-    // 只有在不是通过 fetcher 更新数据时才执行
-    if (!fetcher.data) {
-      setOrders(initialOrders);
-      setPageInfo(initialPageInfo);
-      setStatusMap(initialStatusMap || {});
-      setCurrentPageAfter(currentAfter);
-      setCurrentPageBefore(currentBefore);
-      setIsLoading(false);
-      // 如果URL中没有分页参数，重置页码
-      if (!currentAfter && !currentBefore) {
-        setCurrentPage(1);
-      }
+    // URL导航会更新 initialOrders，所以需要同步状态
+    setOrders(initialOrders);
+    setPageInfo(initialPageInfo);
+    setStatusMap(initialStatusMap || {});
+    setNoteMap(initialNoteMap || {});
+    setHeatSettingFeeMap(initialHeatSettingFeeMap || {});
+    setWaybillMap(initialWaybillMap || {});
+    setOrderTagsMap(initialOrderTagsMap || {});
+    setCurrentPageAfter(currentAfter);
+    setCurrentPageBefore(currentBefore);
+    setIsLoading(false);
+    // 如果URL中没有分页参数，重置页码
+    if (!currentAfter && !currentBefore) {
+      setCurrentPage(1);
     }
-  }, [initialOrders, initialPageInfo, initialStatusMap, currentAfter, currentBefore, fetcher.data]);
+  }, [initialOrders, initialPageInfo, initialStatusMap, initialNoteMap, initialHeatSettingFeeMap, initialWaybillMap, initialOrderTagsMap, currentAfter, currentBefore]);
 
   const handleSearch = (pageAfter = null, pageBefore = null) => {
     setIsLoading(true);
@@ -2428,7 +2430,8 @@ export default function Orders() {
                 { label: '待生产', value: '待生产' },
                 { label: '生产中', value: '生产中' },
                 { label: '暂停生产', value: '暂停生产' },
-                { label: '待发货', value: '待发货' },
+                { label: '定型中', value: '定型中' },
+                { label: '待检验', value: '待检验' },
                 { label: '已发货', value: '已发货' },
               ]}
               value={currentStatus}
@@ -2790,7 +2793,8 @@ export default function Orders() {
                               { label: '待生产', value: '待生产' },
                               { label: '生产中', value: '生产中' },
                               { label: '暂停生产', value: '暂停生产' },
-                              { label: '待发货', value: '待发货' },
+                              { label: '定型中', value: '定型中' },
+                              { label: '待检验', value: '待检验' },
                               { label: '已发货', value: '已发货' },
                             ]}
                             selected={customStatusFilter}
