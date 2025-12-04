@@ -1967,6 +1967,12 @@ export default function Orders() {
   };
 
   const handleStatusChange = (orderId, newStatus) => {
+    // 立即更新本地状态
+    setStatusMap(prev => ({
+      ...prev,
+      [orderId]: newStatus
+    }));
+    
     const currentNote = noteMap[orderId] || '';
     const formData = new FormData();
     formData.append("action", "updateStatus");
@@ -2722,30 +2728,35 @@ export default function Orders() {
                     value={statusFilter}
                     onChange={setStatusFilter}
                   />
-                  <Popover
-                    active={tagPopoverActive}
-                    activator={
-                      <Button onClick={() => setTagPopoverActive(!tagPopoverActive)} disclosure>
-                        标签筛选 {tagFilter.length > 0 ? `(${tagFilter.length})` : ''}
-                      </Button>
-                    }
-                    onClose={() => setTagPopoverActive(false)}
-                  >
-                    <div style={{ padding: '16px', minWidth: '200px' }}>
-                      <ChoiceList
-                        allowMultiple
-                        title="选择标签"
-                        choices={allTags.map(t => ({ label: t.name, value: t.id }))}
-                        selected={tagFilter}
-                        onChange={setTagFilter}
-                      />
-                      {tagFilter.length > 0 && (
-                        <div style={{ marginTop: '12px' }}>
-                          <Button size="slim" onClick={() => setTagFilter([])}>清除选择</Button>
+                  <div>
+                    <Text variant="bodyMd" as="label" fontWeight="regular">标签筛选</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      <Popover
+                        active={tagPopoverActive}
+                        activator={
+                          <Button onClick={() => setTagPopoverActive(!tagPopoverActive)} disclosure fullWidth>
+                            {tagFilter.length > 0 ? `已选 ${tagFilter.length} 个` : '全部标签'}
+                          </Button>
+                        }
+                        onClose={() => setTagPopoverActive(false)}
+                      >
+                        <div style={{ padding: '16px', minWidth: '200px' }}>
+                          <ChoiceList
+                            allowMultiple
+                            title="选择标签"
+                            choices={allTags.map(t => ({ label: t.name, value: t.id }))}
+                            selected={tagFilter}
+                            onChange={setTagFilter}
+                          />
+                          {tagFilter.length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                              <Button size="slim" onClick={() => setTagFilter([])}>清除选择</Button>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </Popover>
                     </div>
-                  </Popover>
+                  </div>
                   <Select
                     label="支付状态"
                     options={[
@@ -2759,36 +2770,41 @@ export default function Orders() {
                     value={financialFilter}
                     onChange={setFinancialFilter}
                   />
-                  <Popover
-                    active={statusPopoverActive}
-                    activator={
-                      <Button onClick={() => setStatusPopoverActive(!statusPopoverActive)} disclosure>
-                        订单状态 {customStatusFilter.length > 0 ? `(${customStatusFilter.length})` : ''}
-                      </Button>
-                    }
-                    onClose={() => setStatusPopoverActive(false)}
-                  >
-                    <div style={{ padding: '16px', minWidth: '200px' }}>
-                      <ChoiceList
-                        allowMultiple
-                        title="选择订单状态"
-                        choices={[
-                          { label: '待生产', value: '待生产' },
-                          { label: '生产中', value: '生产中' },
-                          { label: '暂停生产', value: '暂停生产' },
-                          { label: '待发货', value: '待发货' },
-                          { label: '已发货', value: '已发货' },
-                        ]}
-                        selected={customStatusFilter}
-                        onChange={setCustomStatusFilter}
-                      />
-                      {customStatusFilter.length > 0 && (
-                        <div style={{ marginTop: '12px' }}>
-                          <Button size="slim" onClick={() => setCustomStatusFilter([])}>清除选择</Button>
+                  <div>
+                    <Text variant="bodyMd" as="label" fontWeight="regular">订单状态</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      <Popover
+                        active={statusPopoverActive}
+                        activator={
+                          <Button onClick={() => setStatusPopoverActive(!statusPopoverActive)} disclosure fullWidth>
+                            {customStatusFilter.length > 0 ? `已选 ${customStatusFilter.length} 个` : '全部状态'}
+                          </Button>
+                        }
+                        onClose={() => setStatusPopoverActive(false)}
+                      >
+                        <div style={{ padding: '16px', minWidth: '200px' }}>
+                          <ChoiceList
+                            allowMultiple
+                            title="选择订单状态"
+                            choices={[
+                              { label: '待生产', value: '待生产' },
+                              { label: '生产中', value: '生产中' },
+                              { label: '暂停生产', value: '暂停生产' },
+                              { label: '待发货', value: '待发货' },
+                              { label: '已发货', value: '已发货' },
+                            ]}
+                            selected={customStatusFilter}
+                            onChange={setCustomStatusFilter}
+                          />
+                          {customStatusFilter.length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                              <Button size="slim" onClick={() => setCustomStatusFilter([])}>清除选择</Button>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </Popover>
                     </div>
-                  </Popover>
+                  </div>
                   <TextField
                     label="开始日期"
                     type="date"

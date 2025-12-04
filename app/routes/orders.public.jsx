@@ -716,6 +716,12 @@ export default function PublicOrders() {
   };
 
   const handleStatusChange = (orderId, newStatus) => {
+    // 立即更新本地状态
+    setStatusMap(prev => ({
+      ...prev,
+      [orderId]: newStatus
+    }));
+    
     const currentNote = noteMap[orderId] || '';
     const formData = new FormData();
     formData.append("action", "updateStatus");
@@ -736,14 +742,11 @@ export default function PublicOrders() {
     const currentStatus = statusMap[orderId] || '';
     const currentNote = noteMap[orderId] || '';
     
-    if (!currentStatus) {
-      return;
-    }
-    
+    // 即使没有状态也保存备注
     const formData = new FormData();
     formData.append("action", "updateStatus");
     formData.append("orderId", orderId);
-    formData.append("status", currentStatus);
+    formData.append("status", currentStatus || '待处理'); // 如果没有状态，使用默认状态
     formData.append("note", currentNote);
     statusFetcher.submit(formData, { method: "POST" });
   };
