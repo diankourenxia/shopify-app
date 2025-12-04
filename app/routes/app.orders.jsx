@@ -20,6 +20,8 @@ import {
   ButtonGroup,
   Checkbox,
   Modal,
+  Popover,
+  ChoiceList,
 } from "@shopify/polaris";
 import * as XLSX from 'xlsx';
 import { TitleBar } from "@shopify/app-bridge-react";
@@ -845,9 +847,9 @@ export default function Orders() {
   const [orderTagsMap, setOrderTagsMap] = useState(initialOrderTagsMap || {});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [tagFilter, setTagFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState([]); // 改为数组支持多选
   const [financialFilter, setFinancialFilter] = useState("all");
-  const [customStatusFilter, setCustomStatusFilter] = useState("all"); // 自定义订单状态筛选
+  const [customStatusFilter, setCustomStatusFilter] = useState([]); // 改为数组支持多选
   const [startDate, setStartDate] = useState(""); // 开始日期
   const [endDate, setEndDate] = useState(""); // 结束日期
   const [isLoading, setIsLoading] = useState(false);
@@ -864,6 +866,10 @@ export default function Orders() {
   const [batchExportEndDate, setBatchExportEndDate] = useState("");
   const [batchExportStatus, setBatchExportStatus] = useState("all");
   const [batchExporting, setBatchExporting] = useState(false);
+  
+  // 多选弹窗状态
+  const [tagPopoverActive, setTagPopoverActive] = useState(false);
+  const [statusPopoverActive, setStatusPopoverActive] = useState(false);
 
   // 处理搜索结果和页面数据更新
   useEffect(() => {
@@ -1037,9 +1043,9 @@ export default function Orders() {
   const handleClearSearch = () => {
     setSearchQuery("");
     setStatusFilter("all");
-    setTagFilter("all");
+    setTagFilter([]);
     setFinancialFilter("all");
-    setCustomStatusFilter("all");
+    setCustomStatusFilter([]);
     setStartDate("");
     setEndDate("");
     setOrders(initialOrders);
@@ -1071,10 +1077,10 @@ export default function Orders() {
       // 只选择当前可见（经过标签筛选）的订单
       const visibleOrderIds = orders
         .filter(order => {
-          if (!tagFilter || tagFilter === 'all') return true;
+          if (!tagFilter || tagFilter.length === 0) return true;
           const orderId = order.id.replace('gid://shopify/Order/', '');
           const tags = orderTagsMap[orderId] || [];
-          return tags.some(t => t.id === tagFilter);
+          return tags.some(t => tagFilter.includes(t.id));
         })
         .map(order => order.id);
       setSelectedOrders(new Set(visibleOrderIds));
@@ -1595,12 +1601,12 @@ export default function Orders() {
       });
     }
     
-    // 应用自定义订单状态筛选
-    if (customStatusFilter !== "all") {
+    // 应用自定义订单状态筛选（多选）
+    if (customStatusFilter && customStatusFilter.length > 0) {
       selectedOrdersData = selectedOrdersData.filter(order => {
         const orderId = order.id.replace('gid://shopify/Order/', '');
         const orderStatus = statusMap[orderId];
-        return orderStatus === customStatusFilter;
+        return customStatusFilter.includes(orderStatus);
       });
     }
     
@@ -1883,14 +1889,8 @@ export default function Orders() {
       const dateRange = `${startDate || '起始'}至${endDate || '现在'}`;
       fileName += `_${dateRange}`;
     }
-    if (customStatusFilter !== 'all') {
-      const statusLabels = {
-        'pending': '待处理',
-        'in_production': '生产中',
-        'shipped': '已发货',
-        'completed': '已完成'
-      };
-      fileName += `_${statusLabels[customStatusFilter] || customStatusFilter}`;
+    if (customStatusFilter && customStatusFilter.length > 0) {
+      fileName += `_${customStatusFilter.join('_')}`;
     }
     fileName += `_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
@@ -2370,11 +2370,11 @@ export default function Orders() {
 
   // 根据标签和支付状态筛选（前端过滤）
   const displayedOrders = orders.filter(order => {
-    // 标签筛选
-    if (tagFilter && tagFilter !== 'all') {
+    // 标签筛选（多选）
+    if (tagFilter && tagFilter.length > 0) {
       const orderId = order.id.replace('gid://shopify/Order/', '');
       const tags = orderTagsMap[orderId] || [];
-      if (!tags.some(t => t.id === tagFilter)) return false;
+      if (!tags.some(t => tagFilter.includes(t.id))) return false;
     }
     
     // 支付状态筛选
@@ -2722,12 +2722,30 @@ export default function Orders() {
                     value={statusFilter}
                     onChange={setStatusFilter}
                   />
-                  <Select
-                    label="标签筛选"
-                    options={[{ label: '所有标签', value: 'all' }, ...allTags.map(t => ({ label: t.name, value: t.id }))]}
-                    value={tagFilter}
-                    onChange={setTagFilter}
-                  />
+                  <Popover
+                    active={tagPopoverActive}
+                    activator={
+                      <Button onClick={() => setTagPopoverActive(!tagPopoverActive)} disclosure>
+                        标签筛选 {tagFilter.length > 0 ? `(${tagFilter.length})` : ''}
+                      </Button>
+                    }
+                    onClose={() => setTagPopoverActive(false)}
+                  >
+                    <div style={{ padding: '16px', minWidth: '200px' }}>
+                      <ChoiceList
+                        allowMultiple
+                        title="选择标签"
+                        choices={allTags.map(t => ({ label: t.name, value: t.id }))}
+                        selected={tagFilter}
+                        onChange={setTagFilter}
+                      />
+                      {tagFilter.length > 0 && (
+                        <div style={{ marginTop: '12px' }}>
+                          <Button size="slim" onClick={() => setTagFilter([])}>清除选择</Button>
+                        </div>
+                      )}
+                    </div>
+                  </Popover>
                   <Select
                     label="支付状态"
                     options={[
@@ -2741,18 +2759,36 @@ export default function Orders() {
                     value={financialFilter}
                     onChange={setFinancialFilter}
                   />
-                  <Select
-                    label="订单状态"
-                    options={[
-                      { label: '全部订单状态', value: 'all' },
-                      { label: '待处理', value: 'pending' },
-                      { label: '生产中', value: 'in_production' },
-                      { label: '已发货', value: 'shipped' },
-                      { label: '已完成', value: 'completed' },
-                    ]}
-                    value={customStatusFilter}
-                    onChange={setCustomStatusFilter}
-                  />
+                  <Popover
+                    active={statusPopoverActive}
+                    activator={
+                      <Button onClick={() => setStatusPopoverActive(!statusPopoverActive)} disclosure>
+                        订单状态 {customStatusFilter.length > 0 ? `(${customStatusFilter.length})` : ''}
+                      </Button>
+                    }
+                    onClose={() => setStatusPopoverActive(false)}
+                  >
+                    <div style={{ padding: '16px', minWidth: '200px' }}>
+                      <ChoiceList
+                        allowMultiple
+                        title="选择订单状态"
+                        choices={[
+                          { label: '待生产', value: '待生产' },
+                          { label: '生产中', value: '生产中' },
+                          { label: '暂停生产', value: '暂停生产' },
+                          { label: '待发货', value: '待发货' },
+                          { label: '已发货', value: '已发货' },
+                        ]}
+                        selected={customStatusFilter}
+                        onChange={setCustomStatusFilter}
+                      />
+                      {customStatusFilter.length > 0 && (
+                        <div style={{ marginTop: '12px' }}>
+                          <Button size="slim" onClick={() => setCustomStatusFilter([])}>清除选择</Button>
+                        </div>
+                      )}
+                    </div>
+                  </Popover>
                   <TextField
                     label="开始日期"
                     type="date"
