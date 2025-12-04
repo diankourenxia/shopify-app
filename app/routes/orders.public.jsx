@@ -126,7 +126,7 @@ export const loader = async ({ request }) => {
         }
         
         // 检测当前商品是否为硬件（使用单词边界匹配）
-        const hardwarePattern = /\b(rod|bracket|finial|ring|clip|hook)\b/i;
+        const hardwarePattern = /\b(rods?|brackets?|finials?|rings?|clips?|hooks?)\b/i;
         const isCurrentItemHardware = hardwarePattern.test(item.title || '');
         
         if (isCurrentItemHardware) {
