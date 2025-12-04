@@ -1913,15 +1913,13 @@ export default function Orders() {
     if (pageInfo.hasNextPage && pageInfo.endCursor) {
       setIsLoading(true); // 显示 loading
       setCurrentPage(prev => prev + 1);
-      if (searchQuery) {
-        // 如果有搜索条件，使用 fetcher 提交搜索请求
-        handleSearch(pageInfo.endCursor, null);
-      } else {
-        // 没有搜索条件，使用 URL 导航
-        const searchParams = new URLSearchParams();
-        searchParams.set("after", pageInfo.endCursor);
-        navigate(`/app/orders?${searchParams.toString()}`);
-      }
+      // 统一使用 fetcher 进行分页，保持选中状态
+      const formData = new FormData();
+      formData.append("action", "search");
+      formData.append("searchQuery", searchQuery || "");
+      formData.append("statusFilter", statusFilter);
+      formData.append("after", pageInfo.endCursor);
+      fetcher.submit(formData, { method: "POST" });
     }
   };
 
@@ -1929,15 +1927,13 @@ export default function Orders() {
     if (pageInfo.hasPreviousPage && pageInfo.startCursor) {
       setIsLoading(true); // 显示 loading
       setCurrentPage(prev => prev > 1 ? prev - 1 : 1);
-      if (searchQuery) {
-        // 如果有搜索条件，使用 fetcher 提交搜索请求
-        handleSearch(null, pageInfo.startCursor);
-      } else {
-        // 没有搜索条件，使用 URL 导航
-        const searchParams = new URLSearchParams();
-        searchParams.set("before", pageInfo.startCursor);
-        navigate(`/app/orders?${searchParams.toString()}`);
-      }
+      // 统一使用 fetcher 进行分页，保持选中状态
+      const formData = new FormData();
+      formData.append("action", "search");
+      formData.append("searchQuery", searchQuery || "");
+      formData.append("statusFilter", statusFilter);
+      formData.append("before", pageInfo.startCursor);
+      fetcher.submit(formData, { method: "POST" });
     }
   };
 
