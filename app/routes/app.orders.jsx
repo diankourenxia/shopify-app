@@ -1073,21 +1073,32 @@ export default function Orders() {
     });
   };
 
-  // 全选/取消全选
+  // 全选/取消全选（当前页面）
   const handleSelectAll = (checked) => {
+    // 获取当前可见（经过标签筛选）的订单ID
+    const visibleOrderIds = orders
+      .filter(order => {
+        if (!tagFilter || tagFilter.length === 0) return true;
+        const orderId = order.id.replace('gid://shopify/Order/', '');
+        const tags = orderTagsMap[orderId] || [];
+        return tags.some(t => tagFilter.includes(t.id));
+      })
+      .map(order => order.id);
+    
     if (checked) {
-      // 只选择当前可见（经过标签筛选）的订单
-      const visibleOrderIds = orders
-        .filter(order => {
-          if (!tagFilter || tagFilter.length === 0) return true;
-          const orderId = order.id.replace('gid://shopify/Order/', '');
-          const tags = orderTagsMap[orderId] || [];
-          return tags.some(t => tagFilter.includes(t.id));
-        })
-        .map(order => order.id);
-      setSelectedOrders(new Set(visibleOrderIds));
+      // 选中：将当前页面的订单添加到已选中的集合（保留其他页面的选择）
+      setSelectedOrders(prev => {
+        const newSet = new Set(prev);
+        visibleOrderIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
     } else {
-      setSelectedOrders(new Set());
+      // 取消选中：只移除当前页面的订单（保留其他页面的选择）
+      setSelectedOrders(prev => {
+        const newSet = new Set(prev);
+        visibleOrderIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
     }
   };
 
@@ -2637,10 +2648,14 @@ export default function Orders() {
     ];
   });
 
+  // 检查当前页面的订单是否全部被选中
+  const isAllCurrentPageSelected = displayedOrders.length > 0 && 
+    displayedOrders.every(order => selectedOrders.has(order.id));
+
   const headings = [
     <Checkbox
       key="select-all"
-      checked={selectedOrders.size === displayedOrders.length && displayedOrders.length > 0}
+      checked={isAllCurrentPageSelected}
       onChange={handleSelectAll}
       label=""
     />,
@@ -2832,10 +2847,21 @@ export default function Orders() {
                     清除
                   </Button>
                 </InlineStack>
-                <InlineStack gap="300">
+                <InlineStack gap="300" blockAlign="center">
                   <Text variant="bodyMd" tone="subdued">
                     已选择 {selectedOrders.size} 个订单
+                    {selectedOrders.size > 0 && currentPage > 1 && ' (包含其他页面)'}
                   </Text>
+                  {selectedOrders.size > 0 && (
+                    <Button 
+                      onClick={() => setSelectedOrders(new Set())}
+                      variant="plain"
+                      tone="critical"
+                      size="slim"
+                    >
+                      清除选择
+                    </Button>
+                  )}
                   <Button 
                     onClick={handleExportExcel} 
                     disabled={selectedOrders.size === 0}
@@ -2862,10 +2888,11 @@ export default function Orders() {
               {/* 订单列表 */}
               {isLoading ? (
                 <Box padding="800">
-                  <InlineStack align="center">
+                  <BlockStack gap="400" align="center">
                     <Spinner size="large" />
-                    <Text variant="bodyMd">正在加载订单...</Text>
-                  </InlineStack>
+                    <Text variant="headingMd" tone="subdued">正在加载订单...</Text>
+                    <Text variant="bodySm" tone="subdued">请稍候</Text>
+                  </BlockStack>
                 </Box>
               ) : displayedOrders.length > 0 ? (
                 <DataTable
