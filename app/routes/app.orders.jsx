@@ -289,7 +289,7 @@ export const loader = async ({ request }) => {
           }
           
           // 检测当前商品是否为硬件（使用单词边界匹配）
-          const hardwarePattern = /\b(rod|bracket|finial|ring|clip|hook)\b/i;
+          const hardwarePattern = /\b(rods?|brackets?|finials?|rings?|clips?|hooks?)\b/i;
           const isCurrentItemHardware = hardwarePattern.test(item.title || '');
           
           if (isCurrentItemHardware) {
@@ -1291,8 +1291,8 @@ export default function Orders() {
         // 检查是否是轨道（包含 track 但不是 track runner 配件）
         const isTrack = (titleLower.includes('track') || titleLower.includes('轨道')) && 
                         !titleLower.includes('runner');
-        // 检查是否是罗马杆
-        const isRomanRod = titleLower.includes('roman rod') || titleLower.includes('罗马杆');
+        // 检查是否是罗马杆（包含 rod/rods 或 罗马杆）
+        const isRomanRod = /\b(rods?|brackets?|finials?)\b/i.test(item.title) || titleLower.includes('罗马杆');
         // 检查是否是布帘（curtain 或 drape）
         const isCurtain = (titleLower.includes('curtain') || titleLower.includes('drape')) && 
                           !isRomanShade && !isTrack && !isRomanRod &&
