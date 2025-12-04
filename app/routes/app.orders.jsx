@@ -1900,6 +1900,7 @@ export default function Orders() {
 
   const handleNextPage = () => {
     if (pageInfo.hasNextPage && pageInfo.endCursor) {
+      setIsLoading(true); // 显示 loading
       setCurrentPage(prev => prev + 1);
       if (searchQuery) {
         // 如果有搜索条件，使用 fetcher 提交搜索请求
@@ -1915,6 +1916,7 @@ export default function Orders() {
 
   const handlePreviousPage = () => {
     if (pageInfo.hasPreviousPage && pageInfo.startCursor) {
+      setIsLoading(true); // 显示 loading
       setCurrentPage(prev => prev > 1 ? prev - 1 : 1);
       if (searchQuery) {
         // 如果有搜索条件，使用 fetcher 提交搜索请求
