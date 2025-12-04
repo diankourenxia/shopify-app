@@ -857,6 +857,7 @@ export default function Orders() {
   const [currentPageBefore, setCurrentPageBefore] = useState(currentBefore);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrders, setSelectedOrders] = useState(new Set());
+  const [selectedOrdersCache, setSelectedOrdersCache] = useState({}); // 缓存选中订单的完整数据
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [commentsOrderId, setCommentsOrderId] = useState(null);
   const [commentsLoading, setCommentsLoading] = useState(false);
@@ -1067,6 +1068,7 @@ export default function Orders() {
     setCurrentPageBefore(null);
     setCurrentPage(1); // 清除搜索重置页码
     setSelectedOrders(new Set()); // 清除选中状态
+    setSelectedOrdersCache({}); // 清除缓存
     // 导航回第一页
     navigate('/app/orders');
   };
@@ -1082,19 +1084,36 @@ export default function Orders() {
       }
       return newSet;
     });
+    
+    // 缓存或移除订单数据
+    if (checked) {
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        setSelectedOrdersCache(prev => ({
+          ...prev,
+          [orderId]: order
+        }));
+      }
+    } else {
+      setSelectedOrdersCache(prev => {
+        const newCache = { ...prev };
+        delete newCache[orderId];
+        return newCache;
+      });
+    }
   };
 
   // 全选/取消全选（当前页面）
   const handleSelectAll = (checked) => {
     // 获取当前可见（经过标签筛选）的订单ID
-    const visibleOrderIds = orders
-      .filter(order => {
-        if (!tagFilter || tagFilter.length === 0) return true;
-        const orderId = order.id.replace('gid://shopify/Order/', '');
-        const tags = orderTagsMap[orderId] || [];
-        return tags.some(t => tagFilter.includes(t.id));
-      })
-      .map(order => order.id);
+    const visibleOrders = orders.filter(order => {
+      if (!tagFilter || tagFilter.length === 0) return true;
+      const orderId = order.id.replace('gid://shopify/Order/', '');
+      const tags = orderTagsMap[orderId] || [];
+      return tags.some(t => tagFilter.includes(t.id));
+    });
+    
+    const visibleOrderIds = visibleOrders.map(order => order.id);
     
     if (checked) {
       // 选中：将当前页面的订单添加到已选中的集合（保留其他页面的选择）
@@ -1103,12 +1122,26 @@ export default function Orders() {
         visibleOrderIds.forEach(id => newSet.add(id));
         return newSet;
       });
+      // 缓存订单数据
+      setSelectedOrdersCache(prev => {
+        const newCache = { ...prev };
+        visibleOrders.forEach(order => {
+          newCache[order.id] = order;
+        });
+        return newCache;
+      });
     } else {
       // 取消选中：只移除当前页面的订单（保留其他页面的选择）
       setSelectedOrders(prev => {
         const newSet = new Set(prev);
         visibleOrderIds.forEach(id => newSet.delete(id));
         return newSet;
+      });
+      // 移除缓存
+      setSelectedOrdersCache(prev => {
+        const newCache = { ...prev };
+        visibleOrderIds.forEach(id => delete newCache[id]);
+        return newCache;
       });
     }
   };
@@ -1190,7 +1223,15 @@ export default function Orders() {
       return;
     }
 
-    const selectedOrdersData = orders.filter(order => selectedOrders.has(order.id));
+    // 从缓存获取选中的订单数据，如果缓存中没有则从当前页面获取
+    const selectedOrdersData = Array.from(selectedOrders).map(orderId => {
+      // 优先从缓存获取
+      if (selectedOrdersCache[orderId]) {
+        return selectedOrdersCache[orderId];
+      }
+      // 回退到当前页面的订单
+      return orders.find(order => order.id === orderId);
+    }).filter(Boolean); // 过滤掉 undefined
     
     if (selectedOrdersData.length === 0) {
       alert('没有找到选中的订单数据');
@@ -1604,7 +1645,15 @@ export default function Orders() {
       return;
     }
 
-    let selectedOrdersData = orders.filter(order => selectedOrders.has(order.id));
+    // 从缓存获取选中的订单数据，如果缓存中没有则从当前页面获取
+    let selectedOrdersData = Array.from(selectedOrders).map(orderId => {
+      // 优先从缓存获取
+      if (selectedOrdersCache[orderId]) {
+        return selectedOrdersCache[orderId];
+      }
+      // 回退到当前页面的订单
+      return orders.find(order => order.id === orderId);
+    }).filter(Boolean); // 过滤掉 undefined
     
     // 应用日期筛选
     if (startDate) {
