@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import {
@@ -871,9 +871,13 @@ export default function Orders() {
   const [tagPopoverActive, setTagPopoverActive] = useState(false);
   const [statusPopoverActive, setStatusPopoverActive] = useState(false);
 
+  // 用于避免 loader useEffect 覆盖 fetcher 数据
+  const skipLoaderUpdateRef = useRef(false);
+
   // 处理搜索结果和页面数据更新
   useEffect(() => {
     if (fetcher.data?.orders) {
+      console.log('Fetcher data received, updating orders:', fetcher.data.orders.length);
       setOrders(fetcher.data.orders);
       setPageInfo(fetcher.data.pageInfo);
       if (fetcher.data.statusMap) {
@@ -889,6 +893,8 @@ export default function Orders() {
       if (fetcher.data.currentBefore !== undefined) {
         setCurrentPageBefore(fetcher.data.currentBefore);
       }
+      // 标记跳过下一次 loader 更新，避免覆盖 fetcher 数据
+      skipLoaderUpdateRef.current = true;
       setIsLoading(false);
     }
   }, [fetcher.data]);
@@ -1011,6 +1017,11 @@ export default function Orders() {
 
   // 当loader数据更新时重置loading状态（仅在初始加载和URL导航时）
   useEffect(() => {
+    // 如果刚刚通过 fetcher 更新过，跳过这次 loader 更新
+    if (skipLoaderUpdateRef.current) {
+      skipLoaderUpdateRef.current = false;
+      return;
+    }
     // URL导航会更新 initialOrders，所以需要同步状态
     setOrders(initialOrders);
     setPageInfo(initialPageInfo);
