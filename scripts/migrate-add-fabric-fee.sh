@@ -1,8 +1,8 @@
 #!/bin/bash
-# 添加布料费字段迁移脚本
+# 添加费用字段迁移脚本（加工费、布料费、产品费）
 
 echo "============================="
-echo "添加布料费字段迁移"
+echo "添加费用字段迁移"
 echo "============================="
 
 # 检查是否在正确目录
@@ -19,16 +19,35 @@ async function migrate() {
   const prisma = new PrismaClient();
   
   try {
-    // 检查 fabricFee 列是否存在
+    // 获取表结构
     const tableInfo = await prisma.\$queryRaw\`PRAGMA table_info(OrderStatus)\`;
-    const hasFabricFee = tableInfo.some(col => col.name === 'fabricFee');
+    const columns = tableInfo.map(col => col.name);
     
-    if (!hasFabricFee) {
-      console.log('添加 fabricFee 字段...');
+    // 检查并添加 processingFee 列（加工费 - 罗马帘）
+    if (!columns.includes('processingFee')) {
+      console.log('添加 processingFee 字段（加工费）...');
+      await prisma.\$executeRaw\`ALTER TABLE OrderStatus ADD COLUMN processingFee REAL\`;
+      console.log('✅ processingFee 字段添加成功');
+    } else {
+      console.log('✅ processingFee 字段已存在，跳过');
+    }
+    
+    // 检查并添加 fabricFee 列（布料费 - 罗马帘）
+    if (!columns.includes('fabricFee')) {
+      console.log('添加 fabricFee 字段（布料费）...');
       await prisma.\$executeRaw\`ALTER TABLE OrderStatus ADD COLUMN fabricFee REAL\`;
       console.log('✅ fabricFee 字段添加成功');
     } else {
       console.log('✅ fabricFee 字段已存在，跳过');
+    }
+    
+    // 检查并添加 productFee 列（产品费 - 罗马杆/轨道）
+    if (!columns.includes('productFee')) {
+      console.log('添加 productFee 字段（产品费）...');
+      await prisma.\$executeRaw\`ALTER TABLE OrderStatus ADD COLUMN productFee REAL\`;
+      console.log('✅ productFee 字段添加成功');
+    } else {
+      console.log('✅ productFee 字段已存在，跳过');
     }
     
     console.log('\\n迁移完成！');

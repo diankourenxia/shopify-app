@@ -1460,6 +1460,13 @@ export default function Orders() {
       return;
     }
 
+    // 按订单号由大到小排序（订单号格式如 #1234）
+    selectedOrdersData.sort((a, b) => {
+      const numA = parseInt(a.name.replace(/[^0-9]/g, ''), 10) || 0;
+      const numB = parseInt(b.name.replace(/[^0-9]/g, ''), 10) || 0;
+      return numB - numA; // 由大到小
+    });
+
     // 按订单号分组汇总
     const stockData = [];
 
