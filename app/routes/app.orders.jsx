@@ -1522,9 +1522,11 @@ export default function Orders() {
                         !titleLower.includes('runner');
         // 检查是否是罗马杆（包含 rod/rods 或 罗马杆）
         const isRomanRod = /\b(rods?|brackets?|finials?)\b/i.test(item.title) || titleLower.includes('罗马杆');
+        // 检查是否是配件（hooks, rings, clips, tiebacks 等单独售卖的配件）
+        const isAccessory = /\b(hooks?|rings?|clips?|tiebacks?|holdbacks?|valance|pelmet)\b/i.test(item.title);
         // 检查是否是布帘（curtain 或 drape）
         const isCurtain = (titleLower.includes('curtain') || titleLower.includes('drape')) && 
-                          !isRomanShade && !isTrack && !isRomanRod &&
+                          !isRomanShade && !isTrack && !isRomanRod && !isAccessory &&
                           !titleLower.includes('runner'); // 排除 curtain track runner
         
         if (isRomanShade) {
@@ -2786,7 +2788,13 @@ export default function Orders() {
         ? parseDimensions(item.customAttributes, item.quantity, item.title)
         : null;
       
-      if (!dimensions) return null;
+      // 判断产品类型
+      const isCurtain = isCurtainItem(item);
+      const isRomanShade = isRomanShadeItem(item);
+      const isHardware = isHardwareItem(item);
+      
+      // 如果没有解析出尺寸，且不是硬件类产品，则跳过
+      if (!dimensions && !isHardware) return null;
       
       // 状态优先使用数据库中存储的，如果为空则使用默认值
       const itemKey = `${orderId}:${item.id}`;
@@ -2796,9 +2804,6 @@ export default function Orders() {
       const currentProcessingFee = processingFeeMap[itemKey];
       const currentProductFee = productFeeMap[itemKey];
       const currentFabricFee = fabricFeeMap[itemKey];
-      const isCurtain = isCurtainItem(item);
-      const isRomanShade = isRomanShadeItem(item);
-      const isHardware = isHardwareItem(item);
       
       return (
         <div key={item.id} style={{ 
@@ -2809,7 +2814,12 @@ export default function Orders() {
           <div style={{ fontWeight: '500', marginBottom: '4px', fontSize: '0.875rem','width':'400px','whiteSpace':'wrap' }}>
             {item.title}
           </div>
-          {dimensions}
+          {dimensions || (
+            <div style={{ lineHeight: '1.4', maxWidth: '400px' }}>
+              <div>数量: {item.quantity}</div>
+              {isHardware && <div>类型: {item.title.toLowerCase().includes('track') ? '轨道' : '罗马杆'}</div>}
+            </div>
+          )}
           <div style={{ marginTop: '8px', maxWidth: '220px' }}>
             <Select
               label=""
