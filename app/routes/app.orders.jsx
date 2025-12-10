@@ -180,9 +180,10 @@ export const loader = async ({ request }) => {
       statusMap[key] = status.status;
       noteMap[key] = status.note || '';
       
-      // 保存高温定型费用
+      // 保存高温定型费用（按 lineItem 级别存储）
       if (status.heatSettingFee !== null && status.heatSettingFee !== undefined) {
-        heatSettingFeeMap[status.orderId] = status.heatSettingFee;
+        const feeKey = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
+        heatSettingFeeMap[feeKey] = status.heatSettingFee;
       }
       
       // 保存运单信息
@@ -622,14 +623,15 @@ export const action = async ({ request }) => {
     }
   }
 
-  // 处理高温定型费用更新
+  // 处理高温定型费用更新（lineItem 级别）
   if (action === "updateHeatSettingFee") {
     const prisma = (await import("../db.server")).default;
     const orderId = formData.get("orderId");
+    const lineItemId = formData.get("lineItemId");
     const feeValue = formData.get("fee");
 
-    if (!orderId) {
-      return json({ error: "缺少订单ID" }, { status: 400 });
+    if (!orderId || !lineItemId) {
+      return json({ error: "缺少订单ID或商品ID" }, { status: 400 });
     }
 
     const fee = feeValue === "" || feeValue === null ? null : parseFloat(feeValue);
@@ -640,7 +642,7 @@ export const action = async ({ request }) => {
 
     try {
       const existing = await prisma.orderStatus.findFirst({
-        where: { orderId, lineItemId: null }
+        where: { orderId, lineItemId }
       });
 
       if (existing) {
@@ -652,14 +654,14 @@ export const action = async ({ request }) => {
         await prisma.orderStatus.create({
           data: { 
             orderId, 
-            lineItemId: null, 
-            status: "未发货",
+            lineItemId, 
+            status: "待处理",
             heatSettingFee: fee 
           }
         });
       }
 
-      return json({ success: true, fee });
+      return json({ success: true, fee, lineItemId });
     } catch (error) {
       console.error("更新高温定型费用失败:", error);
       return json({ error: "更新失败", details: error.message }, { status: 500 });
@@ -1584,12 +1586,16 @@ export default function Orders() {
 
         const fabricModel = fabricCodeMatch ? `${fabricCodeMatch[1]}-${parseInt(fabricCodeMatch[2], 10).toString()}` : (item.variant?.title || 'Default Title');
 
+        // 从 lineItem 级别读取高温定型费用
+        const itemKey = `${orderId}:${item.id}`;
+        const itemHeatSettingFee = heatSettingFeeMap[itemKey];
+
         const rowData = {
           '交货时间': validItemIndex === 0 ? deliveryTime : '',
           '订单编号': validItemIndex === 0 ? orderNumber : '',
           '备注': validItemIndex === 0 ? (order.note || '') : '',
           '评论': validItemIndex === 0 ? (commentsMap[order.id] || '') : '',
-          '高温定型费用': validItemIndex === 0 ? (heatSettingFeeMap[order.id]?.toString() || '') : '',
+          '高温定型费用': itemHeatSettingFee?.toString() || '',
           '布料型号': fabricModel,
           '布料采购米数': purchaseMetersStr,
           '布料单价': fabricUnitPrice || '-',
@@ -1920,13 +1926,17 @@ export default function Orders() {
         // 处理布料型号：从商品标题提取（使用标准化的颜色编号）
         const fabricModel = fabricCodeMatch ? `${fabricCodeMatch[1]}-${parseInt(fabricCodeMatch[2], 10).toString()}` : (item.variant?.title || 'Default Title');
 
+        // 从 lineItem 级别读取高温定型费用
+        const itemKey = `${orderId}:${item.id}`;
+        const itemHeatSettingFee = heatSettingFeeMap[itemKey];
+
         // 如果是当前订单的第一个有效商品，显示订单信息；否则留空
         const rowData = {
           '交货时间': validItemIndex === 0 ? deliveryTime : '',
           '订单编号': validItemIndex === 0 ? orderNumber : '',
           '备注': validItemIndex === 0 ? (order.note || '') : '',
           '评论': validItemIndex === 0 ? (commentsMap[order.id] || '') : '',
-          '高温定型费用': validItemIndex === 0 ? (heatSettingFeeMap[order.id]?.toString() || '') : '',
+          '高温定型费用': itemHeatSettingFee?.toString() || '',
           '布料型号': fabricModel,
           '布料采购米数': purchaseMetersStr,
           '布料单价': fabricUnitPrice || '-',
@@ -2135,15 +2145,31 @@ export default function Orders() {
     });
   };
 
-  // 更新高温定型费用
-  const handleUpdateHeatSettingFee = (orderId, value) => {
+  // 更新高温定型费用（lineItem 级别）
+  const handleUpdateHeatSettingFee = (orderId, lineItemId, value) => {
     const formData = new FormData();
     formData.append("action", "updateHeatSettingFee");
     formData.append("orderId", orderId);
+    formData.append("lineItemId", lineItemId);
     formData.append("fee", value);
     heatSettingFeeFetcher.submit(formData, { 
       method: "POST" 
     });
+  };
+
+  // 判断是否是布帘（有 Header 或 Pleat 属性，且不是罗马帘或硬件）
+  const isCurtainItem = (item) => {
+    const title = (item.title || '').toLowerCase();
+    const hardwarePattern = /\b(rod|bracket|finial|ring|clip|hook)\b/i;
+    const isHardware = hardwarePattern.test(item.title || '');
+    const isRomanShade = title.includes('roman');
+    
+    if (isHardware || isRomanShade) return false;
+    
+    const hasHeader = item.customAttributes?.some(attr => 
+      attr.key.includes('Header') || attr.key.includes('Pleat')
+    );
+    return hasHeader;
   };
 
   const getStatusBadge = (status) => {
@@ -2480,6 +2506,8 @@ export default function Orders() {
       const itemKey = `${orderId}:${item.id}`;
       const currentStatus = statusMap[itemKey] || defaultStatus;
       const currentNote = noteMap[itemKey] || '';
+      const currentHeatSettingFee = heatSettingFeeMap[itemKey];
+      const isCurtain = isCurtainItem(item);
       
       return (
         <div key={item.id} style={{ 
@@ -2518,6 +2546,32 @@ export default function Orders() {
               multiline={3}
             />
           </div>
+          {/* 布帘才显示高温定型费用 */}
+          {isCurtain && (
+            <div style={{ marginTop: '8px', maxWidth: '150px' }}>
+              <TextField
+                label="高温定型费用"
+                value={currentHeatSettingFee?.toString() || ""}
+                onChange={(value) => {
+                  // 实时更新本地状态
+                  setHeatSettingFeeMap(prev => ({
+                    ...prev,
+                    [itemKey]: value === "" ? null : parseFloat(value) || 0
+                  }));
+                }}
+                onBlur={(e) => {
+                  // 失焦时保存到数据库
+                  const value = e.target.value;
+                  handleUpdateHeatSettingFee(orderId, item.id, value);
+                }}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                autoComplete="off"
+              />
+            </div>
+          )}
         </div>
       );
     }).filter(Boolean);
@@ -2618,29 +2672,6 @@ export default function Orders() {
         {order.note || '-'}
       </div>,
       formatDate(order.createdAt),
-      // 高温定型费用列
-      <div style={{ minWidth: '120px' }}>
-        <TextField
-          value={heatSettingFeeMap[order.id]?.toString() || ""}
-          onChange={(value) => {
-            // 实时更新本地状态
-            setHeatSettingFeeMap(prev => ({
-              ...prev,
-              [order.id]: value === "" ? null : parseFloat(value) || 0
-            }));
-          }}
-          onBlur={(e) => {
-            // 失焦时保存到数据库
-            const value = e.target.value;
-            handleUpdateHeatSettingFee(order.id, value);
-          }}
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="0.00"
-          autoComplete="off"
-        />
-      </div>,
       // 运单信息列
       waybillMap[order.id] ? (
         <div style={{ minWidth: '150px' }}>
@@ -2725,7 +2756,6 @@ export default function Orders() {
     '支付状态',
     '备注',
     '创建时间',
-    '高温定型费用',
     '运单信息',
     '操作',
   ];
@@ -2952,7 +2982,7 @@ export default function Orders() {
                 </Box>
               ) : displayedOrders.length > 0 ? (
                 <DataTable
-                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
+                  columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text']}
                   headings={headings}
                   rows={rows}
                   hoverable
