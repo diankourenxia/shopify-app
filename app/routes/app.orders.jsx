@@ -166,7 +166,10 @@ export const loader = async ({ request }) => {
   // 获取所有订单的自定义状态和备注
   let statusMap = {};
   let noteMap = {};
-  let heatSettingFeeMap = {}; // 高温定型费用映射
+  let heatSettingFeeMap = {}; // 高温定型费用映射（布帘）
+  let processingFeeMap = {}; // 加工费映射（罗马帘）
+  let fabricFeeMap = {}; // 布料费映射（罗马帘）
+  let productFeeMap = {}; // 产品费映射（罗马杆/轨道）
   let waybillMap = {}; // 运单信息映射
   let allTags = [];
   let orderTagsMap = {};
@@ -180,10 +183,26 @@ export const loader = async ({ request }) => {
       statusMap[key] = status.status;
       noteMap[key] = status.note || '';
       
+      const feeKey = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
+      
       // 保存高温定型费用（按 lineItem 级别存储）
       if (status.heatSettingFee !== null && status.heatSettingFee !== undefined) {
-        const feeKey = status.lineItemId ? `${status.orderId}:${status.lineItemId}` : status.orderId;
         heatSettingFeeMap[feeKey] = status.heatSettingFee;
+      }
+      
+      // 保存加工费（罗马帘）
+      if (status.processingFee !== null && status.processingFee !== undefined) {
+        processingFeeMap[feeKey] = status.processingFee;
+      }
+      
+      // 保存布料费（罗马帘）
+      if (status.fabricFee !== null && status.fabricFee !== undefined) {
+        fabricFeeMap[feeKey] = status.fabricFee;
+      }
+      
+      // 保存产品费（罗马杆/轨道）
+      if (status.productFee !== null && status.productFee !== undefined) {
+        productFeeMap[feeKey] = status.productFee;
       }
       
       // 保存运单信息
@@ -369,6 +388,9 @@ export const loader = async ({ request }) => {
       statusMap,
       noteMap,
       heatSettingFeeMap,
+      processingFeeMap,
+      fabricFeeMap,
+      productFeeMap,
       waybillMap,
       allTags,
       orderTagsMap,
@@ -389,6 +411,9 @@ export const loader = async ({ request }) => {
       statusMap: {},
       noteMap: {},
       heatSettingFeeMap: {},
+      processingFeeMap: {},
+      fabricFeeMap: {},
+      productFeeMap: {},
       waybillMap: {},
       allTags: [],
       orderTagsMap: {},
@@ -668,6 +693,141 @@ export const action = async ({ request }) => {
     }
   }
 
+  // 处理加工费更新（罗马帘，lineItem 级别）
+  if (action === "updateProcessingFee") {
+    const prisma = (await import("../db.server")).default;
+    const orderId = formData.get("orderId");
+    const lineItemId = formData.get("lineItemId");
+    const feeValue = formData.get("fee");
+
+    if (!orderId || !lineItemId) {
+      return json({ error: "缺少订单ID或商品ID" }, { status: 400 });
+    }
+
+    const fee = feeValue === "" || feeValue === null ? null : parseFloat(feeValue);
+    
+    if (fee !== null && (isNaN(fee) || fee < 0)) {
+      return json({ error: "无效的费用金额" }, { status: 400 });
+    }
+
+    try {
+      const existing = await prisma.orderStatus.findFirst({
+        where: { orderId, lineItemId }
+      });
+
+      if (existing) {
+        await prisma.orderStatus.update({
+          where: { id: existing.id },
+          data: { processingFee: fee }
+        });
+      } else {
+        await prisma.orderStatus.create({
+          data: { 
+            orderId, 
+            lineItemId, 
+            status: "待处理",
+            processingFee: fee 
+          }
+        });
+      }
+
+      return json({ success: true, fee, lineItemId, feeType: 'processingFee' });
+    } catch (error) {
+      console.error("更新加工费失败:", error);
+      return json({ error: "更新失败", details: error.message }, { status: 500 });
+    }
+  }
+
+  // 处理布料费更新（罗马帘，lineItem 级别）
+  if (action === "updateFabricFee") {
+    const prisma = (await import("../db.server")).default;
+    const orderId = formData.get("orderId");
+    const lineItemId = formData.get("lineItemId");
+    const feeValue = formData.get("fee");
+
+    if (!orderId || !lineItemId) {
+      return json({ error: "缺少订单ID或商品ID" }, { status: 400 });
+    }
+
+    const fee = feeValue === "" || feeValue === null ? null : parseFloat(feeValue);
+    
+    if (fee !== null && (isNaN(fee) || fee < 0)) {
+      return json({ error: "无效的费用金额" }, { status: 400 });
+    }
+
+    try {
+      const existing = await prisma.orderStatus.findFirst({
+        where: { orderId, lineItemId }
+      });
+
+      if (existing) {
+        await prisma.orderStatus.update({
+          where: { id: existing.id },
+          data: { fabricFee: fee }
+        });
+      } else {
+        await prisma.orderStatus.create({
+          data: { 
+            orderId, 
+            lineItemId, 
+            status: "待处理",
+            fabricFee: fee 
+          }
+        });
+      }
+
+      return json({ success: true, fee, lineItemId, feeType: 'fabricFee' });
+    } catch (error) {
+      console.error("更新布料费失败:", error);
+      return json({ error: "更新失败", details: error.message }, { status: 500 });
+    }
+  }
+
+  // 处理产品费更新（罗马杆/轨道，lineItem 级别）
+  if (action === "updateProductFee") {
+    const prisma = (await import("../db.server")).default;
+    const orderId = formData.get("orderId");
+    const lineItemId = formData.get("lineItemId");
+    const feeValue = formData.get("fee");
+
+    if (!orderId || !lineItemId) {
+      return json({ error: "缺少订单ID或商品ID" }, { status: 400 });
+    }
+
+    const fee = feeValue === "" || feeValue === null ? null : parseFloat(feeValue);
+    
+    if (fee !== null && (isNaN(fee) || fee < 0)) {
+      return json({ error: "无效的费用金额" }, { status: 400 });
+    }
+
+    try {
+      const existing = await prisma.orderStatus.findFirst({
+        where: { orderId, lineItemId }
+      });
+
+      if (existing) {
+        await prisma.orderStatus.update({
+          where: { id: existing.id },
+          data: { productFee: fee }
+        });
+      } else {
+        await prisma.orderStatus.create({
+          data: { 
+            orderId, 
+            lineItemId, 
+            status: "待处理",
+            productFee: fee 
+          }
+        });
+      }
+
+      return json({ success: true, fee, lineItemId, feeType: 'productFee' });
+    } catch (error) {
+      console.error("更新产品费失败:", error);
+      return json({ error: "更新失败", details: error.message }, { status: 500 });
+    }
+  }
+
   if (action === "search") {
     const after = formData.get("after");
     const before = formData.get("before");
@@ -818,6 +978,9 @@ export default function Orders() {
     statusMap: initialStatusMap,
     noteMap: initialNoteMap,
     heatSettingFeeMap: initialHeatSettingFeeMap,
+    processingFeeMap: initialProcessingFeeMap,
+    fabricFeeMap: initialFabricFeeMap,
+    productFeeMap: initialProductFeeMap,
     waybillMap: initialWaybillMap,
     allTags: initialTags,
     orderTagsMap: initialOrderTagsMap,
@@ -832,6 +995,9 @@ export default function Orders() {
   const tagFetcher = useFetcher();
   const sfFetcher = useFetcher(); // 顺丰快递打印
   const heatSettingFeeFetcher = useFetcher(); // 高温定型费用更新
+  const processingFeeFetcher = useFetcher(); // 加工费更新（罗马帘）
+  const fabricFeeFetcher = useFetcher(); // 布料费更新（罗马帘）
+  const productFeeFetcher = useFetcher(); // 产品费更新（罗马杆/轨道）
   const [printingOrderId, setPrintingOrderId] = useState(null); // 正在打印的订单ID
   const [printModalOpen, setPrintModalOpen] = useState(false); // 打印弹窗
   const [printOrderId, setPrintOrderId] = useState(null); // 要打印的订单ID
@@ -844,6 +1010,9 @@ export default function Orders() {
   const [statusMap, setStatusMap] = useState(initialStatusMap || {});
   const [noteMap, setNoteMap] = useState(initialNoteMap || {});
   const [heatSettingFeeMap, setHeatSettingFeeMap] = useState(initialHeatSettingFeeMap || {});
+  const [processingFeeMap, setProcessingFeeMap] = useState(initialProcessingFeeMap || {});
+  const [fabricFeeMap, setFabricFeeMap] = useState(initialFabricFeeMap || {});
+  const [productFeeMap, setProductFeeMap] = useState(initialProductFeeMap || {});
   const [waybillMap, setWaybillMap] = useState(initialWaybillMap || {});
   const [allTags, setAllTags] = useState(initialTags || []);
   const [orderTagsMap, setOrderTagsMap] = useState(initialOrderTagsMap || {});
@@ -1004,19 +1173,70 @@ export default function Orders() {
   // 处理高温定型费用更新结果
   useEffect(() => {
     if (heatSettingFeeFetcher.data?.success) {
-      const { fee } = heatSettingFeeFetcher.data;
-      // 从提交的formData中获取orderId
+      const { fee, lineItemId } = heatSettingFeeFetcher.data;
       const orderId = heatSettingFeeFetcher.formData?.get("orderId");
-      if (orderId) {
+      if (orderId && lineItemId) {
+        const feeKey = `${orderId}:${lineItemId}`;
         setHeatSettingFeeMap(prev => ({
           ...prev,
-          [orderId]: fee
+          [feeKey]: fee
         }));
       }
     } else if (heatSettingFeeFetcher.data?.error) {
       shopify.toast.show(heatSettingFeeFetcher.data.error, { duration: 3000, isError: true });
     }
   }, [heatSettingFeeFetcher.data]);
+
+  // 处理加工费更新结果（罗马帘）
+  useEffect(() => {
+    if (processingFeeFetcher.data?.success) {
+      const { fee, lineItemId } = processingFeeFetcher.data;
+      const orderId = processingFeeFetcher.formData?.get("orderId");
+      if (orderId && lineItemId) {
+        const feeKey = `${orderId}:${lineItemId}`;
+        setProcessingFeeMap(prev => ({
+          ...prev,
+          [feeKey]: fee
+        }));
+      }
+    } else if (processingFeeFetcher.data?.error) {
+      shopify.toast.show(processingFeeFetcher.data.error, { duration: 3000, isError: true });
+    }
+  }, [processingFeeFetcher.data]);
+
+  // 处理产品费更新结果（罗马杆/轨道）
+  useEffect(() => {
+    if (productFeeFetcher.data?.success) {
+      const { fee, lineItemId } = productFeeFetcher.data;
+      const orderId = productFeeFetcher.formData?.get("orderId");
+      if (orderId && lineItemId) {
+        const feeKey = `${orderId}:${lineItemId}`;
+        setProductFeeMap(prev => ({
+          ...prev,
+          [feeKey]: fee
+        }));
+      }
+    } else if (productFeeFetcher.data?.error) {
+      shopify.toast.show(productFeeFetcher.data.error, { duration: 3000, isError: true });
+    }
+  }, [productFeeFetcher.data]);
+
+  // 处理布料费更新结果（罗马帘）
+  useEffect(() => {
+    if (fabricFeeFetcher.data?.success) {
+      const { fee, lineItemId } = fabricFeeFetcher.data;
+      const orderId = fabricFeeFetcher.formData?.get("orderId");
+      if (orderId && lineItemId) {
+        const feeKey = `${orderId}:${lineItemId}`;
+        setFabricFeeMap(prev => ({
+          ...prev,
+          [feeKey]: fee
+        }));
+      }
+    } else if (fabricFeeFetcher.data?.error) {
+      shopify.toast.show(fabricFeeFetcher.data.error, { duration: 3000, isError: true });
+    }
+  }, [fabricFeeFetcher.data]);
 
   // 当loader数据更新时重置loading状态（仅在初始加载和URL导航时）
   useEffect(() => {
@@ -1390,9 +1610,16 @@ export default function Orders() {
 
   // 导出订单到Excel的通用函数
   const exportOrdersToExcel = async (ordersToExport) => {
+    // 按订单号由大到小排序（订单号格式如 #1234）
+    const sortedOrders = [...ordersToExport].sort((a, b) => {
+      const numA = parseInt(a.name.replace(/[^0-9]/g, ''), 10) || 0;
+      const numB = parseInt(b.name.replace(/[^0-9]/g, ''), 10) || 0;
+      return numB - numA; // 由大到小
+    });
+    
     // 查询所有订单的评论
     const commentsMap = {};
-    await Promise.all(ordersToExport.map(async (order) => {
+    await Promise.all(sortedOrders.map(async (order) => {
       try {
         const response = await fetch(`/api/comments?orderId=${order.id}`);
         const data = await response.json();
@@ -1436,7 +1663,7 @@ export default function Orders() {
     // 准备Excel数据
     const excelData = [];
     
-    ordersToExport.forEach(order => {
+    sortedOrders.forEach(order => {
       const orderId = order.id.replace('gid://shopify/Order/', '');
       const orderDate = new Date(order.createdAt);
       const deliveryDate = new Date(orderDate.getTime() + 9 * 24 * 60 * 60 * 1000);
@@ -2157,6 +2384,42 @@ export default function Orders() {
     });
   };
 
+  // 更新加工费（罗马帘，lineItem 级别）
+  const handleUpdateProcessingFee = (orderId, lineItemId, value) => {
+    const formData = new FormData();
+    formData.append("action", "updateProcessingFee");
+    formData.append("orderId", orderId);
+    formData.append("lineItemId", lineItemId);
+    formData.append("fee", value);
+    processingFeeFetcher.submit(formData, { 
+      method: "POST" 
+    });
+  };
+
+  // 更新产品费（罗马杆/轨道，lineItem 级别）
+  const handleUpdateProductFee = (orderId, lineItemId, value) => {
+    const formData = new FormData();
+    formData.append("action", "updateProductFee");
+    formData.append("orderId", orderId);
+    formData.append("lineItemId", lineItemId);
+    formData.append("fee", value);
+    productFeeFetcher.submit(formData, { 
+      method: "POST" 
+    });
+  };
+
+  // 更新布料费（罗马帘，lineItem 级别）
+  const handleUpdateFabricFee = (orderId, lineItemId, value) => {
+    const formData = new FormData();
+    formData.append("action", "updateFabricFee");
+    formData.append("orderId", orderId);
+    formData.append("lineItemId", lineItemId);
+    formData.append("fee", value);
+    fabricFeeFetcher.submit(formData, { 
+      method: "POST" 
+    });
+  };
+
   // 判断是否是布帘（有 Header 或 Pleat 属性，且不是罗马帘或硬件）
   const isCurtainItem = (item) => {
     const title = (item.title || '').toLowerCase();
@@ -2170,6 +2433,22 @@ export default function Orders() {
       attr.key.includes('Header') || attr.key.includes('Pleat')
     );
     return hasHeader;
+  };
+
+  // 判断是否是罗马帘
+  const isRomanShadeItem = (item) => {
+    const title = (item.title || '').toLowerCase();
+    return title.includes('roman') && title.includes('shade');
+  };
+
+  // 判断是否是罗马杆或轨道
+  const isHardwareItem = (item) => {
+    const title = (item.title || '').toLowerCase();
+    // 罗马杆：roman rod, curtain rod 等
+    // 轨道：track, rail 等
+    const isRod = title.includes('rod') && !title.includes('shade');
+    const isTrack = title.includes('track') || title.includes('rail');
+    return isRod || isTrack;
   };
 
   const getStatusBadge = (status) => {
@@ -2507,7 +2786,12 @@ export default function Orders() {
       const currentStatus = statusMap[itemKey] || defaultStatus;
       const currentNote = noteMap[itemKey] || '';
       const currentHeatSettingFee = heatSettingFeeMap[itemKey];
+      const currentProcessingFee = processingFeeMap[itemKey];
+      const currentProductFee = productFeeMap[itemKey];
+      const currentFabricFee = fabricFeeMap[itemKey];
       const isCurtain = isCurtainItem(item);
+      const isRomanShade = isRomanShadeItem(item);
+      const isHardware = isHardwareItem(item);
       
       return (
         <div key={item.id} style={{ 
@@ -2563,6 +2847,78 @@ export default function Orders() {
                   // 失焦时保存到数据库
                   const value = e.target.value;
                   handleUpdateHeatSettingFee(orderId, item.id, value);
+                }}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                autoComplete="off"
+              />
+            </div>
+          )}
+          {/* 罗马帘才显示加工费 */}
+          {isRomanShade && (
+            <div style={{ marginTop: '8px', maxWidth: '150px' }}>
+              <TextField
+                label="加工费"
+                value={currentProcessingFee?.toString() || ""}
+                onChange={(value) => {
+                  setProcessingFeeMap(prev => ({
+                    ...prev,
+                    [itemKey]: value === "" ? null : parseFloat(value) || 0
+                  }));
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value;
+                  handleUpdateProcessingFee(orderId, item.id, value);
+                }}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                autoComplete="off"
+              />
+            </div>
+          )}
+          {/* 罗马帘才显示布料费 */}
+          {isRomanShade && (
+            <div style={{ marginTop: '8px', maxWidth: '150px' }}>
+              <TextField
+                label="布料费"
+                value={currentFabricFee?.toString() || ""}
+                onChange={(value) => {
+                  setFabricFeeMap(prev => ({
+                    ...prev,
+                    [itemKey]: value === "" ? null : parseFloat(value) || 0
+                  }));
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value;
+                  handleUpdateFabricFee(orderId, item.id, value);
+                }}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                autoComplete="off"
+              />
+            </div>
+          )}
+          {/* 罗马杆/轨道才显示产品费 */}
+          {isHardware && (
+            <div style={{ marginTop: '8px', maxWidth: '150px' }}>
+              <TextField
+                label="产品费"
+                value={currentProductFee?.toString() || ""}
+                onChange={(value) => {
+                  setProductFeeMap(prev => ({
+                    ...prev,
+                    [itemKey]: value === "" ? null : parseFloat(value) || 0
+                  }));
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value;
+                  handleUpdateProductFee(orderId, item.id, value);
                 }}
                 type="number"
                 min="0"

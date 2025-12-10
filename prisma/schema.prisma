@@ -44,8 +44,17 @@ model OrderStatus {
   status      String   // 自定义状态，例如: 待生产、生产中、暂停生产、待发货、已发货
   note        String?  // 备注信息
   
-  // 高温定型费用
+  // 高温定型费用（布帘）
   heatSettingFee  Float?   // 高温定型费用
+  
+  // 加工费（罗马帘）
+  processingFee   Float?   // 罗马帘加工费
+  
+  // 布料费（罗马帘）
+  fabricFee       Float?   // 罗马帘布料费
+  
+  // 产品费（罗马杆/轨道）
+  productFee      Float?   // 罗马杆/轨道产品费
   
   // 顺丰快递运单信息
   sfWaybillNo    String?  // 顺丰运单号
