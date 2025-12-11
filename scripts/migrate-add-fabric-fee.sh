@@ -1,8 +1,8 @@
 #!/bin/bash
-# 添加费用字段迁移脚本（加工费、布料费、产品费）
+# 添加费用字段和小样发货字段迁移脚本
 
 echo "============================="
-echo "添加费用字段迁移"
+echo "数据库字段迁移"
 echo "============================="
 
 # 检查是否在正确目录
@@ -48,6 +48,39 @@ async function migrate() {
       console.log('✅ productFee 字段添加成功');
     } else {
       console.log('✅ productFee 字段已存在，跳过');
+    }
+    
+    // 检查并添加小样发货相关字段
+    if (!columns.includes('sampleShippingNo')) {
+      console.log('添加 sampleShippingNo 字段（小样发货单号）...');
+      await prisma.\$executeRaw\`ALTER TABLE OrderStatus ADD COLUMN sampleShippingNo TEXT\`;
+      console.log('✅ sampleShippingNo 字段添加成功');
+    } else {
+      console.log('✅ sampleShippingNo 字段已存在，跳过');
+    }
+    
+    if (!columns.includes('sampleShippingStatus')) {
+      console.log('添加 sampleShippingStatus 字段（小样发货状态）...');
+      await prisma.\$executeRaw\`ALTER TABLE OrderStatus ADD COLUMN sampleShippingStatus TEXT\`;
+      console.log('✅ sampleShippingStatus 字段添加成功');
+    } else {
+      console.log('✅ sampleShippingStatus 字段已存在，跳过');
+    }
+    
+    if (!columns.includes('sampleShippingCreatedAt')) {
+      console.log('添加 sampleShippingCreatedAt 字段（小样发货创建时间）...');
+      await prisma.\$executeRaw\`ALTER TABLE OrderStatus ADD COLUMN sampleShippingCreatedAt DATETIME\`;
+      console.log('✅ sampleShippingCreatedAt 字段添加成功');
+    } else {
+      console.log('✅ sampleShippingCreatedAt 字段已存在，跳过');
+    }
+    
+    if (!columns.includes('sampleTrackingNo')) {
+      console.log('添加 sampleTrackingNo 字段（小样物流追踪号）...');
+      await prisma.\$executeRaw\`ALTER TABLE OrderStatus ADD COLUMN sampleTrackingNo TEXT\`;
+      console.log('✅ sampleTrackingNo 字段添加成功');
+    } else {
+      console.log('✅ sampleTrackingNo 字段已存在，跳过');
     }
     
     console.log('\\n迁移完成！');

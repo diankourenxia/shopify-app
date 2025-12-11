@@ -994,11 +994,20 @@ export default function Orders() {
   const commentFetcher = useFetcher();
   const tagFetcher = useFetcher();
   const sfFetcher = useFetcher(); // 顺丰快递打印
+  const sampleShippingFetcher = useFetcher(); // 小样发货
   const heatSettingFeeFetcher = useFetcher(); // 高温定型费用更新
   const processingFeeFetcher = useFetcher(); // 加工费更新（罗马帘）
   const fabricFeeFetcher = useFetcher(); // 布料费更新（罗马帘）
   const productFeeFetcher = useFetcher(); // 产品费更新（罗马杆/轨道）
   const [printingOrderId, setPrintingOrderId] = useState(null); // 正在打印的订单ID
+  const [sampleShippingOrderId, setSampleShippingOrderId] = useState(null); // 正在小样发货的订单ID
+  const [sampleShippingModalOpen, setSampleShippingModalOpen] = useState(false); // 小样发货弹窗
+  const [sampleShippingConfig, setSampleShippingConfig] = useState({
+    customSku: '',
+    shippingMethod: 'FEDEX-SMALLPARCEL',
+    warehouseCode: 'USEA',
+    orderDesc: '',
+  });
   const [printModalOpen, setPrintModalOpen] = useState(false); // 打印弹窗
   const [printOrderId, setPrintOrderId] = useState(null); // 要打印的订单ID
   const [parcelQuantity, setParcelQuantity] = useState("1"); // 包裹数量
@@ -1013,6 +1022,7 @@ export default function Orders() {
   const [processingFeeMap, setProcessingFeeMap] = useState(initialProcessingFeeMap || {});
   const [fabricFeeMap, setFabricFeeMap] = useState(initialFabricFeeMap || {});
   const [productFeeMap, setProductFeeMap] = useState(initialProductFeeMap || {});
+  const [sampleShippingMap, setSampleShippingMap] = useState({}); // 小样发货信息
   const [waybillMap, setWaybillMap] = useState(initialWaybillMap || {});
   const [allTags, setAllTags] = useState(initialTags || []);
   const [orderTagsMap, setOrderTagsMap] = useState(initialOrderTagsMap || {});
@@ -1150,6 +1160,39 @@ export default function Orders() {
       }
     }
   }, [sfFetcher.data]);
+
+  // 处理小样发货结果
+  useEffect(() => {
+    if (sampleShippingFetcher.data) {
+      setSampleShippingOrderId(null);
+      if (sampleShippingFetcher.data.success) {
+        const orderNo = sampleShippingFetcher.data.data?.order_no || sampleShippingFetcher.data.data?.reference_no || '未知';
+        shopify.toast.show(`小样发货成功！订单号：${orderNo}`, { 
+          duration: 5000 
+        });
+        
+        // 更新本地状态
+        const orderId = sampleShippingFetcher.formData?.get("orderId");
+        if (orderId) {
+          setSampleShippingMap(prev => ({
+            ...prev,
+            [`gid://shopify/Order/${orderId}`]: {
+              orderNo,
+              status: '已创建',
+              createdAt: new Date().toISOString()
+            }
+          }));
+        }
+        
+        setSampleShippingModalOpen(false);
+      } else if (sampleShippingFetcher.data.error) {
+        shopify.toast.show(`小样发货失败：${sampleShippingFetcher.data.error}`, { 
+          duration: 5000, 
+          isError: true 
+        });
+      }
+    }
+  }, [sampleShippingFetcher.data]);
 
   // 处理评论查询结果
   useEffect(() => {
@@ -2381,6 +2424,36 @@ export default function Orders() {
     });
   };
 
+  // 打开小样发货弹窗
+  const handleOpenSampleShippingModal = (orderId) => {
+    setSampleShippingOrderId(orderId);
+    setSampleShippingModalOpen(true);
+    setSampleShippingConfig({
+      customSku: '',
+      shippingMethod: 'FEDEX-SMALLPARCEL',
+      warehouseCode: 'USEA',
+      orderDesc: '',
+    });
+  };
+
+  // 执行小样发货
+  const handleSampleShipping = () => {
+    if (!sampleShippingOrderId) return;
+    
+    const formData = new FormData();
+    formData.append("action", "createSampleShipping");
+    formData.append("orderId", sampleShippingOrderId);
+    formData.append("customSku", sampleShippingConfig.customSku);
+    formData.append("shippingMethod", sampleShippingConfig.shippingMethod);
+    formData.append("warehouseCode", sampleShippingConfig.warehouseCode);
+    formData.append("orderDesc", sampleShippingConfig.orderDesc);
+    
+    sampleShippingFetcher.submit(formData, { 
+      method: "POST", 
+      action: "/api/sample-shipping" 
+    });
+  };
+
   // 更新高温定型费用（lineItem 级别）
   const handleUpdateHeatSettingFee = (orderId, lineItemId, value) => {
     const formData = new FormData();
@@ -3084,6 +3157,17 @@ export default function Orders() {
         >
           {waybillMap[order.id] ? '重新打印' : '打印运单'}
         </Button>
+        {/* 小样订单显示小样发货按钮 */}
+        {isSampleOrder(order.lineItems) && (
+          <Button
+            size="slim"
+            onClick={() => handleOpenSampleShippingModal(orderId)}
+            loading={sampleShippingOrderId === orderId}
+            tone="success"
+          >
+            {sampleShippingMap[order.id] ? '重新发货' : '小样发货'}
+          </Button>
+        )}
         <Button
           size="slim"
           url={`/app/orders/${orderId}`}
@@ -3373,6 +3457,67 @@ export default function Orders() {
           </Card>
         </Layout.Section>
       </Layout>
+
+      {/* 小样发货 Modal */}
+      <Modal
+        open={sampleShippingModalOpen}
+        onClose={() => setSampleShippingModalOpen(false)}
+        title="小样发货"
+        primaryAction={{
+          content: '确认发货',
+          onAction: handleSampleShipping,
+          loading: sampleShippingFetcher.state === 'submitting',
+        }}
+        secondaryActions={[
+          {
+            content: '取消',
+            onAction: () => setSampleShippingModalOpen(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <Text variant="bodyMd">
+              配置小样发货参数：
+            </Text>
+            <TextField
+              label="商品SKU"
+              value={sampleShippingConfig.customSku}
+              onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, customSku: value }))}
+              autoComplete="off"
+              helpText="留空将使用商品原有SKU"
+              placeholder="例如: SAMPLE-001"
+            />
+            <Select
+              label="物流方式"
+              options={[
+                { label: 'FedEx Small Parcel', value: 'FEDEX-SMALLPARCEL' },
+                { label: 'UPS Ground', value: 'UPS-GROUND' },
+                { label: 'USPS Priority', value: 'USPS-PRIORITY' },
+              ]}
+              value={sampleShippingConfig.shippingMethod}
+              onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, shippingMethod: value }))}
+            />
+            <Select
+              label="发货仓库"
+              options={[
+                { label: '美东仓 (USEA)', value: 'USEA' },
+                { label: '美西仓 (USWE)', value: 'USWE' },
+              ]}
+              value={sampleShippingConfig.warehouseCode}
+              onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, warehouseCode: value }))}
+            />
+            <TextField
+              label="订单备注"
+              value={sampleShippingConfig.orderDesc}
+              onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, orderDesc: value }))}
+              autoComplete="off"
+              multiline={2}
+              placeholder="可选的订单备注信息"
+            />
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
 
       {/* 打印运单 Modal */}
       <Modal

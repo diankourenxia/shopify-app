@@ -63,6 +63,12 @@ model OrderStatus {
   sfCreatedAt    DateTime? // 运单创建时间
   sfPrintCount   Int      @default(0) // 打印次数，用于生成递增后缀
   
+  // 小样发货信息（海外仓）
+  sampleShippingNo        String?   // 小样发货单号
+  sampleShippingStatus    String?   // 小样发货状态
+  sampleShippingCreatedAt DateTime? // 小样发货创建时间
+  sampleTrackingNo        String?   // 小样物流追踪号
+  
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 }
