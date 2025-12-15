@@ -10,30 +10,55 @@ import { json } from "@remix-run/node";
  * 解析窗帘尺寸信息
  */
 function parseCurtainDimensions(properties) {
+  // 参考 app.orders.jsx 逻辑优化墙宽计算
   let width = "";
   let height = "";
-  
+  let multiplier = 2.5;
+  let panels = 1;
+  let widthCm = 0;
+  // 先取倍数和分片
+  for (const prop of properties || []) {
+    const n = (prop.name || '').toLowerCase();
+    const v = (prop.value || '').toLowerCase();
+    if (n.includes('倍数')) {
+      const m = parseFloat(prop.value);
+      if (!isNaN(m)) multiplier = m;
+    }
+    if (n.includes('分片')) {
+      const p = parseInt(prop.value);
+      if (!isNaN(p)) panels = p;
+    }
+  }
+  // 再取宽高
   for (const prop of properties || []) {
     const name = prop.name?.toLowerCase() || "";
     const value = prop.value || "";
-    
     if (name.includes("width") || name.includes("宽")) {
-      // 提取数字部分（英寸），转换为厘米
-      const match = value.match(/[\d.]+/);
-      if (match) {
-        const inches = parseFloat(match[0]);
-        width = Math.round(inches * 2.54).toString(); // 转换为厘米
+      // 只取第一个有效宽度
+      if (!widthCm) {
+        const match = value.match(/[\d.]+/);
+        if (match) {
+          widthCm = Math.round(parseFloat(match[0]) * 2.54 * 100) / 100;
+        }
       }
     }
     if (name.includes("height") || name.includes("高") || name.includes("length") || name.includes("drop")) {
-      const match = value.match(/[\d.]+/);
-      if (match) {
-        const inches = parseFloat(match[0]);
-        height = Math.round(inches * 2.54).toString(); // 转换为厘米
+      if (!height) {
+        const match = value.match(/[\d.]+/);
+        if (match) {
+          height = Math.round(parseFloat(match[0]) * 2.54).toString();
+        }
       }
     }
   }
-  
+  // 宽度、倍数、分片都有效时才计算墙宽
+  if (widthCm > 0 && multiplier > 0 && panels > 0) {
+    width = Math.round((widthCm / multiplier * panels)).toString();
+  } else if (widthCm > 0) {
+    width = widthCm.toString();
+  } else {
+    width = "";
+  }
   return { width, height };
 }
 
@@ -242,7 +267,7 @@ function generateWashLabelHTML(labelData) {
     </div>
     
     <div class="row size-row">
-      <span><span class="label">尺寸: 宽:</span> <span class="value">${width || ""}</span></span>
+      <span><span class="label">墙宽:</span> <span class="value">${width || ""}</span></span>
       <span><span class="label">高:</span> <span class="value">${height || ""}</span></span>
     </div>
     
@@ -313,7 +338,7 @@ function generateMultiLabelHTML(labels) {
     return `<div class=\"label-card\" style=\"${pageBreak};padding-top:10mm;\">\n` +
       `<div class=\"row\"><span class=\"label\">订单编号:</span><span class=\"value\">${orderNo || ""}</span></div>` +
       `<div class=\"row\"><span class=\"label\">布料型号:</span><span class=\"value\">${fabricModel || ""}</span></div>` +
-      `<div class=\"row size-row\"><span><span class=\"label\">尺寸: 宽:</span> <span class=\"value\">${width || ""}</span></span><span><span class=\"label\">高:</span> <span class=\"value\">${height || ""}</span></span></div>` +
+      `<div class=\"row size-row\"><span><span class=\"label\">墙宽:</span> <span class=\"value\">${width || ""}</span></span><span><span class=\"label\">高:</span> <span class=\"value\">${height || ""}</span></span></div>` +
       `<div class=\"row\"><span class=\"label\">款式:</span><span class=\"value\">${style || ""}</span></div>` +
       `<div class=\"row\"><span class=\"label\">衬布:</span><span class=\"value\">${lining || ""}</span>${colorBlock}</div>` +
       `<div class=\"options-row\"><span class=\"option\">单开 ${checkbox(options.singleOpen)}</span><span class=\"option\">双开 ${checkbox(options.doubleOpen)}</span><span class=\"option\">定型 ${checkbox(options.heatSetting)}</span></div>` +
