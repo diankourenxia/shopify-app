@@ -17,7 +17,7 @@ SF_API_BASE_URL=http://8.219.107.56
 
 # 发件人信息（必填）
 SF_SENDER_CONTACT=张三
-SF_SENDER_PHONE=13800138000
+SF_SENDER_PHONE=17611571900
 SF_SENDER_REGION_FIRST=广东省
 SF_SENDER_REGION_SECOND=深圳市
 SF_SENDER_REGION_THIRD=宝安区
@@ -138,7 +138,7 @@ npm run dev
   "interProductCode": "INT0014",
   "senderInfo": {
     "contact": "张三",
-    "phoneNo": "13800138000",
+    "phoneNo": "17611571900",
     "address": "科技园路123号"
   },
   "receiverInfo": {

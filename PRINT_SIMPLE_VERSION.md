@@ -53,7 +53,7 @@ const printResult = await fetch('http://8.219.107.56/sf/print_order', {
 ```env
 SF_API_BASE_URL=http://8.219.107.56  # API服务地址（可选）
 SF_SENDER_CONTACT=发件人姓名          # 必填
-SF_SENDER_PHONE=13800138000          # 必填
+SF_SENDER_PHONE=17611571900          # 必填
 SF_SENDER_REGION_FIRST=广东省         # 必填
 SF_SENDER_REGION_SECOND=深圳市        # 必填
 SF_SENDER_REGION_THIRD=宝安区         # 必填
@@ -73,7 +73,7 @@ SF_SENDER_POSTCODE=518000            # 必填
 
 ```env
 SF_SENDER_CONTACT=张三
-SF_SENDER_PHONE=13800138000
+SF_SENDER_PHONE=17611571900
 SF_SENDER_REGION_FIRST=广东省
 SF_SENDER_REGION_SECOND=深圳市
 SF_SENDER_REGION_THIRD=宝安区

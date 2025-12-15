@@ -12,7 +12,7 @@ const SF_API_BASE_URL = process.env.SF_API_BASE_URL || "http://8.219.107.56";
 // 发件人信息配置
 const SENDER_CONFIG = {
   contact: process.env.SF_SENDER_CONTACT || "江淼",
-  phoneNo: process.env.SF_SENDER_PHONE || "13800138000",
+  phoneNo: process.env.SF_SENDER_PHONE || "17611571900",
   phoneAreaCode: "86",
   country: "CN",
   regionFirst: process.env.SF_SENDER_REGION_FIRST || "浙江省",
