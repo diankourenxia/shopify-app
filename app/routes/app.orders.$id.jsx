@@ -661,6 +661,34 @@ export default function OrderDetail() {
                     创建运单并打印
                   </Button>
                   <Button
+                    onClick={() => {
+                      // 打开水洗标页面
+                      const form = document.createElement('form');
+                      form.method = 'POST';
+                      form.action = '/api/wash-label';
+                      form.target = '_blank';
+                      
+                      const actionInput = document.createElement('input');
+                      actionInput.type = 'hidden';
+                      actionInput.name = 'action';
+                      actionInput.value = 'generateLabels';
+                      form.appendChild(actionInput);
+                      
+                      const orderIdInput = document.createElement('input');
+                      orderIdInput.type = 'hidden';
+                      orderIdInput.name = 'orderId';
+                      orderIdInput.value = order.id;
+                      form.appendChild(orderIdInput);
+                      
+                      document.body.appendChild(form);
+                      form.submit();
+                      document.body.removeChild(form);
+                    }}
+                    variant="secondary"
+                  >
+                    打印水洗标
+                  </Button>
+                  <Button
                     url={`shopify:admin/orders/${params.id}`}
                     target="_blank"
                   >
