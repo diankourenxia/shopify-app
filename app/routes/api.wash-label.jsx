@@ -303,7 +303,9 @@ function generateMultiLabelHTML(labels) {
     const pageBreak = idx < labels.length - 1 ? 'page-break-after: always;' : '';
     // 自动识别 liningColor/color/颜色 字段
     let colorBlock = '';
+    let liningModelText = '';
     if (labelData.properties && Array.isArray(labelData.properties)) {
+      // 衬布色块
       const colorAttr = labelData.properties.find(p => {
         const n = (p.name || '').toLowerCase();
         return n.includes('liningcolor') || n.includes('lining_color') || n.includes('color') || n.includes('颜色');
@@ -311,13 +313,21 @@ function generateMultiLabelHTML(labels) {
       if (colorAttr && colorAttr.value) {
         colorBlock = `<span class=\"color-block\" style=\"display:inline-block;width:16px;height:16px;border:1px solid #888;margin-left:8px;vertical-align:middle;background:${colorAttr.value};\"></span>`;
       }
+      // 衬布型号
+      const liningModelAttr = labelData.properties.find(p => {
+        const n = (p.name || '').toLowerCase();
+        return n.includes('liningmodel') || n.includes('lining_name') || n.includes('liningname') || n.includes('衬布型号') || n.includes('liningno') || n.includes('lining no');
+      });
+      if (liningModelAttr && liningModelAttr.value) {
+        liningModelText = `（${liningModelAttr.value}）`;
+      }
     }
     return `<div class=\"label-card\" style=\"${pageBreak}\">\n` +
       `<div class=\"row\"><span class=\"label\">订单编号:</span><span class=\"value\">${orderNo || ""}</span></div>` +
       `<div class=\"row\"><span class=\"label\">布料型号:</span><span class=\"value\">${fabricModel || ""}</span></div>` +
       `<div class=\"row size-row\"><span><span class=\"label\">尺寸: 宽:</span> <span class=\"value\">${width || ""}</span></span><span><span class=\"label\">高:</span> <span class=\"value\">${height || ""}</span></span></div>` +
       `<div class=\"row\"><span class=\"label\">款式:</span><span class=\"value\">${style || ""}</span></div>` +
-      `<div class=\"row\"><span class=\"label\">衬布:</span><span class=\"value\">${lining || ""}</span>${colorBlock}</div>` +
+      `<div class=\"row\"><span class=\"label\">衬布:</span><span class=\"value\">${lining || ""}${liningModelText}</span>${colorBlock}</div>` +
       `<div class=\"options-row\"><span class=\"option\">单开 ${checkbox(options.singleOpen)}</span><span class=\"option\">双开 ${checkbox(options.doubleOpen)}</span><span class=\"option\">定型 ${checkbox(options.heatSetting)}</span></div>` +
       `<div class=\"options-row\"><span class=\"option\">铅块 ${checkbox(options.leadBlock)}</span><span class=\"option\">绑带 ${checkbox(options.binding)}</span></div>` +
       (quantity > 1 ? `<div class=\"quantity\">数量: ${quantity}</div>` : "") +
