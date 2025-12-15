@@ -1049,6 +1049,11 @@ export default function Orders() {
   const [batchExportStatus, setBatchExportStatus] = useState("all");
   const [batchExporting, setBatchExporting] = useState(false);
   
+  // 水洗标打印相关状态
+  const [washLabelModalOpen, setWashLabelModalOpen] = useState(false);
+  const [washLabelItem, setWashLabelItem] = useState(null); // { orderId, orderName, item }
+  const [washLabelNote, setWashLabelNote] = useState("");
+  
   // 多选弹窗状态
   const [tagPopoverActive, setTagPopoverActive] = useState(false);
   const [statusPopoverActive, setStatusPopoverActive] = useState(false);
@@ -2497,9 +2502,66 @@ export default function Orders() {
     formData.append("orderId", orderId);
     formData.append("lineItemId", lineItemId);
     formData.append("fee", value);
-    fabricFeeFetcher.submit(formData, { 
+    fabricFeeFetcher.submit(formData, {
       method: "POST" 
     });
+  };
+
+  // 打开水洗标打印弹窗
+  const handleOpenWashLabelModal = (orderId, orderName, item) => {
+    setWashLabelItem({ orderId, orderName, item });
+    setWashLabelNote("");
+    setWashLabelModalOpen(true);
+  };
+
+  // 确认打印水洗标
+  const handlePrintWashLabel = () => {
+    if (!washLabelItem) return;
+    
+    const { orderId, orderName, item } = washLabelItem;
+    
+    // 创建表单并提交
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/api/wash-label';
+    form.target = '_blank';
+    
+    const actionInput = document.createElement('input');
+    actionInput.type = 'hidden';
+    actionInput.name = 'action';
+    actionInput.value = 'generateLabel';
+    form.appendChild(actionInput);
+    
+    const orderIdInput = document.createElement('input');
+    orderIdInput.type = 'hidden';
+    orderIdInput.name = 'orderId';
+    orderIdInput.value = `gid://shopify/Order/${orderId}`;
+    form.appendChild(orderIdInput);
+    
+    const lineItemIdInput = document.createElement('input');
+    lineItemIdInput.type = 'hidden';
+    lineItemIdInput.name = 'lineItemId';
+    lineItemIdInput.value = item.id;
+    form.appendChild(lineItemIdInput);
+    
+    const noteInput = document.createElement('input');
+    noteInput.type = 'hidden';
+    noteInput.name = 'note';
+    noteInput.value = washLabelNote;
+    form.appendChild(noteInput);
+    
+    // 传递数量，用于生成多个水洗标
+    const quantityInput = document.createElement('input');
+    quantityInput.type = 'hidden';
+    quantityInput.name = 'quantity';
+    quantityInput.value = item.quantity.toString();
+    form.appendChild(quantityInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+    
+    setWashLabelModalOpen(false);
   };
 
   // 判断是否是布帘（有 Header 或 Pleat 属性，且不是罗马帘或硬件）
@@ -2944,6 +3006,17 @@ export default function Orders() {
                 placeholder="0.00"
                 autoComplete="off"
               />
+            </div>
+          )}
+          {/* 布帘显示打印水洗标按钮 */}
+          {isCurtain && (
+            <div style={{ marginTop: '8px' }}>
+              <Button
+                size="slim"
+                onClick={() => handleOpenWashLabelModal(orderId, order.name, item)}
+              >
+                打印水洗标 ({item.quantity}个)
+              </Button>
             </div>
           )}
           {/* 罗马帘才显示加工费 */}
@@ -3695,6 +3768,49 @@ export default function Orders() {
               ]}
               value={batchExportStatus}
               onChange={setBatchExportStatus}
+            />
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      {/* 水洗标打印弹窗 */}
+      <Modal
+        open={washLabelModalOpen}
+        onClose={() => setWashLabelModalOpen(false)}
+        title="打印水洗标"
+        primaryAction={{
+          content: '打印',
+          onAction: handlePrintWashLabel,
+        }}
+        secondaryActions={[
+          {
+            content: '取消',
+            onAction: () => setWashLabelModalOpen(false),
+          }
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            {washLabelItem && (
+              <>
+                <Text variant="bodyMd">
+                  <strong>订单:</strong> {washLabelItem.orderName}
+                </Text>
+                <Text variant="bodyMd">
+                  <strong>商品:</strong> {washLabelItem.item.title}
+                </Text>
+                <Text variant="bodyMd">
+                  <strong>数量:</strong> {washLabelItem.item.quantity} 个（将生成 {washLabelItem.item.quantity} 个水洗标）
+                </Text>
+              </>
+            )}
+            <TextField
+              label="备注"
+              value={washLabelNote}
+              onChange={setWashLabelNote}
+              placeholder="输入备注信息（可选）"
+              multiline={2}
+              autoComplete="off"
             />
           </BlockStack>
         </Modal.Section>

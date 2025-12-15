@@ -171,7 +171,16 @@ function parseLining(title, properties) {
  * 生成水洗标 HTML 内容
  */
 function generateWashLabelHTML(labelData) {
-  const { orderNo, fabricModel, width, height, style, lining, options } = labelData;
+  const { orderNo, fabricModel, width, height, style, lining, options, note } = labelData;
+  
+  // 格式化打印时间
+  const printTime = new Date().toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
   
   const checkbox = (checked) => checked 
     ? `<span style="display:inline-block;width:16px;height:16px;border:2px solid #1a365d;background:#1a365d;margin:0 8px;vertical-align:middle;"></span>`
@@ -260,6 +269,12 @@ function generateWashLabelHTML(labelData) {
       <span class="option">铅块 ${checkbox(options.leadBlock)}</span>
       <span class="option">绑带 ${checkbox(options.binding)}</span>
     </div>
+    
+    ${note ? `<div class="row" style="margin-top: 10px;"><span class="label">备注:</span> <span class="value">${note}</span></div>` : ""}
+    
+    <div class="row print-time" style="margin-top: 15px; font-size: 12px; color: #666;">
+      打印时间: ${printTime}
+    </div>
   </div>
 </body>
 </html>
@@ -270,8 +285,17 @@ function generateWashLabelHTML(labelData) {
  * 生成多个水洗标的 HTML（用于批量打印）
  */
 function generateMultiLabelHTML(labels) {
+  // 格式化打印时间
+  const printTime = new Date().toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
   const labelsHTML = labels.map(labelData => {
-    const { orderNo, fabricModel, width, height, style, lining, options, quantity } = labelData;
+    const { orderNo, fabricModel, width, height, style, lining, options, quantity, note } = labelData;
     
     const checkbox = (checked) => checked 
       ? `<span style="display:inline-block;width:14px;height:14px;border:2px solid #1a365d;background:#1a365d;margin:0 6px;vertical-align:middle;"></span>`
@@ -316,6 +340,8 @@ function generateMultiLabelHTML(labels) {
       </div>
       
       ${quantity > 1 ? `<div class="quantity">数量: ${quantity}</div>` : ""}
+      ${note ? `<div class="row note"><span class="label">备注:</span> <span class="value">${note}</span></div>` : ""}
+      <div class="print-time">打印时间: ${printTime}</div>
     </div>
     `;
   }).join('\n');
@@ -382,6 +408,14 @@ function generateMultiLabelHTML(labels) {
       margin-top: 8px;
       font-weight: bold;
       color: #666;
+    }
+    .note {
+      margin-top: 8px;
+    }
+    .print-time {
+      margin-top: 10px;
+      font-size: 10px;
+      color: #999;
     }
     .print-btn {
       position: fixed;
@@ -481,6 +515,12 @@ export const action = async ({ request }) => {
         value: attr.value
       }));
 
+      // 获取备注
+      const note = formData.get("note") || "";
+      
+      // 获取数量（用于生成多个水洗标）
+      const quantity = parseInt(formData.get("quantity") || lineItem.quantity || "1");
+
       // 解析数据
       const dimensions = parseCurtainDimensions(properties);
       const options = parseCurtainOptions(lineItem.title, properties);
@@ -494,9 +534,19 @@ export const action = async ({ request }) => {
         style: parseStyle(lineItem.title, properties),
         lining: parseLining(lineItem.title, properties),
         options: options,
+        note: note,
+        quantity: quantity,
       };
 
-      const html = generateWashLabelHTML(labelData);
+      // 如果数量大于1，生成多个水洗标
+      let html;
+      if (quantity > 1) {
+        // 生成多个相同的水洗标
+        const labels = Array(quantity).fill(labelData);
+        html = generateMultiLabelHTML(labels);
+      } else {
+        html = generateWashLabelHTML(labelData);
+      }
       
       return new Response(html, {
         headers: {
