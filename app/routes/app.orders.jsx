@@ -2558,10 +2558,24 @@ export default function Orders() {
     propertiesInput.type = 'hidden';
     propertiesInput.name = 'properties';
     // 正确传递 customAttributes，转换为 {name, value} 数组
-    const propertiesArr = (item.customAttributes || []).map(attr => ({
+    let propertiesArr = (item.customAttributes || []).map(attr => ({
       name: attr.key,
       value: attr.value
     }));
+    // 提取布料型号
+    let fabricModel = '';
+    if (item.variant && item.variant.title) {
+      const fabricCodeMatch = item.variant.title.match(/(\d+)-(\d+)/);
+      if (fabricCodeMatch) {
+        fabricModel = `${fabricCodeMatch[1]}-${parseInt(fabricCodeMatch[2], 10).toString()}`;
+      } else {
+        fabricModel = item.variant.title;
+      }
+    }
+    // 如果没有布料型号相关字段则补充
+    if (!propertiesArr.some(p => (p.name || '').toLowerCase().includes('fabricmodel') || (p.name || '').includes('布料型号'))) {
+      propertiesArr.push({ name: '布料型号', value: fabricModel });
+    }
     propertiesInput.value = JSON.stringify(propertiesArr);
     form.appendChild(propertiesInput);
     

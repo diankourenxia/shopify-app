@@ -311,8 +311,8 @@ function generateMultiLabelHTML(labels) {
   const labelsHTML = labels.map((labelData, idx) => {
     const { orderNo, fabricModel, width, height, style, lining, options, quantity, note } = labelData;
     const checkbox = (checked) => checked 
-      ? `<span style=\"display:inline-block;width:14px;height:14px;border:2px solid #1a365d;background:#1a365d;margin:0 6px;vertical-align:middle;\"></span>`
-      : `<span style=\"display:inline-block;width:14px;height:14px;border:2px solid #1a365d;background:white;margin:0 6px;vertical-align:middle;\"></span>`;
+      ? `<span style=\"display:inline-block;width:12px;height:12px;border:1.5px solid #1a365d;background:#1a365d;margin:0 3px;vertical-align:middle;\"></span>`
+      : `<span style=\"display:inline-block;width:12px;height:12px;border:1.5px solid #1a365d;background:white;margin:0 3px;vertical-align:middle;\"></span>`;
     // 只有不是最后一个才加分页
     const pageBreak = idx < labels.length - 1 ? 'page-break-after: always;' : '';
     // 自动识别 liningColor/color/颜色 字段
@@ -324,7 +324,7 @@ function generateMultiLabelHTML(labels) {
         return n.includes('liningcolor') || n.includes('lining_color') || n.includes('color') || n.includes('颜色');
       });
       if (colorAttr && colorAttr.value) {
-        colorBlock = `<span class=\"color-block\" style=\"display:inline-block;width:16px;height:16px;border:1px solid #888;margin-left:8px;vertical-align:middle;background:${colorAttr.value};\"></span>`;
+        colorBlock = `<span class=\"color-block\" style=\"display:inline-block;width:10px;height:10px;border:1px solid #888;margin-left:3px;vertical-align:middle;background:${colorAttr.value};\"></span>`;
       }
     }
     return `<div class=\"label-card\" style=\"${pageBreak}\">\n` +
@@ -341,7 +341,7 @@ function generateMultiLabelHTML(labels) {
       `</div>`;
   }).join("");
 
-  return `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>水洗标打印</title><style>@page{size:A4;margin:10mm;}@media print{.print-btn{display:none;}.color-block{print-color-adjust:exact;-webkit-print-color-adjust:exact;}}body{font-family:'Microsoft YaHei','SimHei',Arial,sans-serif;font-size:12px;line-height:1.8;padding:0;margin:0;}.label-card{width:40mm;border:1px solid #ccc;padding:10px;box-sizing:border-box;margin:0;}.row{margin-bottom:5px;}.label{font-weight:bold;}.value{margin-left:5px;}.size-row{display:flex;gap:15px;}.options-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}.option{display:flex;align-items:center;font-size:11px;}.quantity{margin-top:8px;font-weight:bold;color:#666;}.note{margin-top:8px;}.print-time{margin-top:10px;font-size:10px;color:#999;}.print-btn{position:fixed;top:10px;right:10px;padding:10px 20px;background:#1a365d;color:white;border:none;border-radius:5px;cursor:pointer;font-size:14px;}.print-btn:hover{background:#2c5282;}</style></head><body><button class=\"print-btn\" onclick=\"window.print()\">打印水洗标</button>${labelsHTML}</body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>水洗标打印</title><style>@page{size:A4;margin:10mm;}@media print{.print-btn{display:none;}.color-block{print-color-adjust:exact;-webkit-print-color-adjust:exact;}}body{font-family:'Microsoft YaHei','SimHei',Arial,sans-serif;font-size:9px;line-height:1.4;padding:0;margin:0;}.label-card{width:40mm;border:1px solid #ccc;padding:5px;box-sizing:border-box;margin:0;}.row{margin-bottom:2px;}.label{font-weight:bold;}.value{margin-left:2px;}.size-row{display:flex;gap:7px;}.options-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:3px;}.option{display:flex;align-items:center;font-size:8px;}.quantity{margin-top:3px;font-weight:bold;color:#666;}.note{margin-top:3px;}.print-time{margin-top:4px;font-size:7px;color:#999;}.print-btn{position:fixed;top:10px;right:10px;padding:6px 10px;background:#1a365d;color:white;border:none;border-radius:5px;cursor:pointer;font-size:10px;}.print-btn:hover{background:#2c5282;}</style></head><body><button class=\"print-btn\" onclick=\"window.print()\">打印水洗标</button>${labelsHTML}</body></html>`;
 }
 
 export const action = async ({ request }) => {
