@@ -2562,6 +2562,11 @@ export default function Orders() {
       name: attr.key,
       value: attr.value
     }));
+    // 如果有 _Lining Type 字段，自动补充一个 name 为“衬布”的字段，保证水洗标解析能命中
+    const liningAttr = (item.customAttributes || []).find(attr => attr.key === '_Lining Type');
+    if (liningAttr && !propertiesArr.some(p => (p.name || '').includes('衬布'))) {
+      propertiesArr.push({ name: '衬布', value: liningAttr.value });
+    }
     // 提取布料型号
     let fabricModel = '';
     if (item.variant && item.variant.title) {
