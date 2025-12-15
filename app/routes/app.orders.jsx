@@ -2557,7 +2557,12 @@ export default function Orders() {
     const propertiesInput = document.createElement('input');
     propertiesInput.type = 'hidden';
     propertiesInput.name = 'properties';
-    propertiesInput.value = JSON.stringify(item.properties || []);
+    // 正确传递 customAttributes，转换为 {name, value} 数组
+    const propertiesArr = (item.customAttributes || []).map(attr => ({
+      name: attr.key,
+      value: attr.value
+    }));
+    propertiesInput.value = JSON.stringify(propertiesArr);
     form.appendChild(propertiesInput);
     
     const noteInput = document.createElement('input');
