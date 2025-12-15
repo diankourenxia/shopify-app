@@ -178,13 +178,23 @@ function parseStyle(title, properties) {
  * 解析衬布（里料）
  */
 function parseLining(title, properties) {
-  // 直接取属性中的原始衬布值
-  if (properties && Array.isArray(properties)) {
-    const liningAttr = properties.find(p => {
-      const n = (p.name || '').toLowerCase();
-      return n.includes('lining') || n.includes('衬布') || n.includes('backing') || n.includes('里料');
-    });
-    if (liningAttr && liningAttr.value) return liningAttr.value;
+  // 里料类型映射表
+  const liningTypeMapping = {
+    'White_Shading Rate 100%': '漂白春亚纺1#',
+    'White_Shading Rate 30%': '18-1',
+    'Beige_Shading Rate 50%': 'A60-2',
+    'Black_Shading Rate 80%': 'A60-28',
+    'Black_Shading Rate 100%': '2019-18',
+    'No Lining': '无',
+    'None': '无'
+  };
+  
+  for (const prop of properties || []) {
+    const name = prop.name?.toLowerCase() || "";
+    if (name.includes("lining") || name.includes("衬布") || name.includes("backing") || name.includes("里料")) {
+      const liningValue = prop.value?.split('(')[0].trim() || "";
+      return liningTypeMapping[liningValue] || liningValue || prop.value;
+    }
   }
   return "";
 }
@@ -278,7 +288,7 @@ function generateWashLabelHTML(labelData) {
     
     <div class="row">
       <span class="label">衬布:</span>
-      <span class="value">${lining || ""}</span>
+      <span class="value">${lining || "无"}</span>
     </div>
     
     <div class="options-row">
