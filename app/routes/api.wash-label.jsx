@@ -327,7 +327,7 @@ function generateMultiLabelHTML(labels) {
         colorBlock = `<span class=\"color-block\" style=\"display:inline-block;width:10px;height:10px;border:1px solid #888;margin-left:3px;vertical-align:middle;background:${colorAttr.value};\"></span>`;
       }
     }
-    return `<div class=\"label-card\" style=\"${pageBreak}\">\n` +
+    return `<div class=\"label-card\" style=\"${pageBreak};padding-top:10mm;\">\n` +
       `<div class=\"row\"><span class=\"label\">订单编号:</span><span class=\"value\">${orderNo || ""}</span></div>` +
       `<div class=\"row\"><span class=\"label\">布料型号:</span><span class=\"value\">${fabricModel || ""}</span></div>` +
       `<div class=\"row size-row\"><span><span class=\"label\">尺寸: 宽:</span> <span class=\"value\">${width || ""}</span></span><span><span class=\"label\">高:</span> <span class=\"value\">${height || ""}</span></span></div>` +
