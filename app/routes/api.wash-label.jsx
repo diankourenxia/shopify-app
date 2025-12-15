@@ -301,12 +301,23 @@ function generateMultiLabelHTML(labels) {
       : `<span style=\"display:inline-block;width:14px;height:14px;border:2px solid #1a365d;background:white;margin:0 6px;vertical-align:middle;\"></span>`;
     // 只有不是最后一个才加分页
     const pageBreak = idx < labels.length - 1 ? 'page-break-after: always;' : '';
+    // 自动识别 liningColor/color/颜色 字段
+    let colorBlock = '';
+    if (labelData.properties && Array.isArray(labelData.properties)) {
+      const colorAttr = labelData.properties.find(p => {
+        const n = (p.name || '').toLowerCase();
+        return n.includes('liningcolor') || n.includes('lining_color') || n.includes('color') || n.includes('颜色');
+      });
+      if (colorAttr && colorAttr.value) {
+        colorBlock = `<span class=\"color-block\" style=\"display:inline-block;width:16px;height:16px;border:1px solid #888;margin-left:8px;vertical-align:middle;background:${colorAttr.value};\"></span>`;
+      }
+    }
     return `<div class=\"label-card\" style=\"${pageBreak}\">\n` +
       `<div class=\"row\"><span class=\"label\">订单编号:</span><span class=\"value\">${orderNo || ""}</span></div>` +
       `<div class=\"row\"><span class=\"label\">布料型号:</span><span class=\"value\">${fabricModel || ""}</span></div>` +
       `<div class=\"row size-row\"><span><span class=\"label\">尺寸: 宽:</span> <span class=\"value\">${width || ""}</span></span><span><span class=\"label\">高:</span> <span class=\"value\">${height || ""}</span></span></div>` +
       `<div class=\"row\"><span class=\"label\">款式:</span><span class=\"value\">${style || ""}</span></div>` +
-      `<div class=\"row\"><span class=\"label\">衬布:</span><span class=\"value\">${lining || ""}</span></div>` +
+      `<div class=\"row\"><span class=\"label\">衬布:</span><span class=\"value\">${lining || ""}</span>${colorBlock}</div>` +
       `<div class=\"options-row\"><span class=\"option\">单开 ${checkbox(options.singleOpen)}</span><span class=\"option\">双开 ${checkbox(options.doubleOpen)}</span><span class=\"option\">定型 ${checkbox(options.heatSetting)}</span></div>` +
       `<div class=\"options-row\"><span class=\"option\">铅块 ${checkbox(options.leadBlock)}</span><span class=\"option\">绑带 ${checkbox(options.binding)}</span></div>` +
       (quantity > 1 ? `<div class=\"quantity\">数量: ${quantity}</div>` : "") +
@@ -315,7 +326,7 @@ function generateMultiLabelHTML(labels) {
       `</div>`;
   }).join("");
 
-  return `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>水洗标打印</title><style>@page{size:A4;margin:10mm;}@media print{.print-btn{display:none;}}body{font-family:'Microsoft YaHei','SimHei',Arial,sans-serif;font-size:12px;line-height:1.8;padding:0;margin:0;}.label-card{width:75mm;border:1px solid #ccc;padding:10px;box-sizing:border-box;margin:0 auto 0 auto;}.row{margin-bottom:5px;}.label{font-weight:bold;}.value{margin-left:5px;}.size-row{display:flex;gap:15px;}.options-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}.option{display:flex;align-items:center;font-size:11px;}.quantity{margin-top:8px;font-weight:bold;color:#666;}.note{margin-top:8px;}.print-time{margin-top:10px;font-size:10px;color:#999;}.print-btn{position:fixed;top:10px;right:10px;padding:10px 20px;background:#1a365d;color:white;border:none;border-radius:5px;cursor:pointer;font-size:14px;}.print-btn:hover{background:#2c5282;}</style></head><body><button class=\"print-btn\" onclick=\"window.print()\">打印水洗标</button>${labelsHTML}</body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>水洗标打印</title><style>@page{size:A4;margin:10mm;}@media print{.print-btn{display:none;}.color-block{print-color-adjust:exact;-webkit-print-color-adjust:exact;}}body{font-family:'Microsoft YaHei','SimHei',Arial,sans-serif;font-size:12px;line-height:1.8;padding:0;margin:0;}.label-card{width:75mm;border:1px solid #ccc;padding:10px;box-sizing:border-box;margin:0 auto 0 auto;}.row{margin-bottom:5px;}.label{font-weight:bold;}.value{margin-left:5px;}.size-row{display:flex;gap:15px;}.options-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}.option{display:flex;align-items:center;font-size:11px;}.quantity{margin-top:8px;font-weight:bold;color:#666;}.note{margin-top:8px;}.print-time{margin-top:10px;font-size:10px;color:#999;}.print-btn{position:fixed;top:10px;right:10px;padding:10px 20px;background:#1a365d;color:white;border:none;border-radius:5px;cursor:pointer;font-size:14px;}.print-btn:hover{background:#2c5282;}</style></head><body><button class=\"print-btn\" onclick=\"window.print()\">打印水洗标</button>${labelsHTML}</body></html>`;
 }
 
 export const action = async ({ request }) => {
