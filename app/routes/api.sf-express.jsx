@@ -11,15 +11,15 @@ const SF_API_BASE_URL = process.env.SF_API_BASE_URL || "http://8.219.107.56";
 
 // 发件人信息配置
 const SENDER_CONFIG = {
-  contact: process.env.SF_SENDER_CONTACT || "发件人",
+  contact: process.env.SF_SENDER_CONTACT || "江淼",
   phoneNo: process.env.SF_SENDER_PHONE || "13800138000",
   phoneAreaCode: "86",
   country: "CN",
-  regionFirst: process.env.SF_SENDER_REGION_FIRST || "广东省",
-  regionSecond: process.env.SF_SENDER_REGION_SECOND || "深圳市",
-  regionThird: process.env.SF_SENDER_REGION_THIRD || "宝安区",
-  address: process.env.SF_SENDER_ADDRESS || "详细地址",
-  postCode: process.env.SF_SENDER_POSTCODE || "518000",
+  regionFirst: process.env.SF_SENDER_REGION_FIRST || "浙江省",
+  regionSecond: process.env.SF_SENDER_REGION_SECOND || "嘉兴市",
+  regionThird: process.env.SF_SENDER_REGION_THIRD || "海宁市",
+  address: process.env.SF_SENDER_ADDRESS || "永福村凌家角43号后门",
+  postCode: process.env.SF_SENDER_POSTCODE || "314000",
 };
 
 /**
@@ -134,7 +134,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder, parcelQuantity = 1, customOr
     .filter(Boolean);
 
   return {
-    customerCode: "ICRME000SRN93",
+    customerCode: "ICRM-CN01FVYW09",
     customerOrderNo: customOrderName || shopifyOrder.name, // 使用自定义订单号（如果提供）
     interProductCode: "INT0014", // 国际快递
     pickupType: "0", // 上门收件
