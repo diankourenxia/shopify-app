@@ -2520,7 +2520,7 @@ export default function Orders() {
     
     const { orderId, orderName, item } = washLabelItem;
     
-    // 创建表单并提交
+    // 创建表单并提交 - 直接传递数据，不需要认证
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = '/api/wash-label';
@@ -2532,17 +2532,33 @@ export default function Orders() {
     actionInput.value = 'generateLabel';
     form.appendChild(actionInput);
     
-    const orderIdInput = document.createElement('input');
-    orderIdInput.type = 'hidden';
-    orderIdInput.name = 'orderId';
-    orderIdInput.value = `gid://shopify/Order/${orderId}`;
-    form.appendChild(orderIdInput);
+    // 传递订单号
+    const orderNoInput = document.createElement('input');
+    orderNoInput.type = 'hidden';
+    orderNoInput.name = 'orderNo';
+    orderNoInput.value = orderName || '';
+    form.appendChild(orderNoInput);
     
-    const lineItemIdInput = document.createElement('input');
-    lineItemIdInput.type = 'hidden';
-    lineItemIdInput.name = 'lineItemId';
-    lineItemIdInput.value = item.id;
-    form.appendChild(lineItemIdInput);
+    // 传递商品标题
+    const itemTitleInput = document.createElement('input');
+    itemTitleInput.type = 'hidden';
+    itemTitleInput.name = 'itemTitle';
+    itemTitleInput.value = item.title || '';
+    form.appendChild(itemTitleInput);
+    
+    // 传递变体标题
+    const variantTitleInput = document.createElement('input');
+    variantTitleInput.type = 'hidden';
+    variantTitleInput.name = 'variantTitle';
+    variantTitleInput.value = item.variant_title || '';
+    form.appendChild(variantTitleInput);
+    
+    // 传递属性（properties）
+    const propertiesInput = document.createElement('input');
+    propertiesInput.type = 'hidden';
+    propertiesInput.name = 'properties';
+    propertiesInput.value = JSON.stringify(item.properties || []);
+    form.appendChild(propertiesInput);
     
     const noteInput = document.createElement('input');
     noteInput.type = 'hidden';

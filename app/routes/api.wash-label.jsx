@@ -1,9 +1,9 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
 
 /**
  * 水洗标 PDF 生成 API
  * 根据订单信息生成水洗标 PDF
+ * 注意：此 API 不需要 Shopify 认证，直接接收数据生成 HTML
  */
 
 /**
@@ -450,89 +450,37 @@ function generateMultiLabelHTML(labels) {
 }
 
 export const action = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const action = formData.get("action");
 
   try {
     if (action === "generateLabel") {
-      // 生成单个水洗标
-      const orderId = formData.get("orderId");
-      const lineItemId = formData.get("lineItemId");
-      
-      // 获取订单详情
-      const response = await admin.graphql(
-        `#graphql
-          query getOrder($id: ID!) {
-            order(id: $id) {
-              id
-              name
-              lineItems(first: 50) {
-                edges {
-                  node {
-                    id
-                    title
-                    quantity
-                    customAttributes {
-                      key
-                      value
-                    }
-                    variant {
-                      title
-                    }
-                  }
-                }
-              }
-            }
-          }`,
-        { variables: { id: orderId } }
-      );
-
-      const responseJson = await response.json();
-      const order = responseJson.data.order;
-
-      if (!order) {
-        return json({ error: "订单不存在" }, { status: 404 });
-      }
-
-      // 找到指定的 lineItem
-      let lineItem = null;
-      if (lineItemId) {
-        lineItem = order.lineItems.edges.find(({ node }) => node.id === lineItemId)?.node;
-      }
-      
-      if (!lineItem && order.lineItems.edges.length > 0) {
-        lineItem = order.lineItems.edges[0].node;
-      }
-
-      if (!lineItem) {
-        return json({ error: "未找到商品信息" }, { status: 404 });
-      }
-
-      // 将 customAttributes 转换为 properties 格式
-      const properties = (lineItem.customAttributes || []).map(attr => ({
-        name: attr.key,
-        value: attr.value
-      }));
-
-      // 获取备注
+      // 生成单个水洗标 - 直接从前端接收数据
+      const orderNo = formData.get("orderNo") || "";
+      const itemTitle = formData.get("itemTitle") || "";
+      const variantTitle = formData.get("variantTitle") || "";
+      const propertiesStr = formData.get("properties") || "[]";
       const note = formData.get("note") || "";
-      
-      // 获取数量（用于生成多个水洗标）
-      const quantity = parseInt(formData.get("quantity") || lineItem.quantity || "1");
+      const quantity = parseInt(formData.get("quantity") || "1");
+
+      let properties = [];
+      try {
+        properties = JSON.parse(propertiesStr);
+      } catch (e) {
+        properties = [];
+      }
 
       // 解析数据
       const dimensions = parseCurtainDimensions(properties);
-      const options = parseCurtainOptions(lineItem.title, properties);
-      const variantTitle = lineItem.variant?.title;
+      const options = parseCurtainOptions(itemTitle, properties);
       
       const labelData = {
-        orderNo: order.name,
-        fabricModel: parseFabricModel(lineItem.title, properties, variantTitle),
+        orderNo: orderNo,
+        fabricModel: parseFabricModel(itemTitle, properties, variantTitle),
         width: dimensions.width,
         height: dimensions.height,
-        style: parseStyle(lineItem.title, properties),
-        lining: parseLining(lineItem.title, properties),
+        style: parseStyle(itemTitle, properties),
+        lining: parseLining(itemTitle, properties),
         options: options,
         note: note,
         quantity: quantity,
@@ -547,87 +495,6 @@ export const action = async ({ request }) => {
       } else {
         html = generateWashLabelHTML(labelData);
       }
-      
-      return new Response(html, {
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-        },
-      });
-    }
-
-    if (action === "generateLabels") {
-      // 批量生成水洗标（整个订单）
-      const orderId = formData.get("orderId");
-      
-      const response = await admin.graphql(
-        `#graphql
-          query getOrder($id: ID!) {
-            order(id: $id) {
-              id
-              name
-              lineItems(first: 50) {
-                edges {
-                  node {
-                    id
-                    title
-                    quantity
-                    customAttributes {
-                      key
-                      value
-                    }
-                    variant {
-                      title
-                    }
-                  }
-                }
-              }
-            }
-          }`,
-        { variables: { id: orderId } }
-      );
-
-      const responseJson = await response.json();
-      const order = responseJson.data.order;
-
-      if (!order) {
-        return json({ error: "订单不存在" }, { status: 404 });
-      }
-
-      // 过滤出窗帘商品（排除配件等）
-      const curtainItems = order.lineItems.edges.filter(({ node }) => {
-        const titleLower = node.title.toLowerCase();
-        const isAccessory = /\b(hook|ring|clip|tassel|holdback|bracket|pin|sample)\b/i.test(titleLower);
-        return !isAccessory;
-      });
-
-      if (curtainItems.length === 0) {
-        return json({ error: "订单中没有需要打印水洗标的商品" }, { status: 400 });
-      }
-
-      // 生成所有水洗标数据
-      const labels = curtainItems.map(({ node: item }) => {
-        const properties = (item.customAttributes || []).map(attr => ({
-          name: attr.key,
-          value: attr.value
-        }));
-        
-        const dimensions = parseCurtainDimensions(properties);
-        const options = parseCurtainOptions(item.title, properties);
-        const variantTitle = item.variant?.title;
-        
-        return {
-          orderNo: order.name,
-          fabricModel: parseFabricModel(item.title, properties, variantTitle),
-          width: dimensions.width,
-          height: dimensions.height,
-          style: parseStyle(item.title, properties),
-          lining: parseLining(item.title, properties),
-          options: options,
-          quantity: item.quantity,
-        };
-      });
-
-      const html = generateMultiLabelHTML(labels);
       
       return new Response(html, {
         headers: {
