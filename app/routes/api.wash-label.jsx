@@ -296,49 +296,40 @@ function generateMultiLabelHTML(labels) {
   
   const labelsHTML = labels.map(labelData => {
     const { orderNo, fabricModel, width, height, style, lining, options, quantity, note } = labelData;
-    
     const checkbox = (checked) => checked 
       ? `<span style="display:inline-block;width:14px;height:14px;border:2px solid #1a365d;background:#1a365d;margin:0 6px;vertical-align:middle;"></span>`
       : `<span style="display:inline-block;width:14px;height:14px;border:2px solid #1a365d;background:white;margin:0 6px;vertical-align:middle;"></span>`;
-
     return `
-    <div class="label-card">
+    <div class="label-card label-page">
       <div class="row">
         <span class="label">订单编号:</span>
         <span class="value">${orderNo || ""}</span>
       </div>
-      
       <div class="row">
         <span class="label">布料型号:</span>
         <span class="value">${fabricModel || ""}</span>
       </div>
-      
       <div class="row size-row">
         <span><span class="label">尺寸: 宽:</span> <span class="value">${width || ""}</span></span>
         <span><span class="label">高:</span> <span class="value">${height || ""}</span></span>
       </div>
-      
       <div class="row">
         <span class="label">款式:</span>
         <span class="value">${style || ""}</span>
       </div>
-      
       <div class="row">
         <span class="label">衬布:</span>
         <span class="value">${lining || ""}</span>
       </div>
-      
       <div class="options-row">
         <span class="option">单开 ${checkbox(options.singleOpen)}</span>
         <span class="option">双开 ${checkbox(options.doubleOpen)}</span>
         <span class="option">定型 ${checkbox(options.heatSetting)}</span>
       </div>
-      
       <div class="options-row">
         <span class="option">铅块 ${checkbox(options.leadBlock)}</span>
         <span class="option">绑带 ${checkbox(options.binding)}</span>
       </div>
-      
       ${quantity > 1 ? `<div class="quantity">数量: ${quantity}</div>` : ""}
       ${note ? `<div class="row note"><span class="label">备注:</span> <span class="value">${note}</span></div>` : ""}
       <div class="print-time">打印时间: ${printTime}</div>
@@ -358,8 +349,12 @@ function generateMultiLabelHTML(labels) {
       margin: 10mm;
     }
     @media print {
-      .label-card {
+      .label-page {
+        page-break-after: always;
         page-break-inside: avoid;
+      }
+      .print-btn {
+        display: none;
       }
     }
     body {
@@ -369,16 +364,12 @@ function generateMultiLabelHTML(labels) {
       padding: 10px;
       margin: 0;
     }
-    .labels-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
     .label-card {
       width: 75mm;
       border: 1px solid #ccc;
       padding: 10px;
       box-sizing: border-box;
+      margin: 0 auto 0 auto;
     }
     .row {
       margin-bottom: 5px;
@@ -432,18 +423,11 @@ function generateMultiLabelHTML(labels) {
     .print-btn:hover {
       background: #2c5282;
     }
-    @media print {
-      .print-btn {
-        display: none;
-      }
-    }
   </style>
 </head>
 <body>
   <button class="print-btn" onclick="window.print()">打印水洗标</button>
-  <div class="labels-container">
-    ${labelsHTML}
-  </div>
+  ${labelsHTML}
 </body>
 </html>
 `;
