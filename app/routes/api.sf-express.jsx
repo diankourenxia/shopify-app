@@ -164,12 +164,7 @@ function convertShopifyOrderToSfOrder(shopifyOrder, parcelQuantity = 1, customOr
       payMethod: "1", // 寄方付
       taxPayMethod: "1", // 税费支付方式
     },
-    
-    // 报关信息
-    customsInfo: {
-      exportDeclareType: "2", // 始发地出口报关方式: 1-一般贸易报关, 2-个人物品报关, 3-跨境电商9610报关
-      // importDeclareType: "2", // 目的地进口清关方式（如需）
-    },
+  
     
     orderOperateType: "1", // 新增
   };
