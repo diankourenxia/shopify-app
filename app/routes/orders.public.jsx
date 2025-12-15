@@ -716,6 +716,12 @@ export default function PublicOrders() {
   };
 
   const handleStatusChange = (orderId, newStatus) => {
+    // 立即更新本地状态
+    setStatusMap(prev => ({
+      ...prev,
+      [orderId]: newStatus
+    }));
+    
     const currentNote = noteMap[orderId] || '';
     const formData = new FormData();
     formData.append("action", "updateStatus");
