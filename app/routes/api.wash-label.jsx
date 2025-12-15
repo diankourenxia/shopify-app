@@ -294,13 +294,15 @@ function generateMultiLabelHTML(labels) {
     minute: '2-digit'
   });
   
-  const labelsHTML = labels.map(labelData => {
+  const labelsHTML = labels.map((labelData, idx) => {
     const { orderNo, fabricModel, width, height, style, lining, options, quantity, note } = labelData;
     const checkbox = (checked) => checked 
       ? `<span style="display:inline-block;width:14px;height:14px;border:2px solid #1a365d;background:#1a365d;margin:0 6px;vertical-align:middle;"></span>`
       : `<span style="display:inline-block;width:14px;height:14px;border:2px solid #1a365d;background:white;margin:0 6px;vertical-align:middle;"></span>`;
+    // 只有不是最后一个才加分页
+    const pageBreak = idx < labels.length - 1 ? 'page-break-after: always;' : '';
     return `
-    <div class="label-card label-page">
+    <div class="label-card label-page" style="${pageBreak}">
       <div class="row">
         <span class="label">订单编号:</span>
         <span class="value">${orderNo || ""}</span>
