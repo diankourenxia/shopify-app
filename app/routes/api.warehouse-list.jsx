@@ -59,7 +59,9 @@ async function fetchWarehouseList() {
   }
 
   const data = await response.json();
-  console.log('仓库信息响应:', JSON.stringify(data, null, 2));
+  console.log('=== 仓库信息响应成功 ===');
+  console.log('仓库数量:', Array.isArray(data.data) ? data.data.length : '未知');
+  console.log('响应数据:', JSON.stringify(data, null, 2));
   
   return data;
 }
@@ -67,28 +69,54 @@ async function fetchWarehouseList() {
 /**
  * 调用谷仓 API 获取物流方式列表
  * 谷仓API文档: 获取物流产品 /public_open/base_data/get_shipping_method
+ * 注意：该接口可能需要 warehouse_code 参数
  */
 async function fetchShippingMethods(warehouseCode) {
   const apiUrl = `${WAREHOUSE_API_BASE_URL}/public_open/base_data/get_shipping_method`;
   
   console.log('=== 调用获取物流产品接口 ===');
   console.log('URL:', apiUrl);
-  console.log('Method: POST');
+  console.log('warehouse_code:', warehouseCode || '未提供');
   console.log('APP_TOKEN:', APP_TOKEN ? `${APP_TOKEN.substring(0, 8)}...` : '未设置');
   console.log('APP_KEY:', APP_KEY ? `${APP_KEY.substring(0, 8)}...` : '未设置');
   
-  const requestBody = warehouseCode ? { warehouse_code: warehouseCode } : {};
+  // 构建请求体 - warehouse_code 可能是必需参数
+  const requestBody = {};
+  if (warehouseCode) {
+    requestBody.warehouse_code = warehouseCode;
+  }
+  
   const headers = getGoodcangHeaders();
   const body = JSON.stringify(requestBody);
-  console.log('Body:', body);
+  console.log('请求Body:', body);
   
-  const response = await fetch(apiUrl, {
+  // 先尝试 POST 方法
+  let response = await fetch(apiUrl, {
     method: "POST",
     headers: headers,
     body: body,
   });
 
-  console.log('响应状态:', response.status, response.statusText);
+  console.log('POST 响应状态:', response.status, response.statusText);
+
+  // 如果 POST 返回 405，尝试 GET 方法
+  if (response.status === 405) {
+    console.log('POST 方法返回 405，尝试 GET 方法...');
+    const getUrl = warehouseCode 
+      ? `${apiUrl}?warehouse_code=${encodeURIComponent(warehouseCode)}`
+      : apiUrl;
+    
+    response = await fetch(getUrl, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "app-token": APP_TOKEN,
+        "app-key": APP_KEY,
+      },
+    });
+    console.log('GET 响应状态:', response.status, response.statusText);
+  }
+
   console.log('响应头:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
 
   if (!response.ok) {
