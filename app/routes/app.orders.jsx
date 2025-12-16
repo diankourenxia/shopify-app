@@ -1027,7 +1027,7 @@ export default function Orders() {
   const [sampleShippingModalOpen, setSampleShippingModalOpen] = useState(false); // 小样发货弹窗
   const [sampleShippingConfig, setSampleShippingConfig] = useState({
     customSku: '',
-    shippingMethod: 'FEDEX-SMALLPARCEL',
+    shippingMethod: 'GC_PARCEL',
     warehouseCode: 'USEA',
     orderDesc: '',
   });
@@ -2560,7 +2560,7 @@ export default function Orders() {
     setShippingFeeResult(null); // 重置费用结果
     setSampleShippingConfig({
       customSku: '',
-      shippingMethod: 'FEDEX-SMALLPARCEL',
+      shippingMethod: 'GC_PARCEL',
       warehouseCode: 'USEA',
       orderDesc: '',
     });
@@ -3952,7 +3952,7 @@ export default function Orders() {
                 options={shippingMethodList.length > 0 
                   ? shippingMethodList.map(item => ({ label: item.name, value: item.code }))
                   : [
-                      { label: 'FedEx Small Parcel', value: 'FEDEX-SMALLPARCEL' },
+                      { label: 'GC_PARCEL', value: 'GC_PARCEL' },
                       { label: 'FEDEX ECON', value: 'FEDEX ECON' },
                       { label: 'UPS Ground', value: 'UPS-GROUND' },
                       { label: 'USPS Priority', value: 'USPS-PRIORITY' },

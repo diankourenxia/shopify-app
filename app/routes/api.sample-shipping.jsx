@@ -13,7 +13,7 @@ const APP_KEY = process.env.WAREHOUSE_API_KEY || "b11f2c4a3b46cee5f010109cc7ee6f
 
 // 默认配置
 const DEFAULT_CONFIG = {
-  shipping_method: "FEDEX-SMALLPARCEL",
+  shipping_method: "GC_PARCEL",
   warehouse_code: "USEA",
   wp_code: "USEA-001",
   platform: "SHOPIFY",
