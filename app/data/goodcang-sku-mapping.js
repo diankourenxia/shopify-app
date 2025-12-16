@@ -316,76 +316,110 @@ export const goodcangSkuMapping = {
 };
 
 /**
+ * 获取所有商品编码列表（用于搜索）
+ * @returns {Array} [{ productCode: string, goodcangCode: string }]
+ */
+export function getAllProductCodes() {
+  return Object.entries(goodcangSkuMapping).map(([productCode, goodcangCode]) => ({
+    productCode,
+    goodcangCode
+  }));
+}
+
+/**
+ * 搜索商品编码
+ * @param {string} keyword - 搜索关键词
+ * @returns {Array} 匹配的商品列表 [{ productCode, goodcangCode }]
+ */
+export function searchProductCodes(keyword) {
+  if (!keyword || keyword.trim() === '') {
+    return getAllProductCodes().slice(0, 20); // 返回前20个
+  }
+  
+  const searchKey = keyword.toUpperCase().trim();
+  const results = [];
+  
+  for (const [productCode, goodcangCode] of Object.entries(goodcangSkuMapping)) {
+    // 匹配商品编码或谷仓编码
+    if (productCode.toUpperCase().includes(searchKey) || 
+        goodcangCode.toUpperCase().includes(searchKey)) {
+      results.push({ productCode, goodcangCode });
+    }
+  }
+  
+  return results.slice(0, 50); // 最多返回50个
+}
+
+/**
  * 根据商品标题/SKU查找谷仓商品条码
+ * 核心逻辑：从商品名称中提取数字编码（如 8823-2），然后在映射表中查找包含该编码的key
  * @param {string} title - 商品标题
  * @param {string} sku - 商品SKU
  * @param {string} variantTitle - 变体标题
  * @returns {object} { found: boolean, productCode: string, goodcangCode: string }
  */
 export function findGoodcangSku(title, sku, variantTitle) {
-  // 尝试从各种字段中提取可能的商品编码
-  const possibleCodes = [];
+  // 合并所有可能包含编码的字符串
+  const allText = [title, sku, variantTitle].filter(Boolean).join(' ');
   
-  // 从SKU中提取（优先级最高）
-  if (sku) {
-    possibleCodes.push(sku.toUpperCase());
-    // 去掉可能的后缀
-    const skuBase = sku.replace(/-swatches?$/i, '').toUpperCase();
-    if (skuBase !== sku.toUpperCase()) possibleCodes.push(skuBase);
-  }
+  // 从文本中提取数字编码（如 8823-2, A5018-31, 1908-35, K1020 等）
+  const extractedCodes = [];
   
-  // 从变体标题中提取
-  if (variantTitle && variantTitle !== 'Default Title') {
-    possibleCodes.push(variantTitle.toUpperCase());
-    // 尝试组合标题和变体
-    if (title) {
-      // 从标题提取产品系列名
-      const titleParts = title.split(' ');
-      const baseName = titleParts[0].replace(/[^a-zA-Z0-9-]/g, '');
-      possibleCodes.push(`${baseName}-${variantTitle}`.toUpperCase());
-      possibleCodes.push(`${baseName}${variantTitle}`.toUpperCase());
+  // 匹配各种编码格式
+  const patterns = [
+    /\b([A-Z]?\d{3,5})-(\d{1,3})\b/gi,  // 8823-2, A5018-31, 1908-35
+    /\b([A-Z]\d{3,5})\b/gi,              // K1020, K1019
+    /\b(\d{4})-(\d{1,2})\b/gi,           // 1802-7, 2020-11
+  ];
+  
+  for (const pattern of patterns) {
+    const matches = allText.matchAll(pattern);
+    for (const match of matches) {
+      extractedCodes.push(match[0].toUpperCase());
     }
   }
   
-  // 从标题中提取
-  if (title) {
-    // 尝试匹配常见的商品编码格式 例如: Celina-8823-1, LUNA-A5018-31
-    const patterns = [
-      /([A-Za-z]+)-?(\d+)-?(\d+)/i,  // 如 CELINA8823-1 或 CELINA-8823-1
-      /([A-Za-z]+-[A-Za-z]+\d*-\d+)/i,  // 如 LUNA-A5018-31
-      /([A-Za-z]+\d+-\d+)/i,  // 如 EMILIA1908-35
-    ];
-    
-    for (const pattern of patterns) {
-      const match = title.match(pattern);
-      if (match) {
-        possibleCodes.push(match[0].toUpperCase().replace(/\s+/g, '-'));
+  // 提取产品名（第一个英文单词）
+  const productNameMatch = title?.match(/^([A-Za-z]+)/);
+  const productName = productNameMatch ? productNameMatch[1].toUpperCase() : '';
+  
+  // 第一轮：精确匹配 - SKU直接匹配
+  if (sku && goodcangSkuMapping[sku.toUpperCase()]) {
+    return {
+      found: true,
+      productCode: sku.toUpperCase(),
+      goodcangCode: goodcangSkuMapping[sku.toUpperCase()]
+    };
+  }
+  
+  // 第二轮：用提取的编码在映射表中查找
+  for (const code of extractedCodes) {
+    // 在所有映射key中查找包含该编码的项
+    for (const [key, value] of Object.entries(goodcangSkuMapping)) {
+      const normalizedKey = key.toUpperCase().replace(/-/g, '');
+      const normalizedCode = code.replace(/-/g, '');
+      
+      // 检查key是否以该编码结尾或包含该编码
+      if (normalizedKey.endsWith(normalizedCode) || 
+          normalizedKey.includes(normalizedCode) ||
+          key.toUpperCase().includes(code)) {
+        // 额外验证：如果有产品名，优先匹配产品名相同的
+        if (productName && key.toUpperCase().startsWith(productName)) {
+          return {
+            found: true,
+            productCode: key,
+            goodcangCode: value
+          };
+        }
       }
     }
-  }
-  
-  // 标准化处理函数
-  const normalizeCode = (code) => {
-    return code.toUpperCase().replace(/\s+/g, '-').replace(/[^A-Z0-9-]/g, '');
-  };
-  
-  // 遍历映射表查找匹配
-  for (const code of possibleCodes) {
-    const normalizedCode = normalizeCode(code);
     
-    // 直接匹配
-    if (goodcangSkuMapping[code]) {
-      return {
-        found: true,
-        productCode: code,
-        goodcangCode: goodcangSkuMapping[code]
-      };
-    }
-    
-    // 标准化后匹配
+    // 如果没有产品名匹配，尝试任意匹配
     for (const [key, value] of Object.entries(goodcangSkuMapping)) {
-      const normalizedKey = normalizeCode(key);
-      if (normalizedKey === normalizedCode) {
+      const normalizedKey = key.toUpperCase().replace(/-/g, '');
+      const normalizedCode = code.replace(/-/g, '');
+      
+      if (normalizedKey.endsWith(normalizedCode) || key.toUpperCase().includes(code)) {
         return {
           found: true,
           productCode: key,
@@ -393,28 +427,28 @@ export function findGoodcangSku(title, sku, variantTitle) {
         };
       }
     }
-    
-    // 模糊匹配：查找包含该编码的key（去掉前导0的数字）
-    for (const [key, value] of Object.entries(goodcangSkuMapping)) {
-      const normalizedKey = normalizeCode(key);
-      // 尝试去掉数字前导0的匹配
-      const codeNoLeadingZero = normalizedCode.replace(/-0+(\d)/g, '-$1');
-      const keyNoLeadingZero = normalizedKey.replace(/-0+(\d)/g, '-$1');
-      
-      if (keyNoLeadingZero === codeNoLeadingZero) {
+  }
+  
+  // 第三轮：尝试组合产品名 + 数字编码
+  if (productName) {
+    for (const code of extractedCodes) {
+      // 尝试 CELINA8823-2 格式
+      const combinedCode1 = `${productName}${code}`;
+      if (goodcangSkuMapping[combinedCode1]) {
         return {
           found: true,
-          productCode: key,
-          goodcangCode: value
+          productCode: combinedCode1,
+          goodcangCode: goodcangSkuMapping[combinedCode1]
         };
       }
       
-      // 部分匹配
-      if (normalizedKey.includes(normalizedCode) || normalizedCode.includes(normalizedKey)) {
+      // 尝试 CELINA-8823-2 格式
+      const combinedCode2 = `${productName}-${code}`;
+      if (goodcangSkuMapping[combinedCode2]) {
         return {
           found: true,
-          productCode: key,
-          goodcangCode: value
+          productCode: combinedCode2,
+          goodcangCode: goodcangSkuMapping[combinedCode2]
         };
       }
     }
@@ -422,7 +456,7 @@ export function findGoodcangSku(title, sku, variantTitle) {
   
   return {
     found: false,
-    productCode: possibleCodes[0] || '',
+    productCode: extractedCodes[0] || '',
     goodcangCode: ''
   };
 }

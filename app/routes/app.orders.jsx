@@ -26,7 +26,7 @@ import {
 import * as XLSX from 'xlsx';
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { findGoodcangSku } from "../data/goodcang-sku-mapping";
+import { findGoodcangSku, searchProductCodes } from "../data/goodcang-sku-mapping";
 
 export const loader = async ({ request }) => {
   try {
@@ -3667,11 +3667,11 @@ export default function Orders() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f6f6f7' }}>
-                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>商品名称</th>
-                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>数量</th>
-                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>原SKU</th>
-                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>谷仓条码</th>
-                        <th style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid #e1e3e5' }}>状态</th>
+                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5', width: '25%' }}>商品名称</th>
+                        <th style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid #e1e3e5', width: '8%' }}>数量</th>
+                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5', width: '25%' }}>商品编码</th>
+                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5', width: '32%' }}>谷仓条码</th>
+                        <th style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid #e1e3e5', width: '10%' }}>状态</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3683,9 +3683,79 @@ export default function Orders() {
                               <Text variant="bodySm" tone="subdued">{item.variantTitle}</Text>
                             )}
                           </td>
-                          <td style={{ padding: '10px' }}>{item.quantity}</td>
+                          <td style={{ padding: '10px', textAlign: 'center' }}>{item.quantity}</td>
                           <td style={{ padding: '10px' }}>
-                            <Text variant="bodySm" tone="subdued">{item.sku || '-'}</Text>
+                            <div style={{ position: 'relative' }}>
+                              <TextField
+                                value={item.productCode || ''}
+                                onChange={(value) => {
+                                  setSampleShippingItems(prev => prev.map((it, idx) => 
+                                    idx === index ? { ...it, productCode: value, searchResults: searchProductCodes(value) } : it
+                                  ));
+                                }}
+                                onFocus={() => {
+                                  setSampleShippingItems(prev => prev.map((it, idx) => 
+                                    idx === index ? { ...it, showSearch: true, searchResults: searchProductCodes(it.productCode || '') } : it
+                                  ));
+                                }}
+                                onBlur={() => {
+                                  // 延迟关闭以允许点击选项
+                                  setTimeout(() => {
+                                    setSampleShippingItems(prev => prev.map((it, idx) => 
+                                      idx === index ? { ...it, showSearch: false } : it
+                                    ));
+                                  }, 200);
+                                }}
+                                autoComplete="off"
+                                placeholder="搜索商品编码"
+                                size="slim"
+                              />
+                              {item.showSearch && item.searchResults && item.searchResults.length > 0 && (
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '100%',
+                                  left: 0,
+                                  right: 0,
+                                  maxHeight: '200px',
+                                  overflowY: 'auto',
+                                  backgroundColor: '#fff',
+                                  border: '1px solid #e1e3e5',
+                                  borderRadius: '4px',
+                                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                  zIndex: 1000,
+                                }}>
+                                  {item.searchResults.map((result, rIdx) => (
+                                    <div
+                                      key={rIdx}
+                                      style={{
+                                        padding: '8px 12px',
+                                        cursor: 'pointer',
+                                        borderBottom: rIdx < item.searchResults.length - 1 ? '1px solid #f1f1f1' : 'none',
+                                        backgroundColor: '#fff',
+                                      }}
+                                      onMouseEnter={(e) => e.target.style.backgroundColor = '#f6f6f7'}
+                                      onMouseLeave={(e) => e.target.style.backgroundColor = '#fff'}
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        setSampleShippingItems(prev => prev.map((it, idx) => 
+                                          idx === index ? { 
+                                            ...it, 
+                                            productCode: result.productCode, 
+                                            goodcangCode: result.goodcangCode, 
+                                            found: true,
+                                            showSearch: false 
+                                          } : it
+                                        ));
+                                        setSampleShippingConfirmed(false);
+                                      }}
+                                    >
+                                      <Text variant="bodySm" fontWeight="semibold">{result.productCode}</Text>
+                                      <Text variant="bodySm" tone="subdued">{result.goodcangCode}</Text>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td style={{ padding: '10px' }}>
                             <TextField
@@ -3697,7 +3767,7 @@ export default function Orders() {
                                 setSampleShippingConfirmed(false);
                               }}
                               autoComplete="off"
-                              placeholder="输入谷仓条码"
+                              placeholder="谷仓条码"
                               size="slim"
                             />
                           </td>
