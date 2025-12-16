@@ -117,10 +117,6 @@ async function fetchShippingMethods(warehouseCode) {
   
   return data;
 }
-  console.log('物流产品列表响应:', JSON.stringify(data, null, 2));
-  
-  return data;
-}
 
 /**
  * 调用谷仓 OMS API 进行运费试算
