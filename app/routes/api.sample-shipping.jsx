@@ -129,7 +129,6 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     payment_time: paymentTime,
     platform: DEFAULT_CONFIG.platform,
     platform_order_code: shopifyOrder.name || "null",
-    property_label: DEFAULT_CONFIG.property_label,
     reference_no: shopifyOrder.name ? shopifyOrder.name.replace('#', '') : `ORDER-${Date.now()}`,
     
     // 收件人信息
