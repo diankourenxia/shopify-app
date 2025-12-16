@@ -78,47 +78,27 @@ async function fetchShippingMethods(warehouseCode) {
   
   console.log('=== 调用获取物流产品接口 ===');
   console.log('URL:', apiUrl);
-  console.log('warehouse_code:', warehouseCode || '未提供');
+  console.log('传入的 warehouseCode:', warehouseCode || '未提供');
   console.log('APP_TOKEN:', APP_TOKEN ? `${APP_TOKEN.substring(0, 8)}...` : '未设置');
   console.log('APP_KEY:', APP_KEY ? `${APP_KEY.substring(0, 8)}...` : '未设置');
   
-  // 构建请求体 - warehouse_code 可能是必需参数
-  const requestBody = {};
-  if (warehouseCode) {
-    requestBody.warehouse_code = warehouseCode;
-  }
+  // 构建请求体 - 确保 warehouse_code 参数正确传递
+  const requestBody = {
+    warehouse_code: warehouseCode || "USEA"  // 默认使用新泽西仓库
+  };
   
   const headers = getGoodcangHeaders();
   const body = JSON.stringify(requestBody);
   console.log('请求Body:', body);
   
-  // 先尝试 POST 方法
-  let response = await fetch(apiUrl, {
+  // 使用 POST 方法
+  const response = await fetch(apiUrl, {
     method: "POST",
     headers: headers,
     body: body,
   });
 
-  console.log('POST 响应状态:', response.status, response.statusText);
-
-  // 如果 POST 返回 405，尝试 GET 方法
-  if (response.status === 405) {
-    console.log('POST 方法返回 405，尝试 GET 方法...');
-    const getUrl = warehouseCode 
-      ? `${apiUrl}?warehouse_code=${encodeURIComponent(warehouseCode)}`
-      : apiUrl;
-    
-    response = await fetch(getUrl, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "app-token": APP_TOKEN,
-        "app-key": APP_KEY,
-      },
-    });
-    console.log('GET 响应状态:', response.status, response.statusText);
-  }
-
+  console.log('响应状态:', response.status, response.statusText);
   console.log('响应头:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
 
   if (!response.ok) {
@@ -128,6 +108,15 @@ async function fetchShippingMethods(warehouseCode) {
   }
 
   const data = await response.json();
+  console.log('=== 物流产品响应 ===');
+  console.log('返回物流数量:', Array.isArray(data.data) ? data.data.length : '未知');
+  // 打印前5条数据看看结构
+  if (Array.isArray(data.data) && data.data.length > 0) {
+    console.log('物流数据示例:', JSON.stringify(data.data.slice(0, 5), null, 2));
+  }
+  
+  return data;
+}
   console.log('物流产品列表响应:', JSON.stringify(data, null, 2));
   
   return data;
@@ -187,11 +176,22 @@ export const loader = async ({ request }) => {
           return ALLOWED_SHIPPING_METHODS.includes(code);
         });
         
-        console.log('过滤后的物流方式:', filteredList.length, '种');
+        // 去重：按 code 去重，避免重复显示
+        const uniqueList = [];
+        const seenCodes = new Set();
+        for (const item of filteredList) {
+          const code = item.shipping_code || item.code || item.shipping_method;
+          if (!seenCodes.has(code)) {
+            seenCodes.add(code);
+            uniqueList.push(item);
+          }
+        }
+        
+        console.log('过滤后的物流方式:', filteredList.length, '种, 去重后:', uniqueList.length, '种');
         
         return json({
           success: true,
-          data: filteredList.map(item => ({
+          data: uniqueList.map(item => ({
             code: item.shipping_code || item.code || item.shipping_method,
             name: item.shipping_name || item.name || item.shipping_method,
             warehouseCode: item.warehouse_code,
