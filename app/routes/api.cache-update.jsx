@@ -76,9 +76,11 @@ export const action = async ({ request }) => {
               }
               displayFulfillmentStatus
               displayFinancialStatus
+              email
               customer {
                 id
                 displayName
+                email
               }
               shippingAddress {
                 name
