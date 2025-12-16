@@ -21,14 +21,14 @@ function generateSignature(timestamp) {
 
 /**
  * 调用谷仓 API 获取仓库列表
- * 谷仓API文档: 获取仓库信息 /api/base_data/get_warehouse
+ * 谷仓API文档: 获取仓库信息 /public_open/base_data/get_warehouse
  */
 async function fetchWarehouseList() {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const sign = generateSignature(timestamp);
   
   // 谷仓获取仓库信息接口
-  const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/base_data/get_warehouse`;
+  const apiUrl = `${WAREHOUSE_API_BASE_URL}/public_open/base_data/get_warehouse`;
   
   console.log('调用获取仓库信息接口:', apiUrl);
   
@@ -56,14 +56,14 @@ async function fetchWarehouseList() {
 
 /**
  * 调用谷仓 API 获取物流方式列表
- * 谷仓API文档: 获取物流产品 /api/base_data/get_shipping_method
+ * 谷仓API文档: 获取物流产品 /public_open/base_data/get_shipping_method
  */
 async function fetchShippingMethods(warehouseCode) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const sign = generateSignature(timestamp);
   
   // 谷仓获取物流产品接口
-  const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/base_data/get_shipping_method`;
+  const apiUrl = `${WAREHOUSE_API_BASE_URL}/public_open/base_data/get_shipping_method`;
   
   console.log('调用获取物流产品接口:', apiUrl);
   
