@@ -167,9 +167,13 @@ export const loader = async ({ request }) => {
     const type = url.searchParams.get("type") || "warehouse";
     const warehouseCode = url.searchParams.get("warehouse_code");
     
+    // 新泽西仓库代码 - 只使用这个仓库
+    const NEW_JERSEY_WAREHOUSE_CODE = "USEA";
+    
     if (type === "shipping") {
-      // 获取物流方式列表
-      const result = await fetchShippingMethods(warehouseCode);
+      // 获取物流方式列表 - 强制使用新泽西仓库
+      const targetWarehouseCode = warehouseCode || NEW_JERSEY_WAREHOUSE_CODE;
+      const result = await fetchShippingMethods(targetWarehouseCode);
       
       if (result.code === 0 || result.code === '0' || result.success) {
         const shippingList = result.data || result.list || [];
@@ -189,14 +193,27 @@ export const loader = async ({ request }) => {
       }
     }
     
-    // 默认获取仓库列表
+    // 默认获取仓库列表 - 只返回新泽西仓库
     const result = await fetchWarehouseList();
     
     if (result.code === 0 || result.code === '0' || result.success) {
       const warehouseList = result.data || result.list || [];
+      
+      // 过滤只保留新泽西仓库 (USEA)
+      const filteredList = warehouseList.filter(item => {
+        const code = item.warehouse_code || item.code || '';
+        const name = item.warehouse_name || item.name || '';
+        // 匹配 USEA 代码或包含"新泽西"的名称
+        return code === NEW_JERSEY_WAREHOUSE_CODE || 
+               code.toUpperCase() === 'USEA' ||
+               name.includes('新泽西');
+      });
+      
+      console.log('过滤后的仓库列表:', filteredList.length, '个仓库');
+      
       return json({
         success: true,
-        data: warehouseList.map(item => ({
+        data: filteredList.map(item => ({
           code: item.warehouse_code || item.code,
           name: item.warehouse_name || item.name,
           country: item.country || item.country_code,
