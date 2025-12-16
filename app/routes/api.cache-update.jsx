@@ -76,11 +76,9 @@ export const action = async ({ request }) => {
               }
               displayFulfillmentStatus
               displayFinancialStatus
-              email
               customer {
                 id
                 displayName
-                email
               }
               shippingAddress {
                 name
@@ -174,8 +172,8 @@ export const action = async ({ request }) => {
       hasNextPage = pageInfo.hasNextPage;
       afterCursor = pageInfo.endCursor;
       
-      // 安全措施：最多获取3000个订单，避免无限循环
-      if (allOrders.length >= 3000) {
+      // 安全措施：最多获取500个订单，避免无限循环
+      if (allOrders.length >= 500) {
         break;
       }
     }

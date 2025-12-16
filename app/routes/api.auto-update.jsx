@@ -43,11 +43,9 @@ export const loader = async ({ request }) => {
                 }
                 displayFulfillmentStatus
                 displayFinancialStatus
-                email
                 customer {
                   id
                   displayName
-                  email
                 }
                 shippingAddress {
                   name

@@ -21,15 +21,16 @@ function generateSignature(timestamp) {
 
 /**
  * 调用谷仓 API 获取仓库列表
+ * 谷仓API文档: 获取仓库信息 /api/base_data/get_warehouse
  */
 async function fetchWarehouseList() {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const sign = generateSignature(timestamp);
   
-  // 谷仓获取仓库列表接口
-  const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/wms/warehouse/getList`;
+  // 谷仓获取仓库信息接口
+  const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/base_data/get_warehouse`;
   
-  console.log('调用获取仓库列表接口:', apiUrl);
+  console.log('调用获取仓库信息接口:', apiUrl);
   
   const response = await fetch(apiUrl, {
     method: "POST",
@@ -44,27 +45,27 @@ async function fetchWarehouseList() {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`获取仓库列表失败: ${response.status} - ${errorText}`);
+    throw new Error(`获取仓库信息失败: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  console.log('仓库列表响应:', JSON.stringify(data, null, 2));
+  console.log('仓库信息响应:', JSON.stringify(data, null, 2));
   
   return data;
 }
 
 /**
  * 调用谷仓 API 获取物流方式列表
- * 谷仓API文档: 获取物流方式 /api/wms/sm/getList
+ * 谷仓API文档: 获取物流产品 /api/base_data/get_shipping_method
  */
 async function fetchShippingMethods(warehouseCode) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const sign = generateSignature(timestamp);
   
-  // 谷仓获取物流方式列表接口 - 正确路径是 sm (shipping method)
-  const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/wms/sm/getList`;
+  // 谷仓获取物流产品接口
+  const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/base_data/get_shipping_method`;
   
-  console.log('调用获取物流方式列表接口:', apiUrl);
+  console.log('调用获取物流产品接口:', apiUrl);
   
   const requestBody = warehouseCode ? { warehouse_code: warehouseCode } : {};
   
@@ -81,28 +82,31 @@ async function fetchShippingMethods(warehouseCode) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`获取物流方式列表失败: ${response.status} - ${errorText}`);
+    throw new Error(`获取物流产品列表失败: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  console.log('物流方式列表响应:', JSON.stringify(data, null, 2));
+  console.log('物流产品列表响应:', JSON.stringify(data, null, 2));
   
   return data;
 }
 
+// OMS API 地址（运费试算用）
+const OMS_API_BASE_URL = process.env.OMS_API_BASE_URL || "https://oms.goodcang.net";
+
 /**
- * 调用谷仓 API 进行物流费用试算
+ * 调用谷仓 OMS API 进行运费试算
  * @param {object} params - 试算参数
- * 谷仓API文档: 物流费用试算 /api/wms/sm/trialFreight
+ * 谷仓API文档: 运费试算 /public_open/inventory/multi_dimension_delivery_fee
  */
 async function calculateShippingFee(params) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const sign = generateSignature(timestamp);
   
-  // 谷仓物流费用试算接口 - sm (shipping method)
-  const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/wms/sm/trialFreight`;
+  // 谷仓运费试算接口
+  const apiUrl = `${OMS_API_BASE_URL}/public_open/inventory/multi_dimension_delivery_fee`;
   
-  console.log('调用物流费用试算接口:', apiUrl);
+  console.log('调用运费试算接口:', apiUrl);
   console.log('试算参数:', JSON.stringify(params, null, 2));
   
   const response = await fetch(apiUrl, {
@@ -118,11 +122,11 @@ async function calculateShippingFee(params) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`物流费用试算失败: ${response.status} - ${errorText}`);
+    throw new Error(`运费试算失败: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  console.log('物流费用试算响应:', JSON.stringify(data, null, 2));
+  console.log('运费试算响应:', JSON.stringify(data, null, 2));
   
   return data;
 }
