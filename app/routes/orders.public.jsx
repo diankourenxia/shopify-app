@@ -331,6 +331,7 @@ export default function PublicOrders() {
   const fetcher = useFetcher();
   const statusFetcher = useFetcher();
   const tagFetcher = useFetcher();
+  const sfFetcher = useFetcher(); // 顺丰快递打印
   
   const [orders, setOrders] = useState(initialOrders);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
@@ -348,6 +349,19 @@ export default function PublicOrders() {
   const [fulfillmentDateEnd, setFulfillmentDateEnd] = useState(""); // 发货时间范围-结束
   const [sortOrder, setSortOrder] = useState("desc"); // desc: 最新在前, asc: 最早在前
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 顺丰打印相关状态
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [printOrderId, setPrintOrderId] = useState(null);
+  const [parcelQuantity, setParcelQuantity] = useState("1");
+  const [selectedLineItems, setSelectedLineItems] = useState([]);
+  const [printingOrderId, setPrintingOrderId] = useState(null);
+  const [waybillMap, setWaybillMap] = useState({});
+  
+  // 水洗标打印相关状态
+  const [washLabelModalOpen, setWashLabelModalOpen] = useState(false);
+  const [washLabelItem, setWashLabelItem] = useState(null);
+  const [washLabelNote, setWashLabelNote] = useState("");
   const [cacheTimestamp, setCacheTimestamp] = useState(initialCacheTimestamp);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrders, setSelectedOrders] = useState(new Set());
@@ -664,6 +678,42 @@ export default function PublicOrders() {
     }
   }, [statusFetcher.data]);
 
+  // 处理顺丰打印结果
+  useEffect(() => {
+    if (sfFetcher.data) {
+      const orderId = printingOrderId;
+      setPrintingOrderId(null);
+      
+      if (sfFetcher.data.success) {
+        const waybillInfo = sfFetcher.data.childWaybillNos && sfFetcher.data.childWaybillNos.length > 0
+          ? `主运单：${sfFetcher.data.waybillNo}，子运单数量：${sfFetcher.data.childWaybillNos.length}`
+          : `运单号：${sfFetcher.data.waybillNo}`;
+        
+        alert(`运单创建成功！${waybillInfo}`);
+        
+        // 更新运单信息到状态
+        if (orderId) {
+          setWaybillMap(prev => ({
+            ...prev,
+            [orderId]: {
+              waybillNo: sfFetcher.data.waybillNo,
+              labelUrl: sfFetcher.data.labelUrl,
+              invoiceUrl: sfFetcher.data.invoiceUrl,
+              createdAt: new Date(),
+            }
+          }));
+        }
+        
+        // 自动打开面单打印页面
+        if (sfFetcher.data.labelUrl) {
+          window.open(sfFetcher.data.labelUrl, '_blank');
+        }
+      } else if (sfFetcher.data.error) {
+        alert(`打印失败：${sfFetcher.data.error}`);
+      }
+    }
+  }, [sfFetcher.data]);
+
   const handleRefresh = () => {
     setIsLoading(true);
     const formData = new FormData();
@@ -674,6 +724,162 @@ export default function PublicOrders() {
   const handleLogout = () => {
     // 清除会话并重定向到登录页面
     window.location.href = "/login";
+  };
+
+  // 打开顺丰打印弹窗
+  const handleOpenPrintModal = (orderId) => {
+    setPrintOrderId(orderId);
+    setParcelQuantity("1");
+    setPrintModalOpen(true);
+    
+    // 查找订单并默认选中所有非免费商品
+    const order = orders.find(o => o.id === orderId);
+    if (order && order.lineItems?.edges) {
+      const printableItems = order.lineItems.edges
+        .filter(({ node }) => {
+          const price = parseFloat(node.discountedUnitPriceSet?.shopMoney?.amount || node.variant?.price || 0);
+          return price > 0;
+        })
+        .map(({ node }) => node.id);
+      setSelectedLineItems(printableItems);
+    } else {
+      setSelectedLineItems([]);
+    }
+  };
+
+  // 创建并打印运单
+  const handlePrintOrder = () => {
+    if (!printOrderId) return;
+    
+    const quantity = parseInt(parcelQuantity) || 1;
+    if (quantity < 1 || quantity > 99) {
+      alert("包裹数量必须在 1-99 之间");
+      return;
+    }
+    
+    if (selectedLineItems.length === 0) {
+      alert("请至少选择一个商品");
+      return;
+    }
+    
+    setPrintingOrderId(printOrderId);
+    setPrintModalOpen(false);
+    
+    const formData = new FormData();
+    formData.append("action", "createAndPrint");
+    formData.append("orderId", printOrderId);
+    formData.append("parcelQuantity", quantity.toString());
+    selectedLineItems.forEach(id => formData.append("lineItemIds[]", id));
+    sfFetcher.submit(formData, { 
+      method: "POST", 
+      action: "/api/sf-express" 
+    });
+  };
+
+  // 打开水洗标打印弹窗
+  const handleOpenWashLabelModal = (orderId, orderName, item) => {
+    setWashLabelItem({ orderId, orderName, item });
+    setWashLabelNote("");
+    setWashLabelModalOpen(true);
+  };
+
+  // 确认打印水洗标
+  const handlePrintWashLabel = () => {
+    if (!washLabelItem) return;
+    
+    const { orderId, orderName, item } = washLabelItem;
+    
+    // 创建表单并提交
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/api/wash-label';
+    form.target = '_blank';
+    
+    const actionInput = document.createElement('input');
+    actionInput.type = 'hidden';
+    actionInput.name = 'action';
+    actionInput.value = 'generateLabel';
+    form.appendChild(actionInput);
+    
+    const orderNoInput = document.createElement('input');
+    orderNoInput.type = 'hidden';
+    orderNoInput.name = 'orderNo';
+    orderNoInput.value = orderName || '';
+    form.appendChild(orderNoInput);
+    
+    const itemTitleInput = document.createElement('input');
+    itemTitleInput.type = 'hidden';
+    itemTitleInput.name = 'itemTitle';
+    itemTitleInput.value = item.title || '';
+    form.appendChild(itemTitleInput);
+    
+    const variantTitleInput = document.createElement('input');
+    variantTitleInput.type = 'hidden';
+    variantTitleInput.name = 'variantTitle';
+    variantTitleInput.value = item.variant?.title || '';
+    form.appendChild(variantTitleInput);
+    
+    // 传递属性
+    const propertiesInput = document.createElement('input');
+    propertiesInput.type = 'hidden';
+    propertiesInput.name = 'properties';
+    let propertiesArr = (item.customAttributes || []).map(attr => ({
+      name: attr.key,
+      value: attr.value
+    }));
+    // 如果有 _Lining Type 字段，自动补充衬布字段
+    const liningAttr = (item.customAttributes || []).find(attr => attr.key === '_Lining Type');
+    if (liningAttr && !propertiesArr.some(p => (p.name || '').includes('衬布'))) {
+      propertiesArr.push({ name: '衬布', value: liningAttr.value });
+    }
+    // 提取布料型号
+    let fabricModel = '';
+    if (item.variant && item.variant.title) {
+      const fabricCodeMatch = item.variant.title.match(/(\d+)-(\d+)/);
+      if (fabricCodeMatch) {
+        fabricModel = `${fabricCodeMatch[1]}-${parseInt(fabricCodeMatch[2], 10).toString()}`;
+      } else {
+        fabricModel = item.variant.title;
+      }
+    }
+    if (!propertiesArr.some(p => (p.name || '').toLowerCase().includes('fabricmodel') || (p.name || '').includes('布料型号'))) {
+      propertiesArr.push({ name: '布料型号', value: fabricModel });
+    }
+    propertiesInput.value = JSON.stringify(propertiesArr);
+    form.appendChild(propertiesInput);
+    
+    const noteInput = document.createElement('input');
+    noteInput.type = 'hidden';
+    noteInput.name = 'note';
+    noteInput.value = washLabelNote;
+    form.appendChild(noteInput);
+    
+    const quantityInput = document.createElement('input');
+    quantityInput.type = 'hidden';
+    quantityInput.name = 'quantity';
+    quantityInput.value = item.quantity.toString();
+    form.appendChild(quantityInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+    
+    setWashLabelModalOpen(false);
+  };
+
+  // 检查是否为布帘
+  const checkIsCurtain = (item, title) => {
+    if (title && title.toLowerCase().includes('roman')) {
+      return false;
+    }
+    const hardwarePattern = /\b(rods?|brackets?|finials?|rings?|clips?|hooks?)\b/i;
+    if (hardwarePattern.test(item.title || '')) {
+      return false;
+    }
+    const hasHeader = item.customAttributes?.some(attr => 
+      attr.key.includes('Header') || attr.key.includes('Pleat')
+    );
+    return hasHeader;
   };
 
   // 处理标签操作结果
@@ -1388,6 +1594,7 @@ export default function PublicOrders() {
                       <th>备注</th>
                       <th>评论</th>
                       <th>创建时间</th>
+                      <th>操作</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1415,6 +1622,9 @@ export default function PublicOrders() {
                         const itemKey = `${orderId}:${item.id}`;
                         const itemStatus = isFulfilled ? '已发货' : (statusMap[itemKey] || defaultStatus);
                         const itemNote = noteMap[itemKey] || '';
+                        
+                        // 检查是否为布帘（水洗标用）
+                        const isCurtain = checkIsCurtain(item, item.title);
                         
                         return (
                           <div key={item.id} style={{ 
@@ -1447,6 +1657,25 @@ export default function PublicOrders() {
                               <div style={{ whiteSpace: 'pre-line' }}>
                                 {dimensions}
                               </div>
+                              {/* 布帘显示打印水洗标按钮 */}
+                              {isCurtain && (
+                                <div style={{ marginTop: '8px' }}>
+                                  <button
+                                    onClick={() => handleOpenWashLabelModal(orderId, order.name, item)}
+                                    style={{
+                                      padding: '4px 12px',
+                                      fontSize: '12px',
+                                      backgroundColor: '#5c6ac4',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    打印水洗标 ({item.quantity}个)
+                                  </button>
+                                </div>
+                              )}
                               <div style={{ marginTop: '8px', maxWidth: '220px' }}>
                                 <select 
                                   value={itemStatus}
@@ -1678,6 +1907,26 @@ export default function PublicOrders() {
                             ) : '-'}
                           </td>
                           <td>{formatDate(order.createdAt)}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <button
+                                onClick={() => handleOpenPrintModal(order.id)}
+                                disabled={printingOrderId === order.id}
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: '4px',
+                                  border: 'none',
+                                  backgroundColor: '#2c6ecb',
+                                  color: 'white',
+                                  cursor: printingOrderId === order.id ? 'not-allowed' : 'pointer',
+                                  fontSize: '0.75rem',
+                                  opacity: printingOrderId === order.id ? 0.6 : 1
+                                }}
+                              >
+                                {printingOrderId === order.id ? '打印中...' : '顺丰打印'}
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -1698,6 +1947,211 @@ export default function PublicOrders() {
           )}
         </div>
       </div>
+      
+      {/* 顺丰打印模态框 */}
+      {printModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>打印顺丰运单</h3>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                包裹数量
+              </label>
+              <input
+                type="number"
+                value={parcelQuantity}
+                onChange={(e) => setParcelQuantity(e.target.value)}
+                min={1}
+                max={99}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '14px'
+                }}
+              />
+              <p style={{ fontSize: '12px', color: '#6d7175', marginTop: '4px' }}>
+                输入 1-99 之间的数字，默认为 1
+              </p>
+            </div>
+            
+            {/* 商品选择区 */}
+            {printOrderId && (() => {
+              const order = orders.find(o => o.id === printOrderId);
+              const printableItems = order?.lineItems?.edges?.filter(({ node }) => {
+                const price = parseFloat(node.discountedUnitPriceSet?.shopMoney?.amount || node.variant?.price || 0);
+                return price > 0;
+              }) || [];
+              
+              return printableItems.length > 0 ? (
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                    选择要打印的商品：
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {printableItems.map(({ node: item }) => (
+                      <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedLineItems.includes(item.id)}
+                          onChange={e => {
+                            setSelectedLineItems(ids =>
+                              e.target.checked
+                                ? [...ids, item.id]
+                                : ids.filter(id => id !== item.id)
+                            );
+                          }}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                        <span>{item.title}（数量: {item.quantity}）</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
+            })()}
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                onClick={() => setPrintModalOpen(false)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={handlePrintOrder}
+                disabled={printingOrderId !== null}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  backgroundColor: '#2c6ecb',
+                  color: 'white',
+                  cursor: printingOrderId !== null ? 'not-allowed' : 'pointer',
+                  opacity: printingOrderId !== null ? 0.6 : 1
+                }}
+              >
+                {printingOrderId !== null ? '打印中...' : '确认打印'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 水洗标打印模态框 */}
+      {washLabelModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '90%'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>打印水洗标</h3>
+            
+            {washLabelItem && (
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ marginBottom: '8px' }}>
+                  <strong>订单:</strong> {washLabelItem.orderName}
+                </p>
+                <p style={{ marginBottom: '8px' }}>
+                  <strong>商品:</strong> {washLabelItem.item.title}
+                </p>
+                <p style={{ marginBottom: '8px' }}>
+                  <strong>数量:</strong> {washLabelItem.item.quantity} 个（将生成 {washLabelItem.item.quantity} 个水洗标）
+                </p>
+              </div>
+            )}
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                备注
+              </label>
+              <textarea
+                value={washLabelNote}
+                onChange={(e) => setWashLabelNote(e.target.value)}
+                placeholder="输入备注信息（可选）"
+                rows={2}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '14px',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                onClick={() => setWashLabelModalOpen(false)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={handlePrintWashLabel}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  backgroundColor: '#2c6ecb',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                打印
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
