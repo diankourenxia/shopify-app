@@ -1,22 +1,27 @@
 import { json } from "@remix-run/node";
-import crypto from "crypto";
 
 /**
  * 获取谷仓仓库列表 API
  */
 
-// 海外仓API服务地址
+// 谷仓API服务地址
 const WAREHOUSE_API_BASE_URL = process.env.WAREHOUSE_API_BASE_URL || "https://open.goodcang.com";
-const WAREHOUSE_API_TOKEN = process.env.WAREHOUSE_API_TOKEN || "";
-const WAREHOUSE_API_KEY = process.env.WAREHOUSE_API_KEY || "";
+const OMS_API_BASE_URL = process.env.OMS_API_BASE_URL || "https://oms.goodcang.net";
+
+// 谷仓API认证信息
+const APP_TOKEN = process.env.WAREHOUSE_API_TOKEN || "";
+const APP_KEY = process.env.WAREHOUSE_API_KEY || "";
 
 /**
- * 生成谷仓API签名
- * 签名规则: MD5(token + timestamp + key)
+ * 获取谷仓API请求头
  */
-function generateSignature(timestamp) {
-  const signStr = WAREHOUSE_API_TOKEN + timestamp + WAREHOUSE_API_KEY;
-  return crypto.createHash('md5').update(signStr).digest('hex');
+function getGoodcangHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "app-token": APP_TOKEN,
+    "app-key": APP_KEY,
+  };
 }
 
 /**
@@ -24,22 +29,13 @@ function generateSignature(timestamp) {
  * 谷仓API文档: 获取仓库信息 /public_open/base_data/get_warehouse
  */
 async function fetchWarehouseList() {
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-  const sign = generateSignature(timestamp);
-  
-  // 谷仓获取仓库信息接口
   const apiUrl = `${WAREHOUSE_API_BASE_URL}/public_open/base_data/get_warehouse`;
   
   console.log('调用获取仓库信息接口:', apiUrl);
   
   const response = await fetch(apiUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "token": WAREHOUSE_API_TOKEN,
-      "timestamp": timestamp,
-      "sign": sign,
-    },
+    headers: getGoodcangHeaders(),
     body: JSON.stringify({}),
   });
 
@@ -59,10 +55,6 @@ async function fetchWarehouseList() {
  * 谷仓API文档: 获取物流产品 /public_open/base_data/get_shipping_method
  */
 async function fetchShippingMethods(warehouseCode) {
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-  const sign = generateSignature(timestamp);
-  
-  // 谷仓获取物流产品接口
   const apiUrl = `${WAREHOUSE_API_BASE_URL}/public_open/base_data/get_shipping_method`;
   
   console.log('调用获取物流产品接口:', apiUrl);
@@ -71,12 +63,7 @@ async function fetchShippingMethods(warehouseCode) {
   
   const response = await fetch(apiUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "token": WAREHOUSE_API_TOKEN,
-      "timestamp": timestamp,
-      "sign": sign,
-    },
+    headers: getGoodcangHeaders(),
     body: JSON.stringify(requestBody),
   });
 
@@ -91,19 +78,12 @@ async function fetchShippingMethods(warehouseCode) {
   return data;
 }
 
-// OMS API 地址（运费试算用）
-const OMS_API_BASE_URL = process.env.OMS_API_BASE_URL || "https://oms.goodcang.net";
-
 /**
  * 调用谷仓 OMS API 进行运费试算
  * @param {object} params - 试算参数
  * 谷仓API文档: 运费试算 /public_open/inventory/multi_dimension_delivery_fee
  */
 async function calculateShippingFee(params) {
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-  const sign = generateSignature(timestamp);
-  
-  // 谷仓运费试算接口
   const apiUrl = `${OMS_API_BASE_URL}/public_open/inventory/multi_dimension_delivery_fee`;
   
   console.log('调用运费试算接口:', apiUrl);
@@ -111,12 +91,7 @@ async function calculateShippingFee(params) {
   
   const response = await fetch(apiUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "token": WAREHOUSE_API_TOKEN,
-      "timestamp": timestamp,
-      "sign": sign,
-    },
+    headers: getGoodcangHeaders(),
     body: JSON.stringify(params),
   });
 
