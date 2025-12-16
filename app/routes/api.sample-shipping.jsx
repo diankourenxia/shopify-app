@@ -159,9 +159,9 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     is_signature: 0,
     LiftGate: 0,
     
-    // 增值服务
+    // 增值服务 - 关闭物流优选，使用手动指定的物流方式
     vas: {
-      logistics_recommendation_option: 1
+      logistics_recommendation_option: 0
     },
     
     // 预计到达时间
