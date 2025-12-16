@@ -1,16 +1,15 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import crypto from "crypto";
 
 /**
  * 小样单发货 API
  * 使用海外仓（谷仓）API 进行小样发货
  */
 
-// 海外仓API服务地址
-const WAREHOUSE_API_BASE_URL = process.env.WAREHOUSE_API_BASE_URL || "https://open.goodcang.com";
-const WAREHOUSE_API_TOKEN = process.env.WAREHOUSE_API_TOKEN || "";
-const WAREHOUSE_API_KEY = process.env.WAREHOUSE_API_KEY || "";
+// 海外仓API服务地址 - 使用 oms.goodcang.net
+const OMS_API_BASE_URL = process.env.OMS_API_BASE_URL || "https://oms.goodcang.net";
+const APP_TOKEN = process.env.WAREHOUSE_API_TOKEN || "23262f3d5961fcfed4bbf37174f069eb";
+const APP_KEY = process.env.WAREHOUSE_API_KEY || "b11f2c4a3b46cee5f010109cc7ee6fb1";
 
 // 默认配置
 const DEFAULT_CONFIG = {
@@ -26,42 +25,44 @@ const DEFAULT_CONFIG = {
 };
 
 /**
- * 生成谷仓API签名
- * 签名规则: MD5(token + timestamp + key)
+ * 获取谷仓API请求头
  */
-function generateSignature(timestamp) {
-  const signStr = WAREHOUSE_API_TOKEN + timestamp + WAREHOUSE_API_KEY;
-  return crypto.createHash('md5').update(signStr).digest('hex');
+function getGoodcangHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "app-token": APP_TOKEN,
+    "app-key": APP_KEY,
+  };
 }
 
 /**
  * 创建小样发货订单
+ * 使用谷仓 OMS API: /public_open/order/create_order
  */
 async function createSampleOrder(orderData) {
   try {
-    const timestamp = Math.floor(Date.now() / 1000).toString();
-    const sign = generateSignature(timestamp);
+    const apiUrl = `${OMS_API_BASE_URL}/public_open/order/create_order`;
     
-    const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/wms/order/create`;
-    
-    console.log('调用小样发货接口:', apiUrl);
+    console.log('=== 调用小样发货接口 ===');
+    console.log('URL:', apiUrl);
+    console.log('APP_TOKEN:', APP_TOKEN ? `${APP_TOKEN.substring(0, 8)}...` : '未设置');
+    console.log('APP_KEY:', APP_KEY ? `${APP_KEY.substring(0, 8)}...` : '未设置');
     console.log('=== 请求报文 ===');
     console.log(JSON.stringify(orderData, null, 2));
     console.log('=== 请求报文结束 ===');
     
     const response = await fetch(apiUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "token": WAREHOUSE_API_TOKEN,
-        "timestamp": timestamp,
-        "sign": sign,
-      },
+      headers: getGoodcangHeaders(),
       body: JSON.stringify(orderData),
     });
 
+    console.log('响应状态:', response.status, response.statusText);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.log('错误响应:', errorText);
       throw new Error(`创建发货订单失败: ${response.status} - ${errorText}`);
     }
 
@@ -79,6 +80,7 @@ async function createSampleOrder(orderData) {
 
 /**
  * 从 Shopify 订单转换为小样发货订单数据
+ * 按照谷仓 API 文档格式构建参数
  */
 function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
   const { skuMapping = {}, customSku = null } = options;
@@ -89,7 +91,6 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
   
   // 构建商品列表
   const items = shopifyOrder.lineItems.edges.map(({ node: item }, index) => {
-    // 优先使用 SKU 映射（支持多种key格式），其次使用商品 SKU，最后使用自定义 SKU
     const itemSku = item.variant?.sku || '';
     const itemId = item.id;
     let productSku = skuMapping[itemSku] || skuMapping[itemId] || itemSku || customSku || "SAMPLE-DEFAULT";
@@ -97,6 +98,7 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     return {
       product_sku: productSku,
       quantity: item.quantity,
+      batch_list: "",
       hs_code: "",
       item_id: item.id.replace('gid://shopify/LineItem/', ''),
       label_replacement_qty: "",
@@ -119,16 +121,16 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     // 物流配置
     shipping_method: options.shippingMethod || DEFAULT_CONFIG.shipping_method,
     warehouse_code: options.warehouseCode || DEFAULT_CONFIG.warehouse_code,
-    wp_code: options.wpCode || DEFAULT_CONFIG.wp_code,
+    wp_code: options.wpCode || `${options.warehouseCode || DEFAULT_CONFIG.warehouse_code}-001`,
     verify: 1,
     distributor_type: 0,
     
     // 订单信息
     payment_time: paymentTime,
     platform: DEFAULT_CONFIG.platform,
-    platform_order_code: shopifyOrder.name,
+    platform_order_code: shopifyOrder.name || "null",
     property_label: DEFAULT_CONFIG.property_label,
-    reference_no: shopifyOrder.name.replace('#', ''),
+    reference_no: shopifyOrder.name ? shopifyOrder.name.replace('#', '') : `ORDER-${Date.now()}`,
     
     // 收件人信息
     country_code: shippingAddress.countryCode || "US",
@@ -149,21 +151,25 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     // 商品列表
     items: items,
     
-    // 其他配置
+    // 保险和签收配置
     age_detection: "0",
     insurance_value: "0",
     is_insurance: 0,
     is_optional_board: "null",
     is_signature: 0,
     LiftGate: 0,
+    
+    // 增值服务
     vas: {
       logistics_recommendation_option: 1
     },
+    
+    // 预计到达时间
     estimated_arrival_date: estimatedArrivalDate,
     estimated_arrival_time: "1",
     is_euro_label: "",
     
-    // VAT 信息（默认空）
+    // VAT 信息
     vat_change_info: {
       customs_clearance_file_id_list: [],
       ioss_number: "",
@@ -196,15 +202,27 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     customer_package_code: options.packageCode || DEFAULT_CONFIG.customer_package_code,
     customer_package_type: DEFAULT_CONFIG.customer_package_type,
     
-    // 组合发货（不使用）
+    // 组合发货
     is_combination: 0,
-    combination_list: [],
+    combination_list: [
+      {
+        model_code: "null",
+        model_name: "",
+        product_list: [
+          {
+            product_sku: "null",
+            quantity: "null"
+          }
+        ]
+      }
+    ],
     
-    // 其他
+    // 其他配置
     ooh_code: "",
     order_desc: options.orderDesc || "",
     product_quanlity: items.reduce((sum, item) => sum + item.quantity, 0),
     validity_type: DEFAULT_CONFIG.validity_type,
+    consignee_type: "",
     is_shipping_method_not_allow_update: 0
   };
 }
@@ -346,13 +364,11 @@ export const action = async ({ request }) => {
         return json({ success: false, error: "缺少订单号" }, { status: 400 });
       }
 
-      const response = await fetch(`${WAREHOUSE_API_BASE_URL}/api/order/query`, {
+      // 使用谷仓 OMS API 查询订单
+      const response = await fetch(`${OMS_API_BASE_URL}/public_open/order/get_order_list`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${WAREHOUSE_API_KEY}`,
-        },
-        body: JSON.stringify({ order_no: orderNo }),
+        headers: getGoodcangHeaders(),
+        body: JSON.stringify({ reference_no: orderNo }),
       });
 
       if (!response.ok) {
