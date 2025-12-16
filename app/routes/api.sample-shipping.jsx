@@ -15,13 +15,6 @@ const APP_KEY = process.env.WAREHOUSE_API_KEY || "b11f2c4a3b46cee5f010109cc7ee6f
 const DEFAULT_CONFIG = {
   shipping_method: "GC_PARCEL",
   warehouse_code: "USEA",
-  wp_code: "USEA-001",
-  platform: "SHOPIFY",
-  property_label: "SFP",
-  customer_package_requirement: 1,
-  customer_package_code: "MY-CARTON-L",
-  customer_package_type: "PUBLIC",
-  validity_type: 3,
 };
 
 /**
@@ -80,136 +73,54 @@ async function createSampleOrder(orderData) {
 
 /**
  * 从 Shopify 订单转换为小样发货订单数据
- * 按照谷仓 API 文档格式构建参数
+ * 按照谷仓 API 文档格式构建参数 - 只保留必填项
  */
 function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
   const { skuMapping = {}, customSku = null } = options;
   
   const shippingAddress = shopifyOrder.shippingAddress || {};
-  const now = new Date();
-  const paymentTime = now.toISOString().replace('T', ' ').substring(0, 19);
   
-  // 构建商品列表
-  const items = shopifyOrder.lineItems.edges.map(({ node: item }, index) => {
+  // 构建商品列表 - 只保留必填字段
+  const items = shopifyOrder.lineItems.edges.map(({ node: item }) => {
     const itemSku = item.variant?.sku || '';
     const itemId = item.id;
     let productSku = skuMapping[itemSku] || skuMapping[itemId] || itemSku || customSku || "SAMPLE-DEFAULT";
     
     return {
-      product_sku: productSku,
-      quantity: parseInt(item.quantity, 10) || 1,  // 确保是整数
-      batch_list: "",
-      hs_code: "",
-      item_id: item.id.replace('gid://shopify/LineItem/', ''),
-      label_replacement_qty: "",
-      product_declared_value: item.variant?.price || "",
-      transaction_id: item.id.replace('gid://shopify/LineItem/', ''),
+      product_sku: productSku,  // 必填
+      quantity: parseInt(item.quantity, 10) || 1,  // 必填，确保是整数
     };
   });
 
   // 分离姓名为 first name 和 last name
   const fullName = shippingAddress.name || "";
   const nameParts = fullName.split(' ');
-  const firstName = nameParts[0] || "";
+  const firstName = nameParts[0] || "Customer";
   const lastName = nameParts.slice(1).join(' ') || "";
 
-  // 计算预计到达日期（7天后）
-  const estimatedDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const estimatedArrivalDate = estimatedDate.toISOString().split('T')[0];
-
   return {
-    // 物流配置
+    // 必填 - 物流配置
     shipping_method: options.shippingMethod || DEFAULT_CONFIG.shipping_method,
     warehouse_code: options.warehouseCode || DEFAULT_CONFIG.warehouse_code,
-    wp_code: options.wpCode || `${options.warehouseCode || DEFAULT_CONFIG.warehouse_code}-001`,
-    verify: 1,
-    distributor_type: 0,
     
-    // 订单信息
-    payment_time: paymentTime,
-    platform: DEFAULT_CONFIG.platform,
-    platform_order_code: shopifyOrder.name || "null",
-    reference_no: shopifyOrder.name ? shopifyOrder.name.replace('#', '') : `ORDER-${Date.now()}`,
-    
-    // 收件人信息
+    // 必填 - 收件人信息
     country_code: shippingAddress.countryCode || "US",
     province: shippingAddress.provinceCode || shippingAddress.province || "",
     city: shippingAddress.city || "",
     address1: shippingAddress.address1 || "",
-    address2: shippingAddress.address2 || "",
     name: firstName,
-    last_name: lastName,
-    phone: shippingAddress.phone || "",
-    doorplate: "",
-    company: shippingAddress.company || "",
-    email: shopifyOrder.email || shopifyOrder.customer?.email || "",
     zipcode: shippingAddress.zip || "",
     
-    // 商品列表
+    // 必填 - 商品列表
     items: items,
     
-    // 保险和签收配置
-    age_detection: "0",
-    insurance_value: "0",
-    is_insurance: 0,
-    is_optional_board: "null",
-    is_signature: 0,
-    LiftGate: 0,
-    
-    // 增值服务 - 关闭物流优选，使用手动指定的物流方式
-    vas: {
-      logistics_recommendation_option: 0
-    },
-    
-    // 预计到达时间
-    estimated_arrival_date: estimatedArrivalDate,
-    estimated_arrival_time: "1",
-    is_euro_label: "",
-    
-    // VAT 信息
-    vat_change_info: {
-      customs_clearance_file_id_list: [],
-      ioss_number: "",
-      pid_number: "",
-      recipient_eori: "",
-      recipient_eori_country: shippingAddress.countryCode || "US",
-      recipient_vat: "",
-      recipient_vat_country: "GB",
-      sent_number: "",
-      shipper_company_name: "",
-      shipper_eori: "",
-      shipper_vat: "",
-      shipper_vat_city: "",
-      shipper_vat_company_name: "",
-      shipper_vat_country: "US",
-      shipper_vat_street_address1: "",
-      shipper_vat_street_address2: "",
-      shipper_vat_zip_code: ""
-    },
-    
-    // 发件人信息
-    sender_info: {
-      name: "",
-      phone: ""
-    },
-    
-    // 包装配置
-    shopping_file_id: "",
-    customer_package_requirement: DEFAULT_CONFIG.customer_package_requirement,
-    customer_package_code: options.packageCode || DEFAULT_CONFIG.customer_package_code,
-    customer_package_type: DEFAULT_CONFIG.customer_package_type,
-    
-    // 组合发货 - 不使用时设为空数组
-    is_combination: 0,
-    combination_list: [],
-    
-    // 其他配置
-    ooh_code: "",
+    // 选填 - 有用的字段
+    address2: shippingAddress.address2 || "",
+    last_name: lastName,
+    phone: shippingAddress.phone || "",
+    email: shopifyOrder.email || shopifyOrder.customer?.email || "",
+    reference_no: shopifyOrder.name ? shopifyOrder.name.replace('#', '') : `ORDER-${Date.now()}`,
     order_desc: options.orderDesc || "",
-    product_quanlity: 1,  // 1:良品, 2:不良品
-    validity_type: DEFAULT_CONFIG.validity_type,
-    consignee_type: "",
-    is_shipping_method_not_allow_update: 0
   };
 }
 
