@@ -222,6 +222,18 @@ export const action = async ({ request }) => {
       // 调用海外仓API创建订单
       const result = await createSampleOrder(sampleOrderData);
 
+      // 检查谷仓 API 返回结果
+      if (result.code !== 0 && result.code !== '0' && result.ask !== 'Success') {
+        // 谷仓 API 返回错误
+        const errorMsg = result.Error?.errMessage || result.message || result.msg || "创建发货订单失败";
+        console.error('谷仓API返回错误:', result);
+        return json({
+          success: false,
+          error: errorMsg,
+          data: result
+        });
+      }
+
       // 保存发货信息到数据库
       const prisma = (await import("../db.server")).default;
       const orderIdNum = orderId.toString();
@@ -233,14 +245,14 @@ export const action = async ({ request }) => {
           }))?.id || "new"
         },
         update: {
-          sampleShippingNo: result.order_no || result.reference_no || null,
+          sampleShippingNo: result.data?.order_no || result.order_no || result.reference_no || null,
           sampleShippingStatus: "已创建",
           sampleShippingCreatedAt: new Date(),
         },
         create: {
           orderId: orderIdNum,
           status: "待处理",
-          sampleShippingNo: result.order_no || result.reference_no || null,
+          sampleShippingNo: result.data?.order_no || result.order_no || result.reference_no || null,
           sampleShippingStatus: "已创建",
           sampleShippingCreatedAt: new Date(),
         }
