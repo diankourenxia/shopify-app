@@ -772,7 +772,7 @@ export default function PublicOrders() {
     selectedLineItems.forEach(id => formData.append("lineItemIds[]", id));
     sfFetcher.submit(formData, { 
       method: "POST", 
-      action: "/api/sf-express" 
+      action: "/api/sf-express-public" 
     });
   };
 

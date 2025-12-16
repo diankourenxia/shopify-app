@@ -65,6 +65,7 @@ export const action = async ({ request }) => {
             node {
               id
               name
+              note
               createdAt
               updatedAt
               totalPriceSet {
@@ -79,6 +80,21 @@ export const action = async ({ request }) => {
                 id
                 displayName
               }
+              shippingAddress {
+                name
+                firstName
+                lastName
+                address1
+                address2
+                city
+                province
+                provinceCode
+                country
+                countryCode
+                zip
+                phone
+                company
+              }
               fulfillments {
                 id
                 createdAt
@@ -92,7 +108,7 @@ export const action = async ({ request }) => {
                   url
                 }
               }
-              lineItems(first: 5) {
+              lineItems(first: 20) {
                 edges {
                   node {
                     id
@@ -102,11 +118,30 @@ export const action = async ({ request }) => {
                       key
                       value
                     }
+                    discountedUnitPriceSet {
+                      shopMoney {
+                        amount
+                        currencyCode
+                      }
+                    }
+                    image {
+                      url
+                      altText
+                    }
                     variant {
                       id
                       title
                       price
                     }
+                  }
+                }
+              }
+              events(first: 10, sortKey: CREATED_AT, reverse: true) {
+                edges {
+                  node {
+                    id
+                    message
+                    createdAt
                   }
                 }
               }
