@@ -16,12 +16,14 @@ const APP_KEY = process.env.WAREHOUSE_API_KEY || "";
  * 获取谷仓API请求头
  */
 function getGoodcangHeaders() {
-  return {
+  const headers = {
     "Content-Type": "application/json",
     "Accept": "application/json",
     "app-token": APP_TOKEN,
     "app-key": APP_KEY,
   };
+  console.log('谷仓API请求头:', JSON.stringify(headers, null, 2));
+  return headers;
 }
 
 /**
@@ -31,16 +33,28 @@ function getGoodcangHeaders() {
 async function fetchWarehouseList() {
   const apiUrl = `${WAREHOUSE_API_BASE_URL}/public_open/base_data/get_warehouse`;
   
-  console.log('调用获取仓库信息接口:', apiUrl);
+  console.log('=== 调用获取仓库信息接口 ===');
+  console.log('URL:', apiUrl);
+  console.log('Method: POST');
+  console.log('APP_TOKEN:', APP_TOKEN ? `${APP_TOKEN.substring(0, 8)}...` : '未设置');
+  console.log('APP_KEY:', APP_KEY ? `${APP_KEY.substring(0, 8)}...` : '未设置');
+  
+  const headers = getGoodcangHeaders();
+  const body = JSON.stringify({});
+  console.log('Body:', body);
   
   const response = await fetch(apiUrl, {
     method: "POST",
-    headers: getGoodcangHeaders(),
-    body: JSON.stringify({}),
+    headers: headers,
+    body: body,
   });
+
+  console.log('响应状态:', response.status, response.statusText);
+  console.log('响应头:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.log('错误响应内容:', errorText);
     throw new Error(`获取仓库信息失败: ${response.status} - ${errorText}`);
   }
 
@@ -57,18 +71,29 @@ async function fetchWarehouseList() {
 async function fetchShippingMethods(warehouseCode) {
   const apiUrl = `${WAREHOUSE_API_BASE_URL}/public_open/base_data/get_shipping_method`;
   
-  console.log('调用获取物流产品接口:', apiUrl);
+  console.log('=== 调用获取物流产品接口 ===');
+  console.log('URL:', apiUrl);
+  console.log('Method: POST');
+  console.log('APP_TOKEN:', APP_TOKEN ? `${APP_TOKEN.substring(0, 8)}...` : '未设置');
+  console.log('APP_KEY:', APP_KEY ? `${APP_KEY.substring(0, 8)}...` : '未设置');
   
   const requestBody = warehouseCode ? { warehouse_code: warehouseCode } : {};
+  const headers = getGoodcangHeaders();
+  const body = JSON.stringify(requestBody);
+  console.log('Body:', body);
   
   const response = await fetch(apiUrl, {
     method: "POST",
-    headers: getGoodcangHeaders(),
-    body: JSON.stringify(requestBody),
+    headers: headers,
+    body: body,
   });
+
+  console.log('响应状态:', response.status, response.statusText);
+  console.log('响应头:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.log('错误响应内容:', errorText);
     throw new Error(`获取物流产品列表失败: ${response.status} - ${errorText}`);
   }
 
