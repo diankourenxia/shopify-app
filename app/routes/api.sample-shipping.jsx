@@ -141,7 +141,6 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     name: firstName,
     last_name: lastName,
     phone: shippingAddress.phone || "",
-    cell_phone: shippingAddress.phone || "-1",
     doorplate: "",
     company: shippingAddress.company || "",
     email: shopifyOrder.email || shopifyOrder.customer?.email || "",
