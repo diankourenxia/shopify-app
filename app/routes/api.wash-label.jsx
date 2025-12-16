@@ -350,7 +350,7 @@ function generateMultiLabelHTML(labels) {
       `<div class=\"row\"><span class=\"label\">布料型号:</span><span class=\"value\">${fabricModel || ""}</span></div>` +
       `<div class=\"row size-row\"><span><span class=\"label\">墙宽:</span> <span class=\"value\">${width || ""}</span></span><span><span class=\"label\">高:</span> <span class=\"value\">${height || ""}</span></span></div>` +
       `<div class=\"row\"><span class=\"label\">款式:</span><span class=\"value\">${style || ""}</span></div>` +
-      `<div class=\"row\"><span class=\"label\">衬布:</span><span class=\"value\">${lining || ""}</span>${colorBlock}</div>` +
+      `<div class=\"row\"><span class=\"label\">衬布:</span><span class=\"value\">${lining || "无"}</span>${colorBlock}</div>` +
       `<div class=\"options-row\"><span class=\"option\">单开 ${checkbox(options.singleOpen)}</span><span class=\"option\">双开 ${checkbox(options.doubleOpen)}</span><span class=\"option\">定型 ${checkbox(options.heatSetting)}</span></div>` +
       `<div class=\"options-row\"><span class=\"option\">铅块 ${checkbox(options.leadBlock)}</span><span class=\"option\">绑带 ${checkbox(options.binding)}</span></div>` +
       (quantity > 1 ? `<div class=\"quantity\">数量: ${quantity}</div>` : "") +
