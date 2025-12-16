@@ -2465,15 +2465,22 @@ export default function Orders() {
     try {
       const response = await fetch('/api/warehouse-list?type=warehouse');
       const result = await response.json();
-      if (result.success && result.data) {
+      if (result.success && result.data && result.data.length > 0) {
         setWarehouseList(result.data);
-        // 如果有仓库数据，默认选择第一个
-        if (result.data.length > 0 && !sampleShippingConfig.warehouseCode) {
-          setSampleShippingConfig(prev => ({ ...prev, warehouseCode: result.data[0].code }));
-        }
+        // 默认选择第一个仓库
+        const firstWarehouse = result.data[0].code;
+        setSampleShippingConfig(prev => ({ ...prev, warehouseCode: firstWarehouse }));
+        // 获取第一个仓库的物流方式
+        fetchShippingMethodList(firstWarehouse);
+      } else {
+        setWarehouseList([]);
+        // 如果没有获取到仓库，使用默认值
+        fetchShippingMethodList('USEA');
       }
     } catch (error) {
       console.error('获取仓库列表失败:', error);
+      // 获取失败时使用默认仓库获取物流方式
+      fetchShippingMethodList('USEA');
     }
     setWarehouseLoading(false);
   };
@@ -2558,9 +2565,8 @@ export default function Orders() {
       orderDesc: '',
     });
     
-    // 获取仓库列表和物流方式
+    // 获取仓库列表（成功后会自动获取物流方式）
     fetchWarehouseList();
-    fetchShippingMethodList();
     
     // 获取订单商品并匹配谷仓SKU
     const order = orders.find(o => o.id === `gid://shopify/Order/${orderId}`) || 
