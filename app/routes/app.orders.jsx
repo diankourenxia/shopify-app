@@ -1011,6 +1011,9 @@ export default function Orders() {
   });
   const [sampleShippingItems, setSampleShippingItems] = useState([]); // 小样发货商品匹配信息
   const [sampleShippingConfirmed, setSampleShippingConfirmed] = useState(false); // 是否已确认商品匹配
+  const [warehouseList, setWarehouseList] = useState([]); // 仓库列表
+  const [shippingMethodList, setShippingMethodList] = useState([]); // 物流方式列表
+  const [warehouseLoading, setWarehouseLoading] = useState(false); // 仓库加载中
   const [printModalOpen, setPrintModalOpen] = useState(false); // 打印弹窗
   const [printOrderId, setPrintOrderId] = useState(null); // 要打印的订单ID
   const [parcelQuantity, setParcelQuantity] = useState("1"); // 包裹数量
@@ -2432,6 +2435,41 @@ export default function Orders() {
     });
   };
 
+  // 获取仓库列表
+  const fetchWarehouseList = async () => {
+    setWarehouseLoading(true);
+    try {
+      const response = await fetch('/api/warehouse-list?type=warehouse');
+      const result = await response.json();
+      if (result.success && result.data) {
+        setWarehouseList(result.data);
+        // 如果有仓库数据，默认选择第一个
+        if (result.data.length > 0 && !sampleShippingConfig.warehouseCode) {
+          setSampleShippingConfig(prev => ({ ...prev, warehouseCode: result.data[0].code }));
+        }
+      }
+    } catch (error) {
+      console.error('获取仓库列表失败:', error);
+    }
+    setWarehouseLoading(false);
+  };
+
+  // 获取物流方式列表
+  const fetchShippingMethodList = async (warehouseCode) => {
+    try {
+      const url = warehouseCode 
+        ? `/api/warehouse-list?type=shipping&warehouse_code=${warehouseCode}`
+        : '/api/warehouse-list?type=shipping';
+      const response = await fetch(url);
+      const result = await response.json();
+      if (result.success && result.data) {
+        setShippingMethodList(result.data);
+      }
+    } catch (error) {
+      console.error('获取物流方式列表失败:', error);
+    }
+  };
+
   // 打开小样发货弹窗
   const handleOpenSampleShippingModal = (orderId) => {
     setSampleShippingOrderId(orderId);
@@ -2443,6 +2481,10 @@ export default function Orders() {
       warehouseCode: 'USEA',
       orderDesc: '',
     });
+    
+    // 获取仓库列表和物流方式
+    fetchWarehouseList();
+    fetchShippingMethodList();
     
     // 获取订单商品并匹配谷仓SKU
     const order = orders.find(o => o.id === `gid://shopify/Order/${orderId}`) || 
@@ -3626,7 +3668,11 @@ export default function Orders() {
       {/* 小样发货 Modal */}
       <Modal
         open={sampleShippingModalOpen}
-        onClose={() => setSampleShippingModalOpen(false)}
+        onClose={() => {
+          setSampleShippingModalOpen(false);
+          setSampleShippingConfirmed(false);
+          setSampleShippingItems([]);
+        }}
         title="小样发货 - 谷仓发货"
         primaryAction={{
           content: sampleShippingConfirmed ? '确认发货' : '确认商品信息',
@@ -3638,14 +3684,20 @@ export default function Orders() {
             }
           },
           loading: sampleShippingFetcher.state === 'submitting',
+          disabled: sampleShippingFetcher.state === 'submitting',
         }}
         secondaryActions={[
           {
             content: '取消',
-            onAction: () => setSampleShippingModalOpen(false),
+            onAction: () => {
+              setSampleShippingModalOpen(false);
+              setSampleShippingConfirmed(false);
+              setSampleShippingItems([]);
+            },
+            disabled: sampleShippingFetcher.state === 'submitting',
           },
         ]}
-        large
+        size="large"
       >
         <Modal.Section>
           <BlockStack gap="400">
@@ -3803,22 +3855,39 @@ export default function Orders() {
                 />
                 <Select
                   label="物流方式"
-                  options={[
-                    { label: 'FedEx Small Parcel', value: 'FEDEX-SMALLPARCEL' },
-                    { label: 'UPS Ground', value: 'UPS-GROUND' },
-                    { label: 'USPS Priority', value: 'USPS-PRIORITY' },
-                  ]}
+                  options={shippingMethodList.length > 0 
+                    ? shippingMethodList.map(item => ({ label: item.name, value: item.code }))
+                    : [
+                        { label: 'FedEx Small Parcel', value: 'FEDEX-SMALLPARCEL' },
+                        { label: 'FEDEX ECON', value: 'FEDEX ECON' },
+                        { label: 'UPS Ground', value: 'UPS-GROUND' },
+                        { label: 'USPS Priority', value: 'USPS-PRIORITY' },
+                        { label: 'USPS GroundAdvantage', value: 'USPS-LWPARCEL' },
+                        { label: 'GC PARCEL', value: 'GC PARCEL' },
+                      ]
+                  }
                   value={sampleShippingConfig.shippingMethod}
                   onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, shippingMethod: value }))}
                 />
                 <Select
                   label="发货仓库"
-                  options={[
-                    { label: '美东仓 (USEA)', value: 'USEA' },
-                    { label: '美西仓 (USWE)', value: 'USWE' },
-                  ]}
+                  options={warehouseList.length > 0
+                    ? warehouseList.map(item => ({ 
+                        label: `${item.name || item.code}${item.country ? ` (${item.country})` : ''}`, 
+                        value: item.code 
+                      }))
+                    : [
+                        { label: '美东仓 (USEA)', value: 'USEA' },
+                        { label: '美西仓 (USWE)', value: 'USWE' },
+                      ]
+                  }
                   value={sampleShippingConfig.warehouseCode}
-                  onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, warehouseCode: value }))}
+                  onChange={(value) => {
+                    setSampleShippingConfig(prev => ({ ...prev, warehouseCode: value }));
+                    // 切换仓库时重新获取该仓库支持的物流方式
+                    fetchShippingMethodList(value);
+                  }}
+                  disabled={warehouseLoading}
                 />
                 <TextField
                   label="订单备注"
