@@ -9,8 +9,8 @@ const WAREHOUSE_API_BASE_URL = process.env.WAREHOUSE_API_BASE_URL || "https://op
 const OMS_API_BASE_URL = process.env.OMS_API_BASE_URL || "https://oms.goodcang.net";
 
 // 谷仓API认证信息
-const APP_TOKEN = process.env.WAREHOUSE_API_TOKEN || "";
-const APP_KEY = process.env.WAREHOUSE_API_KEY || "";
+const APP_TOKEN = process.env.WAREHOUSE_API_TOKEN || "23262f3d5961fcfed4bbf37174f069eb";
+const APP_KEY = process.env.WAREHOUSE_API_KEY || "b11f2c4a3b46cee5f010109cc7ee6fb1";
 
 /**
  * 获取谷仓API请求头
