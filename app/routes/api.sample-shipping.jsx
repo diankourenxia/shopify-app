@@ -142,7 +142,6 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     last_name: lastName,
     phone: shippingAddress.phone || "",
     cell_phone: shippingAddress.phone || "-1",
-    area_code: "",
     doorplate: "",
     company: shippingAddress.company || "",
     email: shopifyOrder.email || shopifyOrder.customer?.email || "",
@@ -209,7 +208,7 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     // 其他配置
     ooh_code: "",
     order_desc: options.orderDesc || "",
-    product_quanlity: items.reduce((sum, item) => sum + (parseInt(item.quantity, 10) || 0), 0),
+    product_quanlity: 1,  // 1:良品, 2:不良品
     validity_type: DEFAULT_CONFIG.validity_type,
     consignee_type: "",
     is_shipping_method_not_allow_update: 0
