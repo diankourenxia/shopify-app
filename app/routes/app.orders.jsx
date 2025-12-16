@@ -74,9 +74,26 @@ export const loader = async ({ request }) => {
               displayFulfillmentStatus
               displayFinancialStatus
               note
+              email
               customer {
                 id
                 displayName
+                email
+              }
+              shippingAddress {
+                name
+                firstName
+                lastName
+                address1
+                address2
+                city
+                province
+                provinceCode
+                country
+                countryCode
+                zip
+                phone
+                company
               }
               fulfillments {
                 id
@@ -104,6 +121,12 @@ export const loader = async ({ request }) => {
                     customAttributes {
                       key
                       value
+                    }
+                    discountedUnitPriceSet {
+                      shopMoney {
+                        amount
+                        currencyCode
+                      }
                     }
                     variant {
                       id

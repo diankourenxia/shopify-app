@@ -32,6 +32,7 @@ export const loader = async ({ request }) => {
               node {
                 id
                 name
+                note
                 createdAt
                 updatedAt
                 totalPriceSet {
@@ -42,11 +43,41 @@ export const loader = async ({ request }) => {
                 }
                 displayFulfillmentStatus
                 displayFinancialStatus
+                email
                 customer {
                   id
                   displayName
+                  email
                 }
-                lineItems(first: 5) {
+                shippingAddress {
+                  name
+                  firstName
+                  lastName
+                  address1
+                  address2
+                  city
+                  province
+                  provinceCode
+                  country
+                  countryCode
+                  zip
+                  phone
+                  company
+                }
+                fulfillments {
+                  id
+                  createdAt
+                  deliveredAt
+                  estimatedDeliveryAt
+                  inTransitAt
+                  status
+                  trackingInfo {
+                    company
+                    number
+                    url
+                  }
+                }
+                lineItems(first: 20) {
                   edges {
                     node {
                       id
@@ -56,11 +87,30 @@ export const loader = async ({ request }) => {
                         key
                         value
                       }
+                      discountedUnitPriceSet {
+                        shopMoney {
+                          amount
+                          currencyCode
+                        }
+                      }
+                      image {
+                        url
+                        altText
+                      }
                       variant {
                         id
                         title
                         price
                       }
+                    }
+                  }
+                }
+                events(first: 10, sortKey: CREATED_AT, reverse: true) {
+                  edges {
+                    node {
+                      id
+                      message
+                      createdAt
                     }
                   }
                 }
