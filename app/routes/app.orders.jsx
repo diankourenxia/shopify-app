@@ -9,6 +9,7 @@ import {
   Button,
   BlockStack,
   InlineStack,
+  InlineGrid,
   DataTable,
   TextField,
   Select,
@@ -1014,6 +1015,8 @@ export default function Orders() {
   const [warehouseList, setWarehouseList] = useState([]); // 仓库列表
   const [shippingMethodList, setShippingMethodList] = useState([]); // 物流方式列表
   const [warehouseLoading, setWarehouseLoading] = useState(false); // 仓库加载中
+  const [shippingFeeResult, setShippingFeeResult] = useState(null); // 物流费用试算结果
+  const [shippingFeeLoading, setShippingFeeLoading] = useState(false); // 费用计算中
   const [printModalOpen, setPrintModalOpen] = useState(false); // 打印弹窗
   const [printOrderId, setPrintOrderId] = useState(null); // 要打印的订单ID
   const [parcelQuantity, setParcelQuantity] = useState("1"); // 包裹数量
@@ -2470,11 +2473,63 @@ export default function Orders() {
     }
   };
 
+  // 物流费用试算
+  const calculateShippingFee = async () => {
+    if (!sampleShippingConfig.warehouseCode || !sampleShippingConfig.shippingMethod) {
+      shopify.toast.show('请先选择仓库和物流方式', { duration: 3000, isError: true });
+      return;
+    }
+    
+    // 获取当前订单的收货地址
+    const order = orders.find(o => o.id === `gid://shopify/Order/${sampleShippingOrderId}`) || 
+                  orders.find(o => o.id.includes(sampleShippingOrderId));
+    const shippingAddress = order?.shippingAddress || {};
+    
+    setShippingFeeLoading(true);
+    setShippingFeeResult(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append('action', 'calculateFee');
+      formData.append('warehouse_code', sampleShippingConfig.warehouseCode);
+      formData.append('shipping_method', sampleShippingConfig.shippingMethod);
+      formData.append('country_code', shippingAddress.countryCode || 'US');
+      formData.append('province', shippingAddress.provinceCode || shippingAddress.province || '');
+      formData.append('city', shippingAddress.city || '');
+      formData.append('zipcode', shippingAddress.zip || '');
+      formData.append('weight', '0.5'); // 默认小样重量 0.5kg
+      formData.append('length', '20');
+      formData.append('width', '15');
+      formData.append('height', '10');
+      
+      const response = await fetch('/api/warehouse-list', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setShippingFeeResult(result.data);
+        shopify.toast.show(`预估运费: ${result.data.currency || 'USD'} ${result.data.totalFee}`, { duration: 5000 });
+      } else {
+        shopify.toast.show(`费用试算失败: ${result.error}`, { duration: 5000, isError: true });
+        setShippingFeeResult({ error: result.error, rawData: result.rawData });
+      }
+    } catch (error) {
+      console.error('物流费用试算失败:', error);
+      shopify.toast.show(`费用试算失败: ${error.message}`, { duration: 5000, isError: true });
+    }
+    
+    setShippingFeeLoading(false);
+  };
+
   // 打开小样发货弹窗
   const handleOpenSampleShippingModal = (orderId) => {
     setSampleShippingOrderId(orderId);
     setSampleShippingModalOpen(true);
     setSampleShippingConfirmed(false);
+    setShippingFeeResult(null); // 重置费用结果
     setSampleShippingConfig({
       customSku: '',
       shippingMethod: 'FEDEX-SMALLPARCEL',
@@ -3840,11 +3895,86 @@ export default function Orders() {
               <Text variant="bodyMd" tone="subdued">未找到商品信息</Text>
             )}
 
+            {/* 发货配置 - 始终显示 */}
+            <Box paddingBlockStart="400">
+              <Text variant="headingMd">发货配置</Text>
+            </Box>
+            <InlineGrid columns={2} gap="400">
+              <Select
+                label="发货仓库"
+                options={warehouseList.length > 0
+                  ? warehouseList.map(item => ({ 
+                      label: `${item.name || item.code}${item.country ? ` (${item.country})` : ''}`, 
+                      value: item.code 
+                    }))
+                  : [
+                      { label: '美东仓 (USEA)', value: 'USEA' },
+                      { label: '美西仓 (USWE)', value: 'USWE' },
+                    ]
+                }
+                value={sampleShippingConfig.warehouseCode}
+                onChange={(value) => {
+                  setSampleShippingConfig(prev => ({ ...prev, warehouseCode: value }));
+                  // 切换仓库时重新获取该仓库支持的物流方式
+                  fetchShippingMethodList(value);
+                }}
+                disabled={warehouseLoading}
+              />
+              <Select
+                label="物流方式"
+                options={shippingMethodList.length > 0 
+                  ? shippingMethodList.map(item => ({ label: item.name, value: item.code }))
+                  : [
+                      { label: 'FedEx Small Parcel', value: 'FEDEX-SMALLPARCEL' },
+                      { label: 'FEDEX ECON', value: 'FEDEX ECON' },
+                      { label: 'UPS Ground', value: 'UPS-GROUND' },
+                      { label: 'USPS Priority', value: 'USPS-PRIORITY' },
+                      { label: 'USPS GroundAdvantage', value: 'USPS-LWPARCEL' },
+                      { label: 'GC PARCEL', value: 'GC PARCEL' },
+                    ]
+                }
+                value={sampleShippingConfig.shippingMethod}
+                onChange={(value) => {
+                  setSampleShippingConfig(prev => ({ ...prev, shippingMethod: value }));
+                  setShippingFeeResult(null); // 切换物流方式时重置费用
+                }}
+              />
+            </InlineGrid>
+            
+            {/* 费用试算 */}
+            <InlineStack gap="400" align="start" blockAlign="center">
+              <Button 
+                onClick={calculateShippingFee} 
+                loading={shippingFeeLoading}
+                disabled={!sampleShippingConfig.warehouseCode || !sampleShippingConfig.shippingMethod}
+              >
+                运费试算
+              </Button>
+              {shippingFeeResult && !shippingFeeResult.error && (
+                <Box padding="200" background="bg-surface-success" borderRadius="200">
+                  <InlineStack gap="200">
+                    <Text variant="bodyMd" fontWeight="semibold">
+                      预估运费: {shippingFeeResult.currency || 'USD'} {shippingFeeResult.totalFee}
+                    </Text>
+                    {shippingFeeResult.chargeWeight && (
+                      <Text variant="bodySm" tone="subdued">
+                        (计费重量: {shippingFeeResult.chargeWeight}kg)
+                      </Text>
+                    )}
+                  </InlineStack>
+                </Box>
+              )}
+              {shippingFeeResult?.error && (
+                <Box padding="200" background="bg-surface-warning" borderRadius="200">
+                  <Text variant="bodySm" tone="caution">
+                    {shippingFeeResult.error}
+                  </Text>
+                </Box>
+              )}
+            </InlineStack>
+
             {sampleShippingConfirmed && (
               <>
-                <Box paddingBlockStart="400">
-                  <Text variant="headingMd">发货配置</Text>
-                </Box>
                 <TextField
                   label="自定义SKU（可选）"
                   value={sampleShippingConfig.customSku}
@@ -3852,42 +3982,6 @@ export default function Orders() {
                   autoComplete="off"
                   helpText="留空将使用上面匹配的谷仓条码"
                   placeholder="例如: SAMPLE-001"
-                />
-                <Select
-                  label="物流方式"
-                  options={shippingMethodList.length > 0 
-                    ? shippingMethodList.map(item => ({ label: item.name, value: item.code }))
-                    : [
-                        { label: 'FedEx Small Parcel', value: 'FEDEX-SMALLPARCEL' },
-                        { label: 'FEDEX ECON', value: 'FEDEX ECON' },
-                        { label: 'UPS Ground', value: 'UPS-GROUND' },
-                        { label: 'USPS Priority', value: 'USPS-PRIORITY' },
-                        { label: 'USPS GroundAdvantage', value: 'USPS-LWPARCEL' },
-                        { label: 'GC PARCEL', value: 'GC PARCEL' },
-                      ]
-                  }
-                  value={sampleShippingConfig.shippingMethod}
-                  onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, shippingMethod: value }))}
-                />
-                <Select
-                  label="发货仓库"
-                  options={warehouseList.length > 0
-                    ? warehouseList.map(item => ({ 
-                        label: `${item.name || item.code}${item.country ? ` (${item.country})` : ''}`, 
-                        value: item.code 
-                      }))
-                    : [
-                        { label: '美东仓 (USEA)', value: 'USEA' },
-                        { label: '美西仓 (USWE)', value: 'USWE' },
-                      ]
-                  }
-                  value={sampleShippingConfig.warehouseCode}
-                  onChange={(value) => {
-                    setSampleShippingConfig(prev => ({ ...prev, warehouseCode: value }));
-                    // 切换仓库时重新获取该仓库支持的物流方式
-                    fetchShippingMethodList(value);
-                  }}
-                  disabled={warehouseLoading}
                 />
                 <TextField
                   label="订单备注"

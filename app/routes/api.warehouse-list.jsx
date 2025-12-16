@@ -55,13 +55,14 @@ async function fetchWarehouseList() {
 
 /**
  * 调用谷仓 API 获取物流方式列表
+ * 谷仓API文档: 获取物流方式 /api/wms/sm/getList
  */
 async function fetchShippingMethods(warehouseCode) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const sign = generateSignature(timestamp);
   
-  // 谷仓获取物流方式列表接口
-  const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/wms/shipping/getList`;
+  // 谷仓获取物流方式列表接口 - 正确路径是 sm (shipping method)
+  const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/wms/sm/getList`;
   
   console.log('调用获取物流方式列表接口:', apiUrl);
   
@@ -85,6 +86,43 @@ async function fetchShippingMethods(warehouseCode) {
 
   const data = await response.json();
   console.log('物流方式列表响应:', JSON.stringify(data, null, 2));
+  
+  return data;
+}
+
+/**
+ * 调用谷仓 API 进行物流费用试算
+ * @param {object} params - 试算参数
+ * 谷仓API文档: 物流费用试算 /api/wms/sm/trialFreight
+ */
+async function calculateShippingFee(params) {
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const sign = generateSignature(timestamp);
+  
+  // 谷仓物流费用试算接口 - sm (shipping method)
+  const apiUrl = `${WAREHOUSE_API_BASE_URL}/api/wms/sm/trialFreight`;
+  
+  console.log('调用物流费用试算接口:', apiUrl);
+  console.log('试算参数:', JSON.stringify(params, null, 2));
+  
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "token": WAREHOUSE_API_TOKEN,
+      "timestamp": timestamp,
+      "sign": sign,
+    },
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`物流费用试算失败: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  console.log('物流费用试算响应:', JSON.stringify(data, null, 2));
   
   return data;
 }
@@ -142,6 +180,86 @@ export const loader = async ({ request }) => {
     return json({
       success: false,
       error: error.message || "获取失败"
+    }, { status: 500 });
+  }
+};
+
+/**
+ * POST 请求处理 - 物流费用试算
+ */
+export const action = async ({ request }) => {
+  try {
+    const formData = await request.formData();
+    const actionType = formData.get("action");
+    
+    if (actionType === "calculateFee") {
+      // 物流费用试算
+      const warehouseCode = formData.get("warehouse_code");
+      const shippingMethod = formData.get("shipping_method");
+      const countryCode = formData.get("country_code") || "US";
+      const province = formData.get("province") || "";
+      const city = formData.get("city") || "";
+      const zipcode = formData.get("zipcode") || "";
+      const weight = parseFloat(formData.get("weight")) || 0.5; // 默认0.5kg
+      const length = parseFloat(formData.get("length")) || 10;
+      const width = parseFloat(formData.get("width")) || 10;
+      const height = parseFloat(formData.get("height")) || 10;
+      
+      if (!warehouseCode || !shippingMethod) {
+        return json({
+          success: false,
+          error: "请选择仓库和物流方式"
+        }, { status: 400 });
+      }
+      
+      const params = {
+        warehouse_code: warehouseCode,
+        shipping_method: shippingMethod,
+        country_code: countryCode,
+        province: province,
+        city: city,
+        zipcode: zipcode,
+        weight: weight,
+        length: length,
+        width: width,
+        height: height,
+      };
+      
+      const result = await calculateShippingFee(params);
+      
+      if (result.code === 0 || result.code === '0' || result.success) {
+        return json({
+          success: true,
+          data: {
+            totalFee: result.data?.total_fee || result.data?.freight || result.data?.total || 0,
+            currency: result.data?.currency || "USD",
+            weight: result.data?.weight || weight,
+            volumeWeight: result.data?.volume_weight || result.data?.volumeWeight,
+            chargeWeight: result.data?.charge_weight || result.data?.chargeWeight,
+            feeDetails: result.data?.fee_details || result.data?.details || [],
+            shippingMethod: shippingMethod,
+            warehouseCode: warehouseCode,
+            rawData: result.data, // 原始数据，方便调试
+          }
+        });
+      } else {
+        return json({
+          success: false,
+          error: result.msg || result.message || "费用试算失败",
+          rawData: result, // 返回原始数据方便调试
+        });
+      }
+    }
+    
+    return json({
+      success: false,
+      error: "未知操作"
+    }, { status: 400 });
+  } catch (error) {
+    console.error("API操作失败:", error);
+    return json({
+      success: false,
+      error: error.message || "操作失败"
     }, { status: 500 });
   }
 };
