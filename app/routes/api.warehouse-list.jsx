@@ -170,6 +170,9 @@ export const loader = async ({ request }) => {
     // 新泽西仓库代码 - 只使用这个仓库
     const NEW_JERSEY_WAREHOUSE_CODE = "USEA";
     
+    // 允许的物流方式列表
+    const ALLOWED_SHIPPING_METHODS = ["GC_PARCEL", "USPS-LWPARCEL", "FEDEX_ECON"];
+    
     if (type === "shipping") {
       // 获取物流方式列表 - 强制使用新泽西仓库
       const targetWarehouseCode = warehouseCode || NEW_JERSEY_WAREHOUSE_CODE;
@@ -177,9 +180,18 @@ export const loader = async ({ request }) => {
       
       if (result.code === 0 || result.code === '0' || result.success) {
         const shippingList = result.data || result.list || [];
+        
+        // 过滤只保留指定的物流方式
+        const filteredList = shippingList.filter(item => {
+          const code = item.shipping_code || item.code || item.shipping_method || '';
+          return ALLOWED_SHIPPING_METHODS.includes(code);
+        });
+        
+        console.log('过滤后的物流方式:', filteredList.length, '种');
+        
         return json({
           success: true,
-          data: shippingList.map(item => ({
+          data: filteredList.map(item => ({
             code: item.shipping_code || item.code || item.shipping_method,
             name: item.shipping_name || item.name || item.shipping_method,
             warehouseCode: item.warehouse_code,
