@@ -327,6 +327,17 @@ export function getAllProductCodes() {
 }
 
 /**
+ * 标准化编码，去掉前导零（8823-02 -> 8823-2）
+ * @param {string} code
+ * @returns {string}
+ */
+function normalizeLeadingZeros(code) {
+  if (!code) return '';
+  // 将 8823-02 转为 8823-2，但保留 A5018-05 这种
+  return code.replace(/-0+(\d+)/g, '-$1');
+}
+
+/**
  * 搜索商品编码
  * @param {string} keyword - 搜索关键词
  * @returns {Array} 匹配的商品列表 [{ productCode, goodcangCode }]
@@ -337,12 +348,34 @@ export function searchProductCodes(keyword) {
   }
   
   const searchKey = keyword.toUpperCase().trim();
+  // 标准化搜索关键词（去掉前导零）
+  const normalizedSearchKey = normalizeLeadingZeros(searchKey);
+  // 去掉横线的版本
+  const searchKeyNoDash = searchKey.replace(/-/g, '');
+  const normalizedSearchKeyNoDash = normalizedSearchKey.replace(/-/g, '');
+  
   const results = [];
   
   for (const [productCode, goodcangCode] of Object.entries(goodcangSkuMapping)) {
-    // 匹配商品编码或谷仓编码
-    if (productCode.toUpperCase().includes(searchKey) || 
-        goodcangCode.toUpperCase().includes(searchKey)) {
+    const upperCode = productCode.toUpperCase();
+    const normalizedCode = normalizeLeadingZeros(upperCode);
+    const codeNoDash = upperCode.replace(/-/g, '');
+    const normalizedCodeNoDash = normalizedCode.replace(/-/g, '');
+    
+    // 多种匹配方式
+    if (
+      // 原始匹配
+      upperCode.includes(searchKey) || 
+      // 去前导零匹配
+      normalizedCode.includes(normalizedSearchKey) ||
+      // 去横线匹配
+      codeNoDash.includes(searchKeyNoDash) ||
+      normalizedCodeNoDash.includes(normalizedSearchKeyNoDash) ||
+      // 只用数字部分匹配（提取搜索词中的数字）
+      (searchKey.match(/\d+-?\d*/)?.[0] && upperCode.includes(searchKey.match(/\d+-?\d*/)[0])) ||
+      // 谷仓编码匹配
+      goodcangCode.toUpperCase().includes(searchKey)
+    ) {
       results.push({ productCode, goodcangCode });
     }
   }
@@ -353,6 +386,7 @@ export function searchProductCodes(keyword) {
 /**
  * 根据商品标题/SKU查找谷仓商品条码
  * 核心逻辑：从商品名称中提取数字编码（如 8823-2），然后在映射表中查找包含该编码的key
+ * 支持前导零匹配：8823-02 和 8823-2 视为相同
  * @param {string} title - 商品标题
  * @param {string} sku - 商品SKU
  * @param {string} variantTitle - 变体标题
@@ -362,12 +396,12 @@ export function findGoodcangSku(title, sku, variantTitle) {
   // 合并所有可能包含编码的字符串
   const allText = [title, sku, variantTitle].filter(Boolean).join(' ');
   
-  // 从文本中提取数字编码（如 8823-2, A5018-31, 1908-35, K1020 等）
+  // 从文本中提取数字编码（如 8823-2, 8823-02, A5018-31, 1908-35, K1020 等）
   const extractedCodes = [];
   
   // 匹配各种编码格式
   const patterns = [
-    /\b([A-Z]?\d{3,5})-(\d{1,3})\b/gi,  // 8823-2, A5018-31, 1908-35
+    /\b([A-Z]?\d{3,5})-(\d{1,3})\b/gi,  // 8823-2, 8823-02, A5018-31, 1908-35
     /\b([A-Z]\d{3,5})\b/gi,              // K1020, K1019
     /\b(\d{4})-(\d{1,2})\b/gi,           // 1802-7, 2020-11
   ];
@@ -375,7 +409,13 @@ export function findGoodcangSku(title, sku, variantTitle) {
   for (const pattern of patterns) {
     const matches = allText.matchAll(pattern);
     for (const match of matches) {
-      extractedCodes.push(match[0].toUpperCase());
+      const code = match[0].toUpperCase();
+      extractedCodes.push(code);
+      // 同时添加去掉前导零的版本
+      const normalizedCode = normalizeLeadingZeros(code);
+      if (normalizedCode !== code) {
+        extractedCodes.push(normalizedCode);
+      }
     }
   }
   
@@ -396,13 +436,13 @@ export function findGoodcangSku(title, sku, variantTitle) {
   for (const code of extractedCodes) {
     // 在所有映射key中查找包含该编码的项
     for (const [key, value] of Object.entries(goodcangSkuMapping)) {
-      const normalizedKey = key.toUpperCase().replace(/-/g, '');
-      const normalizedCode = code.replace(/-/g, '');
+      const normalizedKey = normalizeLeadingZeros(key.toUpperCase()).replace(/-/g, '');
+      const normalizedCode = normalizeLeadingZeros(code).replace(/-/g, '');
       
       // 检查key是否以该编码结尾或包含该编码
       if (normalizedKey.endsWith(normalizedCode) || 
           normalizedKey.includes(normalizedCode) ||
-          key.toUpperCase().includes(code)) {
+          normalizeLeadingZeros(key.toUpperCase()).includes(normalizeLeadingZeros(code))) {
         // 额外验证：如果有产品名，优先匹配产品名相同的
         if (productName && key.toUpperCase().startsWith(productName)) {
           return {
@@ -416,10 +456,11 @@ export function findGoodcangSku(title, sku, variantTitle) {
     
     // 如果没有产品名匹配，尝试任意匹配
     for (const [key, value] of Object.entries(goodcangSkuMapping)) {
-      const normalizedKey = key.toUpperCase().replace(/-/g, '');
-      const normalizedCode = code.replace(/-/g, '');
+      const normalizedKey = normalizeLeadingZeros(key.toUpperCase()).replace(/-/g, '');
+      const normalizedCode = normalizeLeadingZeros(code).replace(/-/g, '');
       
-      if (normalizedKey.endsWith(normalizedCode) || key.toUpperCase().includes(code)) {
+      if (normalizedKey.endsWith(normalizedCode) || 
+          normalizeLeadingZeros(key.toUpperCase()).includes(normalizeLeadingZeros(code))) {
         return {
           found: true,
           productCode: key,
@@ -432,8 +473,11 @@ export function findGoodcangSku(title, sku, variantTitle) {
   // 第三轮：尝试组合产品名 + 数字编码
   if (productName) {
     for (const code of extractedCodes) {
+      const normalizedCode = normalizeLeadingZeros(code);
+      
       // 尝试 CELINA8823-2 格式
       const combinedCode1 = `${productName}${code}`;
+      const combinedCode1Norm = `${productName}${normalizedCode}`;
       if (goodcangSkuMapping[combinedCode1]) {
         return {
           found: true,
@@ -441,14 +485,29 @@ export function findGoodcangSku(title, sku, variantTitle) {
           goodcangCode: goodcangSkuMapping[combinedCode1]
         };
       }
+      if (goodcangSkuMapping[combinedCode1Norm]) {
+        return {
+          found: true,
+          productCode: combinedCode1Norm,
+          goodcangCode: goodcangSkuMapping[combinedCode1Norm]
+        };
+      }
       
       // 尝试 CELINA-8823-2 格式
       const combinedCode2 = `${productName}-${code}`;
+      const combinedCode2Norm = `${productName}-${normalizedCode}`;
       if (goodcangSkuMapping[combinedCode2]) {
         return {
           found: true,
           productCode: combinedCode2,
           goodcangCode: goodcangSkuMapping[combinedCode2]
+        };
+      }
+      if (goodcangSkuMapping[combinedCode2Norm]) {
+        return {
+          found: true,
+          productCode: combinedCode2Norm,
+          goodcangCode: goodcangSkuMapping[combinedCode2Norm]
         };
       }
     }
