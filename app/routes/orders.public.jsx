@@ -366,6 +366,17 @@ export default function PublicOrders() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrders, setSelectedOrders] = useState(new Set());
   
+  // Tab 切换状态
+  const [activeTab, setActiveTab] = useState("orders"); // "orders" | "users"
+  
+  // 用户管理相关状态
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [userForm, setUserForm] = useState({ username: '', password: '', role: 'viewer' });
+  const userFetcher = useFetcher();
+  
   // 分页设置
   const itemsPerPage = 100;
   
@@ -725,6 +736,104 @@ export default function PublicOrders() {
     // 清除会话并重定向到登录页面
     window.location.href = "/login";
   };
+
+  // ========== 用户管理相关函数 ==========
+  
+  // 加载用户列表
+  const loadUsers = async () => {
+    if (userSession?.role !== 'admin') return;
+    
+    setUsersLoading(true);
+    try {
+      const sessionData = encodeURIComponent(JSON.stringify(userSession));
+      const response = await fetch(`/api/users?session=${sessionData}`);
+      const result = await response.json();
+      if (result.success) {
+        setUsers(result.data);
+      } else {
+        alert(result.error || '加载用户列表失败');
+      }
+    } catch (error) {
+      console.error('加载用户列表失败:', error);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  // 切换到用户管理Tab时加载用户
+  useEffect(() => {
+    if (activeTab === 'users' && userSession?.role === 'admin') {
+      loadUsers();
+    }
+  }, [activeTab]);
+
+  // 处理用户表单提交结果
+  useEffect(() => {
+    if (userFetcher.data) {
+      if (userFetcher.data.success) {
+        alert(userFetcher.data.message || '操作成功');
+        setUserModalOpen(false);
+        setEditingUser(null);
+        setUserForm({ username: '', password: '', role: 'viewer' });
+        loadUsers(); // 重新加载用户列表
+      } else if (userFetcher.data.error) {
+        alert(userFetcher.data.error);
+      }
+    }
+  }, [userFetcher.data]);
+
+  // 打开创建用户弹窗
+  const handleOpenCreateUser = () => {
+    setEditingUser(null);
+    setUserForm({ username: '', password: '', role: 'viewer' });
+    setUserModalOpen(true);
+  };
+
+  // 打开编辑用户弹窗
+  const handleOpenEditUser = (user) => {
+    setEditingUser(user);
+    setUserForm({ username: user.username, password: '', role: user.role });
+    setUserModalOpen(true);
+  };
+
+  // 提交用户表单
+  const handleSubmitUser = () => {
+    const formData = new FormData();
+    formData.append('session', JSON.stringify(userSession));
+    
+    if (editingUser) {
+      formData.append('action', 'update');
+      formData.append('userId', editingUser.id);
+      if (userForm.username !== editingUser.username) {
+        formData.append('username', userForm.username);
+      }
+      if (userForm.password) {
+        formData.append('password', userForm.password);
+      }
+      formData.append('role', userForm.role);
+    } else {
+      formData.append('action', 'create');
+      formData.append('username', userForm.username);
+      formData.append('password', userForm.password);
+      formData.append('role', userForm.role);
+    }
+    
+    userFetcher.submit(formData, { method: 'POST', action: '/api/users' });
+  };
+
+  // 删除用户
+  const handleDeleteUser = (user) => {
+    if (!confirm(`确定要删除用户 "${user.username}" 吗？`)) return;
+    
+    const formData = new FormData();
+    formData.append('session', JSON.stringify(userSession));
+    formData.append('action', 'delete');
+    formData.append('userId', user.id);
+    
+    userFetcher.submit(formData, { method: 'POST', action: '/api/users' });
+  };
+
+  // ========== 用户管理相关函数结束 ==========
 
   // 打开顺丰打印弹窗
   const handleOpenPrintModal = (orderId) => {
@@ -1298,6 +1407,151 @@ export default function PublicOrders() {
           </div>
         )}
 
+        {/* Tab 切换 - 仅管理员可见用户管理 */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '0', 
+          marginBottom: '20px',
+          borderBottom: '2px solid #e1e3e5'
+        }}>
+          <button
+            onClick={() => setActiveTab('orders')}
+            style={{
+              padding: '12px 24px',
+              border: 'none',
+              background: activeTab === 'orders' ? '#2c6ecb' : 'transparent',
+              color: activeTab === 'orders' ? 'white' : '#637381',
+              fontWeight: activeTab === 'orders' ? '600' : '400',
+              cursor: 'pointer',
+              fontSize: '14px',
+              borderRadius: '4px 4px 0 0',
+              marginBottom: '-2px',
+              borderBottom: activeTab === 'orders' ? '2px solid #2c6ecb' : '2px solid transparent'
+            }}
+          >
+            订单管理
+          </button>
+          {userSession?.role === 'admin' && (
+            <button
+              onClick={() => setActiveTab('users')}
+              style={{
+                padding: '12px 24px',
+                border: 'none',
+                background: activeTab === 'users' ? '#2c6ecb' : 'transparent',
+                color: activeTab === 'users' ? 'white' : '#637381',
+                fontWeight: activeTab === 'users' ? '600' : '400',
+                cursor: 'pointer',
+                fontSize: '14px',
+                borderRadius: '4px 4px 0 0',
+                marginBottom: '-2px',
+                borderBottom: activeTab === 'users' ? '2px solid #2c6ecb' : '2px solid transparent'
+              }}
+            >
+              用户管理
+            </button>
+          )}
+        </div>
+
+        {/* 用户管理 Tab 内容 */}
+        {activeTab === 'users' && userSession?.role === 'admin' && (
+          <div style={{ padding: '20px', backgroundColor: '#f6f6f7', borderRadius: '8px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>用户管理</h2>
+              <button
+                onClick={handleOpenCreateUser}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#2c6ecb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                添加用户
+              </button>
+            </div>
+            
+            {usersLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>加载中...</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f0f0f0' }}>
+                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>用户名</th>
+                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>角色</th>
+                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>创建时间</th>
+                    <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #e1e3e5' }}>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(user => (
+                    <tr key={user.id} style={{ borderBottom: '1px solid #e1e3e5' }}>
+                      <td style={{ padding: '12px' }}>{user.username}</td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: user.role === 'admin' ? '#fed3d1' : '#aee9d1',
+                          color: user.role === 'admin' ? '#d72c0d' : '#007f5f',
+                          fontSize: '12px'
+                        }}>
+                          {user.role === 'admin' ? '管理员' : '查看者'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', color: '#637381', fontSize: '14px' }}>
+                        {user.createdAt ? new Date(user.createdAt).toLocaleString('zh-CN') : '-'}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleOpenEditUser(user)}
+                          style={{
+                            padding: '4px 12px',
+                            marginRight: '8px',
+                            backgroundColor: '#e3e5e7',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          编辑
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user)}
+                          disabled={user.id === userSession.userId}
+                          style={{
+                            padding: '4px 12px',
+                            backgroundColor: user.id === userSession.userId ? '#f0f0f0' : '#fed3d1',
+                            color: user.id === userSession.userId ? '#999' : '#d72c0d',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: user.id === userSession.userId ? 'not-allowed' : 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {users.length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#637381' }}>
+                        暂无用户数据
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* 订单管理 Tab 内容 */}
+        {activeTab === 'orders' && (
+        <>
         {/* 页面标题和状态 */}
         <div className={styles.ordersSection}>
           <div className={styles.sectionHeader}>
@@ -1946,7 +2200,131 @@ export default function PublicOrders() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
+      
+      {/* 用户管理模态框 */}
+      {userModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>
+              {editingUser ? '编辑用户' : '添加用户'}
+            </h3>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                用户名
+              </label>
+              <input
+                type="text"
+                value={userForm.username}
+                onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+                placeholder="请输入用户名"
+              />
+            </div>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                密码 {editingUser && <span style={{ color: '#637381', fontWeight: 'normal' }}>(留空表示不修改)</span>}
+              </label>
+              <input
+                type="password"
+                value={userForm.password}
+                onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+                placeholder={editingUser ? "留空表示不修改密码" : "请输入密码（至少6位）"}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                角色
+              </label>
+              <select
+                value={userForm.role}
+                onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <option value="viewer">查看者</option>
+                <option value="admin">管理员</option>
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                onClick={() => {
+                  setUserModalOpen(false);
+                  setEditingUser(null);
+                  setUserForm({ username: '', password: '', role: 'viewer' });
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSubmitUser}
+                disabled={!userForm.username || (!editingUser && !userForm.password)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  backgroundColor: (!userForm.username || (!editingUser && !userForm.password)) ? '#ccc' : '#2c6ecb',
+                  color: 'white',
+                  cursor: (!userForm.username || (!editingUser && !userForm.password)) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {editingUser ? '保存' : '创建'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* 顺丰打印模态框 */}
       {printModalOpen && (
