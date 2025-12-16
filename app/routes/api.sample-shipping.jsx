@@ -97,7 +97,7 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     
     return {
       product_sku: productSku,
-      quantity: item.quantity,
+      quantity: parseInt(item.quantity, 10) || 1,  // 确保是整数
       batch_list: "",
       hs_code: "",
       item_id: item.id.replace('gid://shopify/LineItem/', ''),
@@ -202,25 +202,14 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
     customer_package_code: options.packageCode || DEFAULT_CONFIG.customer_package_code,
     customer_package_type: DEFAULT_CONFIG.customer_package_type,
     
-    // 组合发货
+    // 组合发货 - 不使用时设为空数组
     is_combination: 0,
-    combination_list: [
-      {
-        model_code: "null",
-        model_name: "",
-        product_list: [
-          {
-            product_sku: "null",
-            quantity: "null"
-          }
-        ]
-      }
-    ],
+    combination_list: [],
     
     // 其他配置
     ooh_code: "",
     order_desc: options.orderDesc || "",
-    product_quanlity: items.reduce((sum, item) => sum + item.quantity, 0),
+    product_quanlity: items.reduce((sum, item) => sum + (parseInt(item.quantity, 10) || 0), 0),
     validity_type: DEFAULT_CONFIG.validity_type,
     consignee_type: "",
     is_shipping_method_not_allow_update: 0
