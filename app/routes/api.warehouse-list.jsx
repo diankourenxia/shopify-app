@@ -5,8 +5,9 @@ import { json } from "@remix-run/node";
  */
 
 // 谷仓API服务地址
-const WAREHOUSE_API_BASE_URL = process.env.WAREHOUSE_API_BASE_URL || "https://open.goodcang.com";
+// 注意：仓库和物流接口使用 oms.goodcang.net，其他接口使用 open.goodcang.com
 const OMS_API_BASE_URL = process.env.OMS_API_BASE_URL || "https://oms.goodcang.net";
+const OPEN_API_BASE_URL = process.env.WAREHOUSE_API_BASE_URL || "https://open.goodcang.com";
 
 // 谷仓API认证信息
 const APP_TOKEN = process.env.WAREHOUSE_API_TOKEN || "23262f3d5961fcfed4bbf37174f069eb";
@@ -29,9 +30,10 @@ function getGoodcangHeaders() {
 /**
  * 调用谷仓 API 获取仓库列表
  * 谷仓API文档: 获取仓库信息 /public_open/base_data/get_warehouse
+ * 注意：使用 oms.goodcang.net 域名
  */
 async function fetchWarehouseList() {
-  const apiUrl = `${WAREHOUSE_API_BASE_URL}/public_open/base_data/get_warehouse`;
+  const apiUrl = `${OMS_API_BASE_URL}/public_open/base_data/get_warehouse`;
   
   console.log('=== 调用获取仓库信息接口 ===');
   console.log('URL:', apiUrl);
@@ -69,10 +71,10 @@ async function fetchWarehouseList() {
 /**
  * 调用谷仓 API 获取物流方式列表
  * 谷仓API文档: 获取物流产品 /public_open/base_data/get_shipping_method
- * 注意：该接口可能需要 warehouse_code 参数
+ * 注意：该接口需要 warehouse_code 参数，使用 oms.goodcang.net 域名
  */
 async function fetchShippingMethods(warehouseCode) {
-  const apiUrl = `${WAREHOUSE_API_BASE_URL}/public_open/base_data/get_shipping_method`;
+  const apiUrl = `${OMS_API_BASE_URL}/public_open/base_data/get_shipping_method`;
   
   console.log('=== 调用获取物流产品接口 ===');
   console.log('URL:', apiUrl);
