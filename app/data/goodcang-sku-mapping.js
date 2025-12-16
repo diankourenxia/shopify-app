@@ -434,15 +434,23 @@ export function findGoodcangSku(title, sku, variantTitle) {
   
   // 第二轮：用提取的编码在映射表中查找
   for (const code of extractedCodes) {
-    // 在所有映射key中查找包含该编码的项
+    // 在所有映射key中查找匹配的项
     for (const [key, value] of Object.entries(goodcangSkuMapping)) {
-      const normalizedKey = normalizeLeadingZeros(key.toUpperCase()).replace(/-/g, '');
-      const normalizedCode = normalizeLeadingZeros(code).replace(/-/g, '');
+      const normalizedKey = normalizeLeadingZeros(key.toUpperCase());
+      const normalizedCode = normalizeLeadingZeros(code);
       
-      // 检查key是否以该编码结尾或包含该编码
-      if (normalizedKey.endsWith(normalizedCode) || 
-          normalizedKey.includes(normalizedCode) ||
-          normalizeLeadingZeros(key.toUpperCase()).includes(normalizeLeadingZeros(code))) {
+      // 严格匹配：key 必须以 code 结尾（精确的数字编码匹配）
+      // 例如 CELINA8823-2 应该匹配 8823-2，而不是 8823-26
+      // 去掉横线后比较：CELINA88232 以 88232 结尾
+      const keyNoDash = normalizedKey.replace(/-/g, '');
+      const codeNoDash = normalizedCode.replace(/-/g, '');
+      
+      // 检查是否精确匹配（以编码结尾，且编码前面是字母或横线）
+      const endsWithCode = keyNoDash.endsWith(codeNoDash);
+      const exactMatch = normalizedKey.endsWith(normalizedCode) || 
+                         normalizedKey.endsWith('-' + normalizedCode);
+      
+      if (exactMatch || endsWithCode) {
         // 额外验证：如果有产品名，优先匹配产品名相同的
         if (productName && key.toUpperCase().startsWith(productName)) {
           return {
@@ -454,13 +462,18 @@ export function findGoodcangSku(title, sku, variantTitle) {
       }
     }
     
-    // 如果没有产品名匹配，尝试任意匹配
+    // 如果没有产品名匹配，尝试任意匹配（但仍然要求精确结尾）
     for (const [key, value] of Object.entries(goodcangSkuMapping)) {
-      const normalizedKey = normalizeLeadingZeros(key.toUpperCase()).replace(/-/g, '');
-      const normalizedCode = normalizeLeadingZeros(code).replace(/-/g, '');
+      const normalizedKey = normalizeLeadingZeros(key.toUpperCase());
+      const normalizedCode = normalizeLeadingZeros(code);
+      const keyNoDash = normalizedKey.replace(/-/g, '');
+      const codeNoDash = normalizedCode.replace(/-/g, '');
       
-      if (normalizedKey.endsWith(normalizedCode) || 
-          normalizeLeadingZeros(key.toUpperCase()).includes(normalizeLeadingZeros(code))) {
+      const endsWithCode = keyNoDash.endsWith(codeNoDash);
+      const exactMatch = normalizedKey.endsWith(normalizedCode) || 
+                         normalizedKey.endsWith('-' + normalizedCode);
+      
+      if (exactMatch || endsWithCode) {
         return {
           found: true,
           productCode: key,
