@@ -26,6 +26,7 @@ import {
 import * as XLSX from 'xlsx';
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
+import { findGoodcangSku } from "../data/goodcang-sku-mapping";
 
 export const loader = async ({ request }) => {
   try {
@@ -1008,6 +1009,8 @@ export default function Orders() {
     warehouseCode: 'USEA',
     orderDesc: '',
   });
+  const [sampleShippingItems, setSampleShippingItems] = useState([]); // 小样发货商品匹配信息
+  const [sampleShippingConfirmed, setSampleShippingConfirmed] = useState(false); // 是否已确认商品匹配
   const [printModalOpen, setPrintModalOpen] = useState(false); // 打印弹窗
   const [printOrderId, setPrintOrderId] = useState(null); // 要打印的订单ID
   const [parcelQuantity, setParcelQuantity] = useState("1"); // 包裹数量
@@ -2433,17 +2436,65 @@ export default function Orders() {
   const handleOpenSampleShippingModal = (orderId) => {
     setSampleShippingOrderId(orderId);
     setSampleShippingModalOpen(true);
+    setSampleShippingConfirmed(false);
     setSampleShippingConfig({
       customSku: '',
       shippingMethod: 'FEDEX-SMALLPARCEL',
       warehouseCode: 'USEA',
       orderDesc: '',
     });
+    
+    // 获取订单商品并匹配谷仓SKU
+    const order = orders.find(o => o.id === `gid://shopify/Order/${orderId}`) || 
+                  orders.find(o => o.id.includes(orderId));
+    if (order?.lineItems?.edges) {
+      const items = order.lineItems.edges.map(({ node: item }) => {
+        const sku = item.variant?.sku || '';
+        const variantTitle = item.variant?.title || '';
+        const title = item.title || '';
+        const matchResult = findGoodcangSku(title, sku, variantTitle);
+        
+        return {
+          id: item.id,
+          title: title,
+          sku: sku,
+          variantTitle: variantTitle,
+          quantity: item.quantity,
+          found: matchResult.found,
+          productCode: matchResult.productCode,
+          goodcangCode: matchResult.goodcangCode,
+        };
+      });
+      setSampleShippingItems(items);
+    } else {
+      setSampleShippingItems([]);
+    }
   };
 
   // 执行小样发货
   const handleSampleShipping = () => {
     if (!sampleShippingOrderId) return;
+    
+    // 检查是否所有商品都已匹配
+    const unmatchedItems = sampleShippingItems.filter(item => !item.found && !item.goodcangCode);
+    if (unmatchedItems.length > 0 && !sampleShippingConfirmed) {
+      alert('有商品未匹配到谷仓SKU，请先确认商品信息');
+      return;
+    }
+    
+    // 构建SKU映射 - 使用商品ID和SKU作为key
+    const skuMapping = {};
+    sampleShippingItems.forEach(item => {
+      if (item.goodcangCode) {
+        // 同时使用 sku 和 item.id 作为 key，确保后端能匹配到
+        if (item.sku) {
+          skuMapping[item.sku] = item.goodcangCode;
+        }
+        if (item.id) {
+          skuMapping[item.id] = item.goodcangCode;
+        }
+      }
+    });
     
     const formData = new FormData();
     formData.append("action", "createSampleShipping");
@@ -2452,6 +2503,7 @@ export default function Orders() {
     formData.append("shippingMethod", sampleShippingConfig.shippingMethod);
     formData.append("warehouseCode", sampleShippingConfig.warehouseCode);
     formData.append("orderDesc", sampleShippingConfig.orderDesc);
+    formData.append("skuMapping", JSON.stringify(skuMapping));
     
     sampleShippingFetcher.submit(formData, { 
       method: "POST", 
@@ -3575,10 +3627,16 @@ export default function Orders() {
       <Modal
         open={sampleShippingModalOpen}
         onClose={() => setSampleShippingModalOpen(false)}
-        title="小样发货"
+        title="小样发货 - 谷仓发货"
         primaryAction={{
-          content: '确认发货',
-          onAction: handleSampleShipping,
+          content: sampleShippingConfirmed ? '确认发货' : '确认商品信息',
+          onAction: () => {
+            if (!sampleShippingConfirmed) {
+              setSampleShippingConfirmed(true);
+            } else {
+              handleSampleShipping();
+            }
+          },
           loading: sampleShippingFetcher.state === 'submitting',
         }}
         secondaryActions={[
@@ -3587,47 +3645,121 @@ export default function Orders() {
             onAction: () => setSampleShippingModalOpen(false),
           },
         ]}
+        large
       >
         <Modal.Section>
           <BlockStack gap="400">
-            <Text variant="bodyMd">
-              配置小样发货参数：
-            </Text>
-            <TextField
-              label="商品SKU"
-              value={sampleShippingConfig.customSku}
-              onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, customSku: value }))}
-              autoComplete="off"
-              helpText="留空将使用商品原有SKU"
-              placeholder="例如: SAMPLE-001"
-            />
-            <Select
-              label="物流方式"
-              options={[
-                { label: 'FedEx Small Parcel', value: 'FEDEX-SMALLPARCEL' },
-                { label: 'UPS Ground', value: 'UPS-GROUND' },
-                { label: 'USPS Priority', value: 'USPS-PRIORITY' },
-              ]}
-              value={sampleShippingConfig.shippingMethod}
-              onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, shippingMethod: value }))}
-            />
-            <Select
-              label="发货仓库"
-              options={[
-                { label: '美东仓 (USEA)', value: 'USEA' },
-                { label: '美西仓 (USWE)', value: 'USWE' },
-              ]}
-              value={sampleShippingConfig.warehouseCode}
-              onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, warehouseCode: value }))}
-            />
-            <TextField
-              label="订单备注"
-              value={sampleShippingConfig.orderDesc}
-              onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, orderDesc: value }))}
-              autoComplete="off"
-              multiline={2}
-              placeholder="可选的订单备注信息"
-            />
+            {/* 商品匹配信息 */}
+            <Text variant="headingMd">商品谷仓SKU匹配</Text>
+            {sampleShippingItems.length > 0 ? (
+              <BlockStack gap="300">
+                {sampleShippingItems.some(item => !item.found) && (
+                  <Box padding="300" background="bg-surface-warning">
+                    <Text>⚠️ 部分商品未匹配到谷仓SKU，请手动确认或填写正确的谷仓条码</Text>
+                  </Box>
+                )}
+                {sampleShippingItems.every(item => item.found) && (
+                  <Box padding="300" background="bg-surface-success">
+                    <Text>✅ 所有商品已成功匹配谷仓SKU</Text>
+                  </Box>
+                )}
+                <div style={{ border: '1px solid #e1e3e5', borderRadius: '8px', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f6f6f7' }}>
+                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>商品名称</th>
+                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>数量</th>
+                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>原SKU</th>
+                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e1e3e5' }}>谷仓条码</th>
+                        <th style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid #e1e3e5' }}>状态</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sampleShippingItems.map((item, index) => (
+                        <tr key={item.id} style={{ borderBottom: index < sampleShippingItems.length - 1 ? '1px solid #e1e3e5' : 'none' }}>
+                          <td style={{ padding: '10px' }}>
+                            <Text variant="bodyMd">{item.title}</Text>
+                            {item.variantTitle && item.variantTitle !== 'Default Title' && (
+                              <Text variant="bodySm" tone="subdued">{item.variantTitle}</Text>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px' }}>{item.quantity}</td>
+                          <td style={{ padding: '10px' }}>
+                            <Text variant="bodySm" tone="subdued">{item.sku || '-'}</Text>
+                          </td>
+                          <td style={{ padding: '10px' }}>
+                            <TextField
+                              value={item.goodcangCode}
+                              onChange={(value) => {
+                                setSampleShippingItems(prev => prev.map((it, idx) => 
+                                  idx === index ? { ...it, goodcangCode: value, found: !!value } : it
+                                ));
+                                setSampleShippingConfirmed(false);
+                              }}
+                              autoComplete="off"
+                              placeholder="输入谷仓条码"
+                              size="slim"
+                            />
+                          </td>
+                          <td style={{ padding: '10px', textAlign: 'center' }}>
+                            {item.found ? (
+                              <Badge tone="success">已匹配</Badge>
+                            ) : (
+                              <Badge tone="warning">未匹配</Badge>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </BlockStack>
+            ) : (
+              <Text variant="bodyMd" tone="subdued">未找到商品信息</Text>
+            )}
+
+            {sampleShippingConfirmed && (
+              <>
+                <Box paddingBlockStart="400">
+                  <Text variant="headingMd">发货配置</Text>
+                </Box>
+                <TextField
+                  label="自定义SKU（可选）"
+                  value={sampleShippingConfig.customSku}
+                  onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, customSku: value }))}
+                  autoComplete="off"
+                  helpText="留空将使用上面匹配的谷仓条码"
+                  placeholder="例如: SAMPLE-001"
+                />
+                <Select
+                  label="物流方式"
+                  options={[
+                    { label: 'FedEx Small Parcel', value: 'FEDEX-SMALLPARCEL' },
+                    { label: 'UPS Ground', value: 'UPS-GROUND' },
+                    { label: 'USPS Priority', value: 'USPS-PRIORITY' },
+                  ]}
+                  value={sampleShippingConfig.shippingMethod}
+                  onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, shippingMethod: value }))}
+                />
+                <Select
+                  label="发货仓库"
+                  options={[
+                    { label: '美东仓 (USEA)', value: 'USEA' },
+                    { label: '美西仓 (USWE)', value: 'USWE' },
+                  ]}
+                  value={sampleShippingConfig.warehouseCode}
+                  onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, warehouseCode: value }))}
+                />
+                <TextField
+                  label="订单备注"
+                  value={sampleShippingConfig.orderDesc}
+                  onChange={(value) => setSampleShippingConfig(prev => ({ ...prev, orderDesc: value }))}
+                  autoComplete="off"
+                  multiline={2}
+                  placeholder="可选的订单备注信息"
+                />
+              </>
+            )}
           </BlockStack>
         </Modal.Section>
       </Modal>

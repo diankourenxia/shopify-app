@@ -89,8 +89,10 @@ function convertShopifyOrderToSampleOrder(shopifyOrder, options = {}) {
   
   // 构建商品列表
   const items = shopifyOrder.lineItems.edges.map(({ node: item }, index) => {
-    // 优先使用 SKU 映射，其次使用商品 SKU，最后使用自定义 SKU
-    let productSku = skuMapping[item.variant?.sku] || item.variant?.sku || customSku || "SAMPLE-DEFAULT";
+    // 优先使用 SKU 映射（支持多种key格式），其次使用商品 SKU，最后使用自定义 SKU
+    const itemSku = item.variant?.sku || '';
+    const itemId = item.id;
+    let productSku = skuMapping[itemSku] || skuMapping[itemId] || itemSku || customSku || "SAMPLE-DEFAULT";
     
     return {
       product_sku: productSku,
@@ -219,6 +221,17 @@ export const action = async ({ request }) => {
       const shippingMethod = formData.get("shippingMethod");
       const warehouseCode = formData.get("warehouseCode");
       const orderDesc = formData.get("orderDesc");
+      const skuMappingStr = formData.get("skuMapping");
+      
+      // 解析SKU映射
+      let skuMapping = {};
+      try {
+        if (skuMappingStr) {
+          skuMapping = JSON.parse(skuMappingStr);
+        }
+      } catch (e) {
+        console.warn("解析SKU映射失败:", e);
+      }
       
       if (!orderId) {
         return json({ success: false, error: "缺少订单ID" }, { status: 400 });
@@ -284,6 +297,7 @@ export const action = async ({ request }) => {
 
       // 转换订单数据
       const sampleOrderData = convertShopifyOrderToSampleOrder(shopifyOrder, {
+        skuMapping,
         customSku,
         shippingMethod,
         warehouseCode,
