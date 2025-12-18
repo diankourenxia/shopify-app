@@ -149,16 +149,38 @@ function parseStyle(title, properties) {
     'Euro Pleat - Triple': '韩褶-7型-3折',
     'Rod Pocket': '穿杆带遮轨',
     'Grommet Top': '打孔',
-    'Ripple Fold': '蛇形帘（铆钉）',
     'Flat Panel': '吊环挂钩（四合一）',
     'Back Tab': '背带式'
   };
+  
+  // 先收集 Tape 类型信息
+  let tapeType = null;
+  for (const prop of properties || []) {
+    const name = prop.name || "";
+    if (name.includes("Tape")) {
+      tapeType = prop.value;
+      break;
+    }
+  }
   
   // 从属性中查找款式信息
   for (const prop of properties || []) {
     const name = prop.name?.toLowerCase() || "";
     if (name.includes("header") || name.includes("style") || name.includes("款式") || name.includes("type")) {
       const headerValue = prop.value?.split('(')[0].trim() || "";
+      
+      // 特殊处理 Ripple Fold：根据 Tape 类型区分
+      if (headerValue === 'Ripple Fold') {
+        if (tapeType && tapeType.includes('Hook')) {
+          return '蛇形帘（挂钩）';
+        } else if (tapeType && tapeType.includes('Buckle')) {
+          return '蛇形帘（铆钉）';
+        } else {
+          // 如果没有 Tape 信息，默认铆钉
+          return '蛇形帘（铆钉）';
+        }
+      }
+      
       return headerMapping[headerValue] || headerValue || prop.value;
     }
   }
@@ -168,7 +190,7 @@ function parseStyle(title, properties) {
   if (titleLower.includes("grommet")) return "打孔";
   if (titleLower.includes("rod pocket")) return "穿杆带遮轨";
   if (titleLower.includes("pinch pleat")) return "韩褶";
-  if (titleLower.includes("ripple")) return "蛇形帘";
+  if (titleLower.includes("ripple")) return "蛇形帘（铆钉）";
   if (titleLower.includes("back tab")) return "背带式";
   
   return "";
@@ -203,7 +225,13 @@ function parseLining(title, properties) {
  * 生成水洗标 HTML 内容
  */
 function generateWashLabelHTML(labelData) {
-  const { orderNo, fabricModel, width, height, style, lining, options, note } = labelData;
+  const { orderNo, fabricModel, width, height, style, lining, options, note, fontSize = 14 } = labelData;
+  
+  // 根据基准字体大小计算其他尺寸
+  const baseFontSize = fontSize;
+  const smallFontSize = Math.max(10, fontSize - 2);
+  const checkboxSize = Math.max(14, fontSize + 2);
+  const lineHeight = fontSize <= 14 ? 2 : 1.8;
   
   // 格式化打印时间
   const printTime = new Date().toLocaleString('zh-CN', {
@@ -215,8 +243,8 @@ function generateWashLabelHTML(labelData) {
   });
   
   const checkbox = (checked) => checked 
-    ? `<span style="display:inline-block;width:16px;height:16px;border:2px solid #1a365d;background:#1a365d;margin:0 8px;vertical-align:middle;"></span>`
-    : `<span style="display:inline-block;width:16px;height:16px;border:2px solid #1a365d;background:white;margin:0 8px;vertical-align:middle;"></span>`;
+    ? `<span style="display:inline-block;width:${checkboxSize}px;height:${checkboxSize}px;border:2px solid #1a365d;background:#1a365d;margin:0 8px;vertical-align:middle;"></span>`
+    : `<span style="display:inline-block;width:${checkboxSize}px;height:${checkboxSize}px;border:2px solid #1a365d;background:white;margin:0 8px;vertical-align:middle;"></span>`;
 
   return `
 <!DOCTYPE html>
@@ -230,8 +258,8 @@ function generateWashLabelHTML(labelData) {
     }
     body {
       font-family: "Microsoft YaHei", "SimHei", Arial, sans-serif;
-      font-size: 14px;
-      line-height: 2;
+      font-size: ${baseFontSize}px;
+      line-height: ${lineHeight};
       padding: 10px;
       margin: 0;
     }
@@ -304,7 +332,7 @@ function generateWashLabelHTML(labelData) {
     
     ${note ? `<div class="row" style="margin-top: 10px;"><span class="label">备注:</span> <span class="value">${note}</span></div>` : ""}
     
-    <div class="row print-time" style="margin-top: 15px; font-size: 12px; color: #666;">
+    <div class="row print-time" style="margin-top: 15px; font-size: ${smallFontSize}px; color: #666;">
       打印时间: ${printTime}
     </div>
   </div>
@@ -316,7 +344,14 @@ function generateWashLabelHTML(labelData) {
 /**
  * 生成多个水洗标的 HTML（用于批量打印）
  */
-function generateMultiLabelHTML(labels) {
+function generateMultiLabelHTML(labels, fontSize = 14) {
+  // 根据基准字体大小计算其他尺寸
+  const baseFontSize = fontSize;
+  const smallFontSize = Math.max(8, fontSize - 4);
+  const tinyFontSize = Math.max(7, fontSize - 5);
+  const checkboxSize = Math.max(10, fontSize - 2);
+  const optionFontSize = Math.max(8, fontSize - 4);
+  
   // 格式化打印时间
   const printTime = new Date().toLocaleString('zh-CN', {
     year: 'numeric',
@@ -329,8 +364,8 @@ function generateMultiLabelHTML(labels) {
   const labelsHTML = labels.map((labelData, idx) => {
     const { orderNo, fabricModel, width, height, style, lining, options, quantity, note } = labelData;
     const checkbox = (checked) => checked 
-      ? `<span style=\"display:inline-block;width:12px;height:12px;border:1.5px solid #1a365d;background:#1a365d;margin:0 3px;vertical-align:middle;\"></span>`
-      : `<span style=\"display:inline-block;width:12px;height:12px;border:1.5px solid #1a365d;background:white;margin:0 3px;vertical-align:middle;\"></span>`;
+      ? `<span style=\"display:inline-block;width:${checkboxSize}px;height:${checkboxSize}px;border:1.5px solid #1a365d;background:#1a365d;margin:0 3px;vertical-align:middle;\"></span>`
+      : `<span style=\"display:inline-block;width:${checkboxSize}px;height:${checkboxSize}px;border:1.5px solid #1a365d;background:white;margin:0 3px;vertical-align:middle;\"></span>`;
     // 只有不是最后一个才加分页
     const pageBreak = idx < labels.length - 1 ? 'page-break-after: always;' : '';
     // 自动识别 liningColor/color/颜色 字段
@@ -359,7 +394,7 @@ function generateMultiLabelHTML(labels) {
       `</div>`;
   }).join("");
 
-  return `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>水洗标打印</title><style>@page{size:A4;margin:10mm;}@media print{.print-btn{display:none;}.color-block{print-color-adjust:exact;-webkit-print-color-adjust:exact;}}body{font-family:'Microsoft YaHei','SimHei',Arial,sans-serif;font-size:9px;line-height:1.4;padding:0;margin:0;}.label-card{width:40mm;border:1px solid #ccc;padding:5px;box-sizing:border-box;margin:0;}.row{margin-bottom:2px;}.label{font-weight:bold;}.value{margin-left:2px;}.size-row{display:flex;gap:7px;}.options-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:3px;}.option{display:flex;align-items:center;font-size:8px;}.quantity{margin-top:3px;font-weight:bold;color:#666;}.note{margin-top:3px;}.print-time{margin-top:4px;font-size:7px;color:#999;}.print-btn{position:fixed;top:10px;right:10px;padding:6px 10px;background:#1a365d;color:white;border:none;border-radius:5px;cursor:pointer;font-size:10px;}.print-btn:hover{background:#2c5282;}</style></head><body><button class=\"print-btn\" onclick=\"window.print()\">打印水洗标</button>${labelsHTML}</body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>水洗标打印</title><style>@page{size:A4;margin:10mm;}@media print{.print-btn{display:none;}.color-block{print-color-adjust:exact;-webkit-print-color-adjust:exact;}}body{font-family:'Microsoft YaHei','SimHei',Arial,sans-serif;font-size:${baseFontSize}px;line-height:1.4;padding:0;margin:0;}.label-card{width:40mm;border:1px solid #ccc;padding:5px;box-sizing:border-box;margin:0;}.row{margin-bottom:2px;}.label{font-weight:bold;}.value{margin-left:2px;}.size-row{display:flex;gap:7px;}.options-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:3px;}.option{display:flex;align-items:center;font-size:${optionFontSize}px;}.quantity{margin-top:3px;font-weight:bold;color:#666;}.note{margin-top:3px;}.print-time{margin-top:4px;font-size:${tinyFontSize}px;color:#999;}.print-btn{position:fixed;top:10px;right:10px;padding:6px 10px;background:#1a365d;color:white;border:none;border-radius:5px;cursor:pointer;font-size:10px;}.print-btn:hover{background:#2c5282;}</style></head><body><button class=\"print-btn\" onclick=\"window.print()\">打印水洗标</button>${labelsHTML}</body></html>`;
 }
 
 export const action = async ({ request }) => {
@@ -375,6 +410,7 @@ export const action = async ({ request }) => {
       const propertiesStr = formData.get("properties") || "[]";
       const note = formData.get("note") || "";
       const quantity = parseInt(formData.get("quantity") || "1");
+      const fontSize = parseInt(formData.get("fontSize") || "14"); // 默认14px
 
       let properties = [];
       try {
@@ -397,6 +433,7 @@ export const action = async ({ request }) => {
         options: options,
         note: note,
         quantity: quantity,
+        fontSize: fontSize, // 添加字体大小
       };
 
       // 如果数量大于1，生成多个水洗标
@@ -404,7 +441,7 @@ export const action = async ({ request }) => {
       if (quantity > 1) {
         // 生成多个相同的水洗标
         const labels = Array(quantity).fill(labelData);
-        html = generateMultiLabelHTML(labels);
+        html = generateMultiLabelHTML(labels, fontSize);
       } else {
         html = generateWashLabelHTML(labelData);
       }

@@ -362,6 +362,7 @@ export default function PublicOrders() {
   const [washLabelModalOpen, setWashLabelModalOpen] = useState(false);
   const [washLabelItem, setWashLabelItem] = useState(null);
   const [washLabelNote, setWashLabelNote] = useState("");
+  const [washLabelFontSize, setWashLabelFontSize] = useState("14"); // 默认字体大小
   const [cacheTimestamp, setCacheTimestamp] = useState(initialCacheTimestamp);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrders, setSelectedOrders] = useState(new Set());
@@ -385,10 +386,16 @@ export default function PublicOrders() {
     if (!customAttributes || !Array.isArray(customAttributes)) return null;
     const dimensions = {};
     let isRomanShade = false; // 标记是否为罗马帘
+    let isTrack = false; // 标记是否为轨道产品
     
     // 检查标题中是否包含Roman
     if (title && title.toLowerCase().includes('roman')) {
       isRomanShade = true;
+    }
+    
+    // 检查标题中是否包含Track（轨道产品）
+    if (title && title.toLowerCase().includes('track')) {
+      isTrack = true;
     }
     
     const headerMapping = {
@@ -489,6 +496,21 @@ export default function PublicOrders() {
         dimensions.room = value;
       }
       
+      // 轨道产品属性：_Size(inch) 和 _Opening Direction
+      if (key.includes('_Size') || key.includes('Size(inch)')) {
+        const inchMatch = value.match(/(\d+(?:\.\d+)?)/);
+        if (inchMatch) {
+          const inches = parseFloat(inchMatch[1]);
+          const centimeters = Math.round(inches * 2.54 * 100) / 100;
+          dimensions.trackSize = centimeters; // 轨道尺寸（厘米）
+          dimensions.trackSizeInch = inches;  // 保留英寸值
+        }
+      }
+      if (key.includes('Opening Direction') || key.includes('_Opening')) {
+        // 开启方向：Left, Right, Center 等
+        dimensions.openingDirection = value;
+      }
+      
       // 查找 Width Fraction 和 Height Fraction
       if (key.includes('Width Fraction')) {
         const fractionMatch = value.match(/(\d+)\/(\d+)/);
@@ -528,8 +550,8 @@ export default function PublicOrders() {
       dimensions.length = Math.round((dimensions.length + fractionInCm) * 100) / 100;
     }
     
-    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory || dimensions.mountType || dimensions.liftStyle || dimensions.cordPosition) {
-      return { dimensions, isRomanShade };
+    if (dimensions.width || dimensions.length || dimensions.header || dimensions.tieback || dimensions.room || dimensions.liningType || dimensions.bodyMemory || dimensions.mountType || dimensions.liftStyle || dimensions.cordPosition || dimensions.trackSize || dimensions.openingDirection || isTrack) {
+      return { dimensions, isRomanShade, isTrack };
     }
     
     return null;
@@ -544,9 +566,8 @@ export default function PublicOrders() {
         ? parseDimensions(item.customAttributes, item.quantity, item.title)
         : null;
       
-      const dimensions = result?.dimensions;
-      
-      if (dimensions) {
+      // 如果 parseDimensions 返回结果（包括轨道产品），则认为有尺寸信息
+      if (result) {
         return true;
       }
     }
@@ -889,6 +910,7 @@ export default function PublicOrders() {
   const handleOpenWashLabelModal = (orderId, orderName, item) => {
     setWashLabelItem({ orderId, orderName, item });
     setWashLabelNote("");
+    setWashLabelFontSize("14"); // 重置为默认字体大小
     setWashLabelModalOpen(true);
   };
 
@@ -968,6 +990,13 @@ export default function PublicOrders() {
     quantityInput.name = 'quantity';
     quantityInput.value = item.quantity.toString();
     form.appendChild(quantityInput);
+    
+    // 传递字体大小
+    const fontSizeInput = document.createElement('input');
+    fontSizeInput.type = 'hidden';
+    fontSizeInput.name = 'fontSize';
+    fontSizeInput.value = washLabelFontSize;
+    form.appendChild(fontSizeInput);
     
     document.body.appendChild(form);
     form.submit();
@@ -1332,14 +1361,19 @@ export default function PublicOrders() {
   };
 
   // 渲染尺寸信息的函数
-  const renderDimensions = (dimensions, quantity, isRomanShade) => {
+  const renderDimensions = (dimensions, quantity, isRomanShade, isTrack) => {
     if (!dimensions) return null;
     
     const parts = [];
     parts.push(`数量: ${quantity}`);
     
-    // 罗马帘特定字段
-    if (isRomanShade) {
+    // 轨道产品特定字段
+    if (isTrack) {
+      parts.push(`类型: 轨道`);
+      if (dimensions.trackSize) parts.push(`尺寸: ${dimensions.trackSize}cm (${dimensions.trackSizeInch}inch)`);
+      if (dimensions.openingDirection) parts.push(`开启方向: ${dimensions.openingDirection}`);
+    } else if (isRomanShade) {
+      // 罗马帘特定字段
       parts.push(`类型: 罗马帘`);
       if (dimensions.mountType) parts.push(`安装方式: ${dimensions.mountType}`);
       if (dimensions.width) parts.push(`宽: ${dimensions.width}cm`);
@@ -1377,7 +1411,7 @@ export default function PublicOrders() {
   const parseAndRenderDimensions = (customAttributes, quantity, title) => {
     const result = parseDimensions(customAttributes, quantity, title);
     if (!result) return null;
-    return renderDimensions(result.dimensions, quantity, result.isRomanShade);
+    return renderDimensions(result.dimensions, quantity, result.isRomanShade, result.isTrack);
   };
 
   return (
@@ -2479,6 +2513,30 @@ export default function PublicOrders() {
                 </p>
               </div>
             )}
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                字体大小
+              </label>
+              <select
+                value={washLabelFontSize}
+                onChange={(e) => setWashLabelFontSize(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '14px',
+                  backgroundColor: 'white'
+                }}
+              >
+                <option value="12">小 (12px)</option>
+                <option value="14">默认 (14px)</option>
+                <option value="16">大 (16px)</option>
+                <option value="18">特大 (18px)</option>
+                <option value="20">超大 (20px)</option>
+              </select>
+            </div>
             
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>

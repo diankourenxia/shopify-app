@@ -512,11 +512,9 @@ export const action = async ({ request }) => {
                 displayFulfillmentStatus
                 displayFinancialStatus
                 note
-                email
                 customer {
                   id
                   displayName
-                  email
                 }
                 shippingAddress {
                   name
@@ -1117,6 +1115,7 @@ export default function Orders() {
   const [washLabelModalOpen, setWashLabelModalOpen] = useState(false);
   const [washLabelItem, setWashLabelItem] = useState(null); // { orderId, orderName, item }
   const [washLabelNote, setWashLabelNote] = useState("");
+  const [washLabelFontSize, setWashLabelFontSize] = useState("14"); // 默认字体大小
   
   // 多选弹窗状态
   const [tagPopoverActive, setTagPopoverActive] = useState(false);
@@ -2721,6 +2720,7 @@ export default function Orders() {
   const handleOpenWashLabelModal = (orderId, orderName, item) => {
     setWashLabelItem({ orderId, orderName, item });
     setWashLabelNote("");
+    setWashLabelFontSize("14"); // 重置为默认字体大小
     setWashLabelModalOpen(true);
   };
 
@@ -2806,6 +2806,13 @@ export default function Orders() {
     quantityInput.name = 'quantity';
     quantityInput.value = item.quantity.toString();
     form.appendChild(quantityInput);
+    
+    // 传递字体大小
+    const fontSizeInput = document.createElement('input');
+    fontSizeInput.type = 'hidden';
+    fontSizeInput.name = 'fontSize';
+    fontSizeInput.value = washLabelFontSize;
+    form.appendChild(fontSizeInput);
     
     document.body.appendChild(form);
     form.submit();
@@ -4270,6 +4277,18 @@ export default function Orders() {
                 </Text>
               </>
             )}
+            <Select
+              label="字体大小"
+              options={[
+                { label: '小 (12px)', value: '12' },
+                { label: '默认 (14px)', value: '14' },
+                { label: '大 (16px)', value: '16' },
+                { label: '特大 (18px)', value: '18' },
+                { label: '超大 (20px)', value: '20' },
+              ]}
+              value={washLabelFontSize}
+              onChange={setWashLabelFontSize}
+            />
             <TextField
               label="备注"
               value={washLabelNote}
